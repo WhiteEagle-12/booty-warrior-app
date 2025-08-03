@@ -264,12 +264,19 @@ const SettingsView = ({ onBack, allLogs }) => {
     };
 
     const hasLogs = Object.keys(allLogs).length > 0;
+    
+    // FIX: Corrected the logic in useMemo to always return a consistent object shape.
     const exportOptions = useMemo(() => {
-        if (!hasLogs) return [];
+        const logs = Object.values(allLogs);
+        if (logs.length === 0) {
+            return { weeks: [], workouts: [] };
+        }
+    
         const dayOrder = { Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6, Sun: 7 };
-        const loggedWeeks = [...new Set(Object.values(allLogs).map(log => log.week))].sort((a, b) => a - b);
-        const loggedWorkouts = [...new Set(Object.values(allLogs).map(log => `workout:${log.week}-${log.dayKey}`))].sort((a, b) => {
-            const [, weekA, dayA] = a.split(/-|:/); const [, weekB, dayB] = b.split(/-|:/);
+        const loggedWeeks = [...new Set(logs.map(log => log.week))].sort((a, b) => a - b);
+        const loggedWorkouts = [...new Set(logs.map(log => `workout:${log.week}-${log.dayKey}`))].sort((a, b) => {
+            const [, weekA, dayA] = a.split(/-|:/);
+            const [, weekB, dayB] = b.split(/-|:/);
             return ((parseInt(weekA) - 1) * 7 + dayOrder[dayA]) - ((parseInt(weekB) - 1) * 7 + dayOrder[dayB]);
         });
         return { weeks: loggedWeeks, workouts: loggedWorkouts };
@@ -371,9 +378,8 @@ const AppCore = () => {
                 const workoutName = getWorkoutForDay(week, day.day);
                 const workout = programStructure[workoutName];
                 
-                // FIX: Check if workout exists before accessing its properties
                 if (!workout) {
-                    status.set(dayKey, { pm: false, isDayComplete: true }); // Treat rest days or non-existent workouts as "complete" for the view
+                    status.set(dayKey, { pm: false, isDayComplete: true });
                     return;
                 }
 
