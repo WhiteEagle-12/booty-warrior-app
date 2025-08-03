@@ -11,30 +11,33 @@ import { getAuth, onAuthStateChanged, signInAnonymously } from "firebase/auth";
 // --- PROGRAM DATA (Unchanged) ---
 const programInfo = { name: "Booty Warrior Program", weeks: 8, split: "Pull/Push/Legs/Rest/Upper/Lower" };
 const exercises = {
-    'Incline DB Press': { sets: 4, reps: '6-10', rest: '2-3 min', lastSetTechnique: 'Failure', equipment: 'dumbbell' },
-    'Barbell Bench Press': { sets: 2, reps: '5-8', rest: '2-3 min', lastSetTechnique: 'Failure', equipment: 'barbell' },
-    'Pullups': { sets: 4, reps: '6-10', rest: '2-3 min', lastSetTechnique: 'Failure', equipment: 'bodyweight' },
-    'DB Lateral Raise': { sets: 3, reps: '12-15', rest: '1-2 min', lastSetTechnique: 'Myo-reps', equipment: 'dumbbell' },
-    'Bayesian Cable Curl': { sets: 3, reps: '10-12', rest: '1-2 min', lastSetTechnique: 'Failure', equipment: 'machine' },
-    'Overhead Cable Triceps Extension': { sets: 3, reps: '10-12', rest: '1-2 min', lastSetTechnique: 'Failure', equipment: 'machine' },
-    'Smith Machine Squat': { sets: 2, reps: '6-8', rest: '2-3 min', lastSetTechnique: 'Failure', equipment: 'machine' }, 
-    'Hack Squat': { sets: 2, reps: '6-8', rest: '2-3 min', lastSetTechnique: 'Failure', equipment: 'machine' }, 
-    'Lying Leg Curl': { sets: 3, reps: '10-12', rest: '1-2 min', lastSetTechnique: 'Failure + LLPs', equipment: 'machine' },
-    'Leg Extensions': { sets: 3, reps: '10-15', rest: '1-2 min', lastSetTechnique: 'Failure', equipment: 'machine' },
-    'Standing Calf Raise': { sets: 4, reps: '10-15', rest: '1 min', lastSetTechnique: 'Static Stretch', equipment: 'machine' }, 
-    'Cable Crunch': { sets: 3, reps: '10-15', rest: '1 min', lastSetTechnique: 'Myo-reps', equipment: 'machine' },
-    'Chest Supported Row': { sets: 4, reps: '6-8', rest: '2-3 min', lastSetTechnique: 'Failure', equipment: 'machine' }, 
-    'Preacher Curl': { sets: 3, reps: '12-15', rest: '1-2 min', lastSetTechnique: 'Failure', equipment: 'barbell' }, 
-    'Pec Flies': { sets: 2, reps: '10-15', rest: '1-2 min', lastSetTechnique: 'Failure', equipment: 'machine' },
-    'EZ-Bar Skull Crusher': { sets: 3, reps: '10-12', rest: '1-2 min', lastSetTechnique: 'Failure', equipment: 'barbell' },
-    'Barbell RDL': { sets: 4, reps: '8-10', rest: '2-3 min', lastSetTechnique: 'Failure', equipment: 'barbell' },
-    'DB Bulgarian Split Squat': { sets: 3, reps: '8-12', rest: '2 min', lastSetTechnique: 'Failure', equipment: 'dumbbell' },
+    // UPDATED EXERCISES AND REP RANGES
+    'Incline DB Press': { sets: 2, reps: '5-7', rest: '2-3 min', lastSetTechnique: 'Failure', equipment: 'dumbbell' },
+    'Barbell Bench Press': { sets: 2, reps: '5-7', rest: '2-3 min', lastSetTechnique: 'Failure', equipment: 'barbell' },
+    'Pullups': { sets: 4, reps: '5-7', rest: '2-3 min', lastSetTechnique: 'Failure', equipment: 'bodyweight' },
+    'DB Lateral Raise': { sets: 3, reps: '8-10', rest: '1-2 min', lastSetTechnique: 'Myo-reps', equipment: 'dumbbell' },
+    'Bayesian Cable Curl': { sets: 3, reps: '6-8', rest: '1-2 min', lastSetTechnique: 'Failure', equipment: 'machine' },
+    'Overhead Triceps Extension': { sets: 3, reps: '6-8', rest: '1-2 min', lastSetTechnique: 'Failure', equipment: 'machine' },
+    'Smith Machine Squat': { sets: 2, reps: '5-7', rest: '2-3 min', lastSetTechnique: 'Failure', equipment: 'machine' }, 
+    'Hack Squat': { sets: 2, reps: '5-7', rest: '2-3 min', lastSetTechnique: 'Failure', equipment: 'machine' }, 
+    'Lying Leg Curl': { sets: 3, reps: '5-7', rest: '1-2 min', lastSetTechnique: 'Failure + LLPs', equipment: 'machine' },
+    'Leg Extensions': { sets: 3, reps: '5-7', rest: '1-2 min', lastSetTechnique: 'Failure', equipment: 'machine' },
+    'Standing Calf Raise': { sets: 4, reps: '5-7', rest: '1 min', lastSetTechnique: 'Static Stretch', equipment: 'machine' }, 
+    'Cable Crunch': { sets: 3, reps: '10-12', rest: '1 min', lastSetTechnique: 'Myo-reps', equipment: 'machine' },
+    'Chest Supported Row': { sets: 4, reps: '5-7', rest: '2-3 min', lastSetTechnique: 'Failure', equipment: 'machine' }, 
+    'Preacher Curl': { sets: 3, reps: '8-10', rest: '1-2 min', lastSetTechnique: 'Failure', equipment: 'barbell' }, 
+    'Pec Flies': { sets: 2, reps: '6-8', rest: '1-2 min', lastSetTechnique: 'Failure', equipment: 'machine' },
+    'Barbell RDL': { sets: 4, reps: '5-7', rest: '2-3 min', lastSetTechnique: 'Failure', equipment: 'barbell' },
+    'DB Bulgarian Split Squat': { sets: 3, reps: '5-7', rest: '2 min', lastSetTechnique: 'Failure', equipment: 'dumbbell' },
+    'Safety Bar Squats': { sets: 2, reps: '5-7', rest: '2-3 min', lastSetTechnique: 'Failure', equipment: 'barbell' },
+    'DB Rows': { sets: 2, reps: '5-7', rest: '2-3 min', lastSetTechnique: 'Failure', equipment: 'dumbbell' },
 };
 const programStructure = {
-    'Upper (Strength Focus)': { exercises: ['Incline DB Press', 'Pullups', 'DB Lateral Raise', 'Barbell Bench Press', 'Bayesian Cable Curl', 'Overhead Cable Triceps Extension'], label: 'Upper' },
-    'Lower (Strength Focus)': { exercises: ['Smith Machine Squat', 'Hack Squat', 'Lying Leg Curl', 'Standing Calf Raise', 'Cable Crunch'], label: 'Lower' },
+    // UPDATED WORKOUT STRUCTURE
+    'Upper (Strength Focus)': { exercises: ['Incline DB Press', 'Pullups', 'DB Rows', 'Barbell Bench Press', 'Bayesian Cable Curl', 'Overhead Triceps Extension'], label: 'Upper' },
+    'Lower (Strength Focus)': { exercises: ['Smith Machine Squat', 'Hack Squat', 'Safety Bar Squats', 'Lying Leg Curl', 'Standing Calf Raise', 'Cable Crunch'], label: 'Lower' },
     'Pull (Hypertrophy Focus)': { exercises: ['Chest Supported Row', 'Pullups', 'DB Lateral Raise', 'Preacher Curl'], label: 'Pull' },
-    'Push (Hypertrophy Focus)': { exercises: ['Incline DB Press', 'Barbell Bench Press', 'DB Lateral Raise', 'EZ-Bar Skull Crusher', 'Pec Flies'], label: 'Push' },
+    'Push (Hypertrophy Focus)': { exercises: ['Incline DB Press', 'Barbell Bench Press', 'DB Lateral Raise', 'Overhead Triceps Extension', 'Pec Flies'], label: 'Push' },
     'Legs (Hypertrophy Focus)': { exercises: ['DB Bulgarian Split Squat', 'Barbell RDL', 'Leg Extensions', 'Lying Leg Curl', 'Standing Calf Raise'], label: 'Legs' },
 };
 const weeklySchedule = [
@@ -79,25 +82,43 @@ const findLastPerformanceLogs = (exerciseName, currentWeek, currentDayKey, allLo
     return logsForSession.reduce((acc, log) => { acc[log.set] = log; return acc; }, {});
 };
 
+// UPDATED: More intelligent progression suggestion algorithm
 const getProgressionSuggestion = (exerciseName, lastPerformance) => {
     if (!lastPerformance) return "Log your first set to get a baseline.";
     const exerciseDetails = getExerciseDetails(exerciseName);
     const lastSets = Object.values(lastPerformance);
     const topSet = lastSets.reduce((best, current) => (!best || calculateE1RM(current.load, current.reps, current.rir) > calculateE1RM(best.load, best.reps, best.rir) ? current : best), null);
     if (!topSet) return "Log your first set to get a baseline.";
-    const [minReps, maxReps] = exerciseDetails.reps.split('-').map(Number);
+
+    const [minReps, maxRpsStr] = exerciseDetails.reps.split('-');
+    const maxReps = parseInt(maxRpsStr, 10);
     const lastReps = parseInt(topSet.reps, 10);
     const lastWeight = parseFloat(topSet.load);
-    const lastRir = parseInt(topSet.rir, 10) || 0;
-    if (lastReps + lastRir >= maxReps) {
-        let increment = 5;
-        if (exerciseDetails.equipment === 'dumbbell') increment = 5;
-        if (exerciseDetails.equipment === 'machine') increment = 10;
+
+    // Case 1: Met or exceeded the rep range -> Increase weight
+    if (lastReps >= maxReps) {
+        let increment = 5; // Default for barbells/machines
+        if (exerciseDetails.equipment === 'dumbbell') increment = 5; // Smallest common jump
         if (exerciseDetails.equipment === 'bodyweight') return `Aim for ${lastReps + 1} reps or add weight.`;
+        
         const newWeight = lastWeight + increment;
-        return `Try ${newWeight} lbs/kg for ${minReps}-${minReps + 2} reps.`;
+        return `Try increasing weight to ${newWeight} lbs/kg for ${minReps}-${maxReps} reps.`;
     }
-    return `Aim for ${lastReps + 1} reps with ${lastWeight} lbs/kg.`;
+    
+    // Case 2: Within the rep range -> Increase reps
+    if (lastReps >= parseInt(minReps, 10) && lastReps < maxReps) {
+        return `Aim for ${lastReps + 1} reps with ${lastWeight} lbs/kg to reach the top of the rep range.`;
+    }
+
+    // Case 3: Below the rep range -> Decrease weight
+    if (lastReps < parseInt(minReps, 10)) {
+        let decrement = 5; // Default
+        if (exerciseDetails.equipment === 'dumbbell') decrement = 5;
+        const newWeight = Math.max(0, lastWeight - decrement); // Ensure weight doesn't go below 0
+        return `Try lowering weight to ~${newWeight} lbs/kg to hit the ${minReps}-${maxReps} rep range.`;
+    }
+
+    return `Aim for ${minReps}-${maxReps} reps.`; // Fallback
 };
 
 // --- Firebase Context ---
