@@ -294,9 +294,10 @@ const DashboardView = ({ onBack, allLogs }) => {
         else if (filteredExercises.length === 0 && selectedExercise !== '') setSelectedExercise('');
         else if (filteredExercises.length > 0 && selectedExercise === '') setSelectedExercise(filteredExercises[0]);
     }, [filteredExercises, selectedExercise]);
+    
     const chartData = useMemo(() => {
-        if (!selectedExercise || !allLogs) return [];
         const dayOrder = { Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6, Sun: 7 };
+        
         const sessions = Object.values(allLogs).reduce((acc, log) => {
             if (log.exercise === selectedExercise && log.load && log.reps) {
                 const sessionKey = `${log.week}-${log.dayKey}`;
@@ -305,14 +306,21 @@ const DashboardView = ({ onBack, allLogs }) => {
             }
             return acc;
         }, {});
+
         const processedData = Object.values(sessions).map(session => {
             if (!session.sets || session.sets.length === 0) return null;
             const topSet = session.sets.reduce((best, current) => (calculateE1RM(current.load, current.reps, current.rir) > calculateE1RM(best.load, best.reps, best.rir) ? current : best));
             if (!topSet || isNaN(topSet.load) || isNaN(topSet.reps)) return null;
             return { sessionLabel: `W${session.week} ${session.dayKey}`, e1RM: calculateE1RM(topSet.load, topSet.reps, topSet.rir), load: topSet.load, reps: topSet.reps };
         }).filter(Boolean);
-        return processedData.sort((a, b) => { const [wA, dA] = a.sessionLabel.substring(1).split(' '); const [wB, dB] = b.sessionLabel.substring(1).split(' '); return wA - wB || dayOrder[dA] - dayOrder[dB]; });
+
+        return processedData.sort((a, b) => { 
+            const [wA, dA] = a.sessionLabel.substring(1).split(' '); 
+            const [wB, dB] = b.sessionLabel.substring(1).split(' '); 
+            return wA - wB || dayOrder[dA] - dayOrder[dB]; 
+        });
     }, [selectedExercise, allLogs]);
+
     return (<div className="p-4 md:p-6 pb-24"><button onClick={onBack} className="flex items-center gap-2 text-sm font-medium text-blue-600 dark:text-blue-400 mb-4 hover:underline"><ArrowLeft size={16} /> Back to Program</button><div className="flex items-center mb-6"><TrendingUp className="text-blue-500 dark:text-blue-400 mr-3" size={32} /><div><h1 className="text-3xl font-bold dark:text-white">Dashboard</h1><p className="text-lg text-gray-600 dark:text-gray-400">Track Your Progress</p></div></div><div className="mb-6 space-y-4"><div><label htmlFor="exercise-search" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Search Exercise:</label><input id="exercise-search" type="text" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} placeholder="e.g., Bench Press" className="w-full p-2 bg-white dark:bg-gray-800 rounded-md border-gray-300 dark:border-gray-600 shadow-sm"/></div><div><label htmlFor="exercise-select" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Select Exercise:</label><select id="exercise-select" value={selectedExercise} onChange={e => setSelectedExercise(e.target.value)} className="w-full p-2 bg-white dark:bg-gray-800 rounded-md border-gray-300 dark:border-gray-600 shadow-sm">{filteredExercises.map(ex => <option key={ex} value={ex}>{ex}</option>)}</select></div></div>{chartData.length > 0 ? (<div className="space-y-8"><div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-4 w-full aspect-video"><h3 className="font-semibold dark:text-gray-200 mb-4">RIR-Adjusted e1RM Progression</h3><ResponsiveContainer><LineChart data={chartData}><CartesianGrid strokeDasharray="3 3" className="stroke-gray-200 dark:stroke-gray-700" /><XAxis dataKey="sessionLabel" tick={{ fill: 'var(--text-color-secondary)' }} /><YAxis domain={[dataMin => Math.max(0, Math.floor(dataMin * 0.9)), 'auto']} tick={{ fill: 'var(--text-color-secondary)' }} /><Tooltip contentStyle={{ backgroundColor: 'var(--tooltip-bg)', border: '1px solid var(--tooltip-border)' }} /><Legend /><Line type="monotone" dataKey="e1RM" name="e1RM" stroke="#3b82f6" strokeWidth={2} dot={{ r: 4 }} activeDot={{ r: 6 }} /></LineChart></ResponsiveContainer></div><div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-4 w-full aspect-video"><h3 className="font-semibold dark:text-gray-200 mb-4">Load & Reps for Top Set</h3><ResponsiveContainer><LineChart data={chartData}><CartesianGrid strokeDasharray="3 3" className="stroke-gray-200 dark:stroke-gray-700" /><XAxis dataKey="sessionLabel" tick={{ fill: 'var(--text-color-secondary)' }} /><YAxis yAxisId="left" stroke="#8884d8" label={{ value: 'Load', angle: -90, position: 'insideLeft', fill: '#8884d8' }} domain={[dataMin => Math.max(0, Math.floor(dataMin * 0.9)), 'auto']} tick={{ fill: '#8884d8' }} /><YAxis yAxisId="right" orientation="right" stroke="#82ca9d" label={{ value: 'Reps', angle: 90, position: 'insideRight', fill: '#82ca9d' }} domain={[dataMin => Math.max(0, Math.floor(dataMin * 0.8)), 'auto']} allowDecimals={false} tick={{ fill: '#82ca9d' }} /><Tooltip contentStyle={{ backgroundColor: 'var(--tooltip-bg)', border: '1px solid var(--tooltip-border)' }} /><Legend /><Line yAxisId="left" type="monotone" dataKey="load" name="Load" stroke="#8884d8" /><Line yAxisId="right" type="monotone" dataKey="reps" name="Reps" stroke="#82ca9d" /></LineChart></ResponsiveContainer></div></div>) : (<div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-8 w-full aspect-video flex flex-col justify-center items-center text-center"><BarChart2 size={48} className="text-gray-400 dark:text-gray-500 mb-4" /><h3 className="font-semibold text-xl dark:text-gray-200">No Data Yet</h3><p className="text-gray-500 dark:text-gray-400">{selectedExercise ? `Log some sets for ${selectedExercise} to see your progress.` : 'Select an exercise to view your charts.'}</p></div>)}</div>);
 };
 
