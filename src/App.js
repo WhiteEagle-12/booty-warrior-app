@@ -267,7 +267,7 @@ const SettingsView = ({ onBack, allLogs }) => {
     
     const exportOptions = useMemo(() => {
         const logs = Object.values(allLogs);
-        if (logs.length === 0) {
+        if (!hasLogs) {
             return { weeks: [], workouts: [] };
         }
     
@@ -279,7 +279,7 @@ const SettingsView = ({ onBack, allLogs }) => {
             return ((parseInt(weekA) - 1) * 7 + dayOrder[dayA]) - ((parseInt(weekB) - 1) * 7 + dayOrder[dayB]);
         });
         return { weeks: loggedWeeks, workouts: loggedWorkouts };
-    }, [allLogs]);
+    }, [allLogs, hasLogs]);
 
     return (<div className="p-4 md:p-6 pb-24"><button onClick={onBack} className="flex items-center gap-2 text-sm font-medium text-blue-600 dark:text-blue-400 mb-4 hover:underline"><ArrowLeft size={16}/> Back to Program</button><div className="flex items-center mb-6"><Settings className="text-blue-500 dark:text-blue-400 mr-3" size={32} /><div><h1 className="text-3xl font-bold dark:text-white">Settings</h1></div></div><div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-md space-y-6"><div className="flex justify-between items-center"><span className="font-semibold dark:text-gray-200">Dark Mode</span><button onClick={toggleTheme} className={`relative inline-flex items-center h-6 rounded-full w-11 transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 ${theme === 'dark' ? 'bg-blue-600' : 'bg-gray-200'}`}><span className={`inline-block w-4 h-4 transform bg-white rounded-full transition-transform ${theme === 'dark' ? 'translate-x-6' : 'translate-x-1'}`} /></button></div><div className="border-t border-gray-200 dark:border-gray-700"></div><div><h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">Data Management</h3><div className="flex flex-col sm:flex-row gap-4 items-center"><select value={exportSelection} onChange={(e) => setExportSelection(e.target.value)} className="w-full sm:w-auto flex-grow p-2 bg-white dark:bg-gray-700 rounded-md border-gray-300 dark:border-gray-600 shadow-sm" disabled={!hasLogs}><option value="all">All Data</option>{exportOptions.weeks?.length > 0 && (<optgroup label="By Week">{exportOptions.weeks.map(w => <option key={`week-${w}`} value={`week:${w}`}>Week {w}</option>)}</optgroup>)}{exportOptions.workouts?.length > 0 && (<optgroup label="By Single Workout">{exportOptions.workouts.map(w_key => { const [, week, day] = w_key.split(/-|:/); return (<option key={w_key} value={w_key}>Week {week} - {day}</option>);})}</optgroup>)}</select><button onClick={handleExport} disabled={!hasLogs} className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg shadow-md hover:bg-blue-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"><Download size={16} /> Export CSV</button></div></div><div className="border-t border-gray-200 dark:border-gray-700"></div><div><h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">Account</h3><div className="bg-gray-100 dark:bg-gray-900/50 p-4 rounded-lg space-y-3"><div className="flex items-center gap-3"><User className="text-gray-500 dark:text-gray-400" size={20} /><p className="text-sm text-gray-600 dark:text-gray-300 break-all"><strong>User ID:</strong> {userId || 'Loading...'}</p></div><button onClick={handleSignOut} className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg shadow-md hover:bg-red-700 transition-colors"><LogOut size={16} /> Sign Out & Start New Program</button></div></div></div></div>);
 };
