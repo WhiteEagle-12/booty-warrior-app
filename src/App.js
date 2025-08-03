@@ -5,7 +5,7 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Responsi
 // Firebase Imports - using modular v9+ syntax
 import { initializeApp } from "firebase/app";
 import { getFirestore, doc, onSnapshot, setDoc } from "firebase/firestore";
-import { getAuth, onAuthStateChanged, signInAnonymously, signOut, createUserWithEmailAndPassword, signInWithEmailAndPassword, linkWithCredential, EmailAuthProvider } from "firebase/auth";
+import { getAuth, onAuthStateChanged, signInAnonymously, signOut } from "firebase/auth";
 
 
 // --- PROGRAM DATA (Unchanged) ---
@@ -103,6 +103,7 @@ const FirebaseProvider = ({ children }) => {
     const [firebaseServices, setFirebaseServices] = useState(null);
     const [user, setUser] = useState(null);
     const [isLoading, setIsLoading] = useState(true);
+    const [customId, setCustomId] = useState(() => localStorage.getItem('bootyWarriorCustomId') || '');
 
     useEffect(() => {
         const firebaseConfig = {
@@ -120,41 +121,30 @@ const FirebaseProvider = ({ children }) => {
         setFirebaseServices({ auth, db });
 
         const unsubscribe = onAuthStateChanged(auth, (user) => {
-            setUser(user);
+            if (user) {
+                setUser(user);
+            } else {
+                signInAnonymously(auth).catch(error => console.error("Anonymous sign-in failed", error));
+            }
             setIsLoading(false);
         });
         return () => unsubscribe();
     }, []);
 
-    const handleSignOut = () => {
-        if (firebaseServices?.auth) {
-            signOut(firebaseServices.auth).catch(error => console.error("Sign out failed", error));
+    const handleSetCustomId = (id) => {
+        const sanitizedId = id.trim().replace(/[^a-zA-Z0-9-_]/g, '');
+        if (sanitizedId) {
+            localStorage.setItem('bootyWarriorCustomId', sanitizedId);
+            setCustomId(sanitizedId);
         }
-    };
-    
-    const signUpWithEmail = (email, password) => createUserWithEmailAndPassword(firebaseServices.auth, email, password);
-    const signInWithEmail = (email, password) => signInWithEmailAndPassword(firebaseServices.auth, email, password);
-    const continueAnonymously = () => signInAnonymously(firebaseServices.auth);
-    
-    const upgradeAnonymousUser = async (email, password) => {
-        if (!firebaseServices.auth.currentUser) {
-            throw new Error("No user is currently signed in.");
-        }
-        const credential = EmailAuthProvider.credential(email, password);
-        return linkWithCredential(firebaseServices.auth.currentUser, credential);
     };
 
     const value = { 
         ...firebaseServices, 
         user, 
-        userId: user?.uid, 
         isLoading, 
-        setIsLoading, 
-        handleSignOut,
-        signUpWithEmail,
-        signInWithEmail,
-        continueAnonymously,
-        upgradeAnonymousUser
+        customId,
+        handleSetCustomId
     };
 
     return (
@@ -168,7 +158,7 @@ const FirebaseProvider = ({ children }) => {
 const ThemeContext = createContext();
 const ThemeProvider = ({ children }) => {
     const [theme, setTheme] = useState('dark');
-    const { userId, db } = useContext(FirebaseContext) || {};
+    const { customId, db } = useContext(FirebaseContext) || {};
 
     useEffect(() => {
         const root = window.document.documentElement;
@@ -179,13 +169,13 @@ const ThemeProvider = ({ children }) => {
     const toggleTheme = useCallback(() => {
         setTheme(prev => {
             const newTheme = prev === 'light' ? 'dark' : 'light';
-            if (userId && db) {
-                const userDocRef = doc(db, 'workoutLogs', userId);
+            if (customId && db) {
+                const userDocRef = doc(db, 'workoutLogs', customId);
                 setDoc(userDocRef, { theme: newTheme }, { merge: true });
             }
             return newTheme;
         });
-    }, [userId, db]);
+    }, [customId, db]);
 
     return <ThemeContext.Provider value={{ theme, setTheme, toggleTheme }}>{children}</ThemeContext.Provider>;
 };
@@ -247,9 +237,9 @@ const MainView = ({ onSessionSelect, onNavChange, completedDays }) => {
 
 const SettingsView = ({ onBack, allLogs }) => {
     const { theme, toggleTheme } = useContext(ThemeContext);
-    const { user, handleSignOut } = useContext(FirebaseContext);
+    const { customId, handleSetCustomId } = useContext(FirebaseContext);
     const [exportSelection, setExportSelection] = useState('all');
-    const [showUpgradeModal, setShowUpgradeModal] = useState(false);
+    const [tempId, setTempId] = useState(customId);
 
     const exportData = (logsToExport, filename) => {
         if (Object.keys(logsToExport).length === 0) { alert("No data available to export for this selection."); return; }
@@ -294,23 +284,28 @@ const SettingsView = ({ onBack, allLogs }) => {
         return { weeks: loggedWeeks, workouts: loggedWorkouts };
     }, [allLogs, hasLogs]);
 
-    return (<>
-        {showUpgradeModal && <UpgradeAccountModal onClose={() => setShowUpgradeModal(false)} />}
-        <div className="p-4 md:p-6 pb-24"><button onClick={onBack} className="flex items-center gap-2 text-sm font-medium text-blue-600 dark:text-blue-400 mb-4 hover:underline"><ArrowLeft size={16}/> Back to Program</button><div className="flex items-center mb-6"><Settings className="text-blue-500 dark:text-blue-400 mr-3" size={32} /><div><h1 className="text-3xl font-bold dark:text-white">Settings</h1></div></div><div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-md space-y-6"><div className="flex justify-between items-center"><span className="font-semibold dark:text-gray-200">Dark Mode</span><button onClick={toggleTheme} className={`relative inline-flex items-center h-6 rounded-full w-11 transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 ${theme === 'dark' ? 'bg-blue-600' : 'bg-gray-200'}`}><span className={`inline-block w-4 h-4 transform bg-white rounded-full transition-transform ${theme === 'dark' ? 'translate-x-6' : 'translate-x-1'}`} /></button></div><div className="border-t border-gray-200 dark:border-gray-700"></div><div><h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">Data Management</h3><div className="flex flex-col sm:flex-row gap-4 items-center"><select value={exportSelection} onChange={(e) => setExportSelection(e.target.value)} className="w-full sm:w-auto flex-grow p-2 bg-white dark:bg-gray-700 rounded-md border-gray-300 dark:border-gray-600 shadow-sm" disabled={!hasLogs}><option value="all">All Data</option>{exportOptions.weeks?.length > 0 && (<optgroup label="By Week">{exportOptions.weeks.map(w => <option key={`week-${w}`} value={`week:${w}`}>Week {w}</option>)}</optgroup>)}{exportOptions.workouts?.length > 0 && (<optgroup label="By Single Workout">{exportOptions.workouts.map(w_key => { const [, week, day] = w_key.split(/-|:/); return (<option key={w_key} value={w_key}>Week {week} - {day}</option>);})}</optgroup>)}</select><button onClick={handleExport} disabled={!hasLogs} className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg shadow-md hover:bg-blue-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"><Download size={16} /> Export CSV</button></div></div><div className="border-t border-gray-200 dark:border-gray-700"></div><div><h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">Account</h3>
-            {user?.isAnonymous ? (
-                <div className="bg-yellow-100 dark:bg-yellow-900/50 p-4 rounded-lg space-y-3 text-center">
-                    <p className="text-sm text-yellow-800 dark:text-yellow-200">Your progress is not saved to an account.</p>
-                    <button onClick={() => setShowUpgradeModal(true)} className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg shadow-md hover:bg-green-700 transition-colors">Create Account to Save Progress</button>
-                    <button onClick={handleSignOut} className="w-full text-sm text-gray-600 dark:text-gray-400 hover:underline mt-2">Sign Out</button>
+    return (
+        <div className="p-4 md:p-6 pb-24">
+            <button onClick={onBack} className="flex items-center gap-2 text-sm font-medium text-blue-600 dark:text-blue-400 mb-4 hover:underline"><ArrowLeft size={16}/> Back to Program</button>
+            <div className="flex items-center mb-6"><Settings className="text-blue-500 dark:text-blue-400 mr-3" size={32} /><div><h1 className="text-3xl font-bold dark:text-white">Settings</h1></div></div>
+            <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-md space-y-6">
+                <div className="flex justify-between items-center"><span className="font-semibold dark:text-gray-200">Dark Mode</span><button onClick={toggleTheme} className={`relative inline-flex items-center h-6 rounded-full w-11 transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 ${theme === 'dark' ? 'bg-blue-600' : 'bg-gray-200'}`}><span className={`inline-block w-4 h-4 transform bg-white rounded-full transition-transform ${theme === 'dark' ? 'translate-x-6' : 'translate-x-1'}`} /></button></div>
+                <div className="border-t border-gray-200 dark:border-gray-700"></div>
+                <div>
+                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">User Profile</h3>
+                    <div className="bg-gray-100 dark:bg-gray-900/50 p-4 rounded-lg space-y-3">
+                        <div>
+                            <label htmlFor="customIdInput" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Personal Sync ID</label>
+                            <input id="customIdInput" type="text" value={tempId} onChange={e => setTempId(e.target.value)} placeholder="Enter a memorable ID" className="w-full p-2 bg-white dark:bg-gray-700 rounded-md border-gray-300 dark:border-gray-600 shadow-sm" />
+                        </div>
+                        <button onClick={() => handleSetCustomId(tempId)} className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg shadow-md hover:bg-blue-700 transition-colors">Set & Sync</button>
+                    </div>
                 </div>
-            ) : (
-                <div className="bg-gray-100 dark:bg-gray-900/50 p-4 rounded-lg space-y-3">
-                    <div className="flex items-center gap-3"><User className="text-gray-500 dark:text-gray-400" size={20} /><p className="text-sm text-gray-600 dark:text-gray-300 break-all"><strong>Email:</strong> {user?.email || 'Loading...'}</p></div>
-                    <button onClick={handleSignOut} className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg shadow-md hover:bg-red-700 transition-colors"><LogOut size={16} /> Sign Out</button>
-                </div>
-            )}
-        </div></div></div>
-    </>);
+                <div className="border-t border-gray-200 dark:border-gray-700"></div>
+                <div><h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">Data Management</h3><div className="flex flex-col sm:flex-row gap-4 items-center"><select value={exportSelection} onChange={(e) => setExportSelection(e.target.value)} className="w-full sm:w-auto flex-grow p-2 bg-white dark:bg-gray-700 rounded-md border-gray-300 dark:border-gray-600 shadow-sm" disabled={!hasLogs}><option value="all">All Data</option>{exportOptions.weeks?.length > 0 && (<optgroup label="By Week">{exportOptions.weeks.map(w => <option key={`week-${w}`} value={`week:${w}`}>Week {w}</option>)}</optgroup>)}{exportOptions.workouts?.length > 0 && (<optgroup label="By Single Workout">{exportOptions.workouts.map(w_key => { const [, week, day] = w_key.split(/-|:/); return (<option key={w_key} value={w_key}>Week {week} - {day}</option>);})}</optgroup>)}</select><button onClick={handleExport} disabled={!hasLogs} className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg shadow-md hover:bg-blue-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"><Download size={16} /> Export CSV</button></div></div>
+            </div>
+        </div>
+    );
 };
 
 const DashboardView = ({ onBack, allLogs }) => {
@@ -351,113 +346,22 @@ const DashboardView = ({ onBack, allLogs }) => {
     return (<div className="p-4 md:p-6 pb-24"><button onClick={onBack} className="flex items-center gap-2 text-sm font-medium text-blue-600 dark:text-blue-400 mb-4 hover:underline"><ArrowLeft size={16} /> Back to Program</button><div className="flex items-center mb-6"><TrendingUp className="text-blue-500 dark:text-blue-400 mr-3" size={32} /><div><h1 className="text-3xl font-bold dark:text-white">Dashboard</h1><p className="text-lg text-gray-600 dark:text-gray-400">Track Your Progress</p></div></div><div className="mb-6 space-y-4"><div><label htmlFor="exercise-search" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Search Exercise:</label><input id="exercise-search" type="text" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} placeholder="e.g., Bench Press" className="w-full p-2 bg-white dark:bg-gray-800 rounded-md border-gray-300 dark:border-gray-600 shadow-sm"/></div><div><label htmlFor="exercise-select" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Select Exercise:</label><select id="exercise-select" value={selectedExercise} onChange={e => setSelectedExercise(e.target.value)} className="w-full p-2 bg-white dark:bg-gray-800 rounded-md border-gray-300 dark:border-gray-600 shadow-sm">{filteredExercises.map(ex => <option key={ex} value={ex}>{ex}</option>)}</select></div></div>{chartData.length > 0 ? (<div className="space-y-8"><div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-4 w-full aspect-video"><h3 className="font-semibold dark:text-gray-200 mb-4">RIR-Adjusted e1RM Progression</h3><ResponsiveContainer><LineChart data={chartData}><CartesianGrid strokeDasharray="3 3" className="stroke-gray-200 dark:stroke-gray-700" /><XAxis dataKey="sessionLabel" tick={{ fill: 'var(--text-color-secondary)' }} /><YAxis domain={[dataMin => Math.max(0, Math.floor(dataMin * 0.9)), 'auto']} tick={{ fill: 'var(--text-color-secondary)' }} /><Tooltip contentStyle={{ backgroundColor: 'var(--tooltip-bg)', border: '1px solid var(--tooltip-border)' }} /><Legend /><Line type="monotone" dataKey="e1RM" name="e1RM" stroke="#3b82f6" strokeWidth={2} dot={{ r: 4 }} activeDot={{ r: 6 }} /></LineChart></ResponsiveContainer></div><div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-4 w-full aspect-video"><h3 className="font-semibold dark:text-gray-200 mb-4">Load & Reps for Top Set</h3><ResponsiveContainer><LineChart data={chartData}><CartesianGrid strokeDasharray="3 3" className="stroke-gray-200 dark:stroke-gray-700" /><XAxis dataKey="sessionLabel" tick={{ fill: 'var(--text-color-secondary)' }} /><YAxis yAxisId="left" stroke="#8884d8" label={{ value: 'Load', angle: -90, position: 'insideLeft', fill: '#8884d8' }} domain={[dataMin => Math.max(0, Math.floor(dataMin * 0.9)), 'auto']} tick={{ fill: '#8884d8' }} /><YAxis yAxisId="right" orientation="right" stroke="#82ca9d" label={{ value: 'Reps', angle: 90, position: 'insideRight', fill: '#82ca9d' }} domain={[dataMin => Math.max(0, Math.floor(dataMin * 0.8)), 'auto']} allowDecimals={false} tick={{ fill: '#82ca9d' }} /><Tooltip contentStyle={{ backgroundColor: 'var(--tooltip-bg)', border: '1px solid var(--tooltip-border)' }} /><Legend /><Line yAxisId="left" type="monotone" dataKey="load" name="Load" stroke="#8884d8" /><Line yAxisId="right" type="monotone" dataKey="reps" name="Reps" stroke="#82ca9d" /></LineChart></ResponsiveContainer></div></div>) : (<div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-8 w-full aspect-video flex flex-col justify-center items-center text-center"><BarChart2 size={48} className="text-gray-400 dark:text-gray-500 mb-4" /><h3 className="font-semibold text-xl dark:text-gray-200">No Data Yet</h3><p className="text-gray-500 dark:text-gray-400">{selectedExercise ? `Log some sets for ${selectedExercise} to see your progress.` : 'Select an exercise to view your charts.'}</p></div>)}</div>);
 };
 
-// --- NEW: Auth & Upgrade Components ---
-const AuthView = () => {
-    const [email, setEmail] = useState('');
-    const [password, setPassword] = useState('');
-    const [error, setError] = useState('');
-    const [loading, setLoading] = useState(false);
-    const { signUpWithEmail, signInWithEmail, continueAnonymously } = useContext(FirebaseContext);
-
-    const handleAuthAction = async (action) => {
-        setLoading(true);
-        setError('');
-        try {
-            await action(email, password);
-        } catch (err) {
-            setError(err.message);
-        } finally {
-            setLoading(false);
-        }
-    };
-    
-    return (
-        <div className="min-h-screen flex items-center justify-center bg-gray-100 dark:bg-gray-900 p-4">
-            <div className="w-full max-w-md bg-white dark:bg-gray-800 rounded-xl shadow-lg p-8 space-y-6">
-                <div className="text-center">
-                    <Dumbbell className="mx-auto text-blue-500" size={48} />
-                    <h1 className="text-3xl font-bold text-gray-900 dark:text-white mt-4">Booty Warrior</h1>
-                    <p className="text-gray-600 dark:text-gray-400">Sign in or create an account to track your progress.</p>
-                </div>
-                {error && <p className="text-red-500 text-sm text-center bg-red-100 dark:bg-red-900/50 p-3 rounded-md">{error}</p>}
-                <div className="space-y-4">
-                    <div className="relative"><Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} /><input type="email" placeholder="Email" value={email} onChange={e => setEmail(e.target.value)} className="w-full p-3 pl-10 text-sm bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"/></div>
-                    <div className="relative"><KeyRound className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} /><input type="password" placeholder="Password" value={password} onChange={e => setPassword(e.target.value)} className="w-full p-3 pl-10 text-sm bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"/></div>
-                </div>
-                <div className="space-y-3">
-                    <button onClick={() => handleAuthAction(signInWithEmail)} disabled={loading} className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-blue-600 text-white rounded-lg shadow-md hover:bg-blue-700 transition-colors disabled:bg-gray-400">{loading ? 'Signing In...' : 'Sign In'}</button>
-                    <button onClick={() => handleAuthAction(signUpWithEmail)} disabled={loading} className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-green-600 text-white rounded-lg shadow-md hover:bg-green-700 transition-colors disabled:bg-gray-400">{loading ? 'Creating...' : 'Create Account'}</button>
-                </div>
-                <div className="relative my-4"><div className="absolute inset-0 flex items-center"><div className="w-full border-t border-gray-300 dark:border-gray-600" /></div><div className="relative flex justify-center text-sm"><span className="px-2 bg-white dark:bg-gray-800 text-gray-500 dark:text-gray-400">Or</span></div></div>
-                <button onClick={continueAnonymously} disabled={loading} className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded-lg shadow-md hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors disabled:bg-gray-400">Continue Anonymously</button>
-            </div>
-        </div>
-    );
-};
-
-const UpgradeAccountModal = ({ onClose }) => {
-    const [email, setEmail] = useState('');
-    const [password, setPassword] = useState('');
-    const [error, setError] = useState('');
-    const [loading, setLoading] = useState(false);
-    const { upgradeAnonymousUser, handleSignOut } = useContext(FirebaseContext);
-
-    const handleUpgrade = async (e) => {
-        e.preventDefault();
-        setLoading(true);
-        setError('');
-        try {
-            await upgradeAnonymousUser(email, password);
-            onClose();
-        } catch (err) {
-            if (err.code === 'auth/email-already-in-use') {
-                setError("This email is already in use by another account. Please sign out and sign in with that email to access your data.");
-            } else if (err.code === 'auth/weak-password') {
-                setError("Password is too weak. It must be at least 6 characters long.");
-            } else {
-                setError(err.message);
-            }
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    return (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
-            <div className="w-full max-w-md bg-white dark:bg-gray-800 rounded-xl shadow-lg p-8 space-y-6 relative">
-                <button onClick={onClose} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"><X size={24} /></button>
-                <div className="text-center">
-                    <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Create Account</h2>
-                    <p className="text-gray-600 dark:text-gray-400 mt-2">Save your progress by creating a permanent account.</p>
-                </div>
-                {error && <p className="text-red-500 text-sm text-center bg-red-100 dark:bg-red-900/50 p-3 rounded-md">{error}</p>}
-                <form onSubmit={handleUpgrade} className="space-y-4">
-                    <div className="relative"><Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} /><input type="email" placeholder="Email" value={email} onChange={e => setEmail(e.target.value)} required className="w-full p-3 pl-10 text-sm bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"/></div>
-                    <div className="relative"><KeyRound className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} /><input type="password" placeholder="Password (min. 6 characters)" value={password} onChange={e => setPassword(e.target.value)} required className="w-full p-3 pl-10 text-sm bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"/></div>
-                    <button type="submit" disabled={loading} className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-green-600 text-white rounded-lg shadow-md hover:bg-green-700 transition-colors disabled:bg-gray-400">{loading ? 'Saving...' : 'Save Account'}</button>
-                </form>
-            </div>
-        </div>
-    );
-};
-
-
 // --- App Structure & Routing ---
 const AppCore = () => {
     const [pageState, setPageState] = useState({ view: 'main', data: {} });
     const [allLogs, setAllLogs] = useState({});
-    const { user, db, isLoading: isAuthLoading, setIsLoading } = useContext(FirebaseContext);
+    const { user, db, isLoading, customId } = useContext(FirebaseContext);
     const { setTheme } = useContext(ThemeContext);
     const [isDataLoading, setIsDataLoading] = useState(true);
 
     // Data loading from Firestore
     useEffect(() => {
-        if (!user || !db) {
-            if(!isAuthLoading) setIsDataLoading(false);
+        if (!user || !db || !customId) {
+            if(!isLoading) setIsDataLoading(false);
             return;
         }
         setIsDataLoading(true);
-        const userDocRef = doc(db, 'workoutLogs', user.uid);
+        const userDocRef = doc(db, 'workoutLogs', customId);
         const unsubscribe = onSnapshot(userDocRef, (doc) => {
             if (doc.exists()) {
                 const data = doc.data();
@@ -473,17 +377,17 @@ const AppCore = () => {
             setIsDataLoading(false);
         });
         return () => unsubscribe();
-    }, [user, db, setTheme, setIsLoading]);
+    }, [user, db, customId, setTheme]);
 
     // Debounced data saving to Firestore
     useEffect(() => {
-        if (isAuthLoading || isDataLoading || !user || !db) return;
+        if (isLoading || isDataLoading || !user || !db || !customId) return;
         const handler = setTimeout(() => {
-            const userDocRef = doc(db, 'workoutLogs', user.uid);
+            const userDocRef = doc(db, 'workoutLogs', customId);
             setDoc(userDocRef, { logs: allLogs }, { merge: true });
         }, 2000);
         return () => clearTimeout(handler);
-    }, [allLogs, user, db, isAuthLoading, isDataLoading]);
+    }, [allLogs, user, db, isLoading, isDataLoading, customId]);
 
     // Navigation logic
     useEffect(() => {
@@ -526,7 +430,7 @@ const AppCore = () => {
         return status;
     }, [allLogs]);
 
-    if (isAuthLoading || isDataLoading) {
+    if (isLoading || (customId && isDataLoading)) {
         return (
             <div className="bg-gray-100 dark:bg-gray-900 min-h-screen flex justify-center items-center">
                 <div className="flex flex-col items-center">
@@ -536,16 +440,15 @@ const AppCore = () => {
             </div>
         );
     }
-
-    if (!user) {
-        return <AuthView />;
-    }
     
     const renderContent = () => {
+        if (!customId) {
+            return <SettingsView onBack={() => {}} allLogs={{}} />;
+        }
         switch(pageState.view) {
             case 'lifting': return <LiftingSession {...pageState.data} onBack={() => window.history.back()} allLogs={allLogs} setAllLogs={setAllLogs} />;
             case 'dashboard': return <DashboardView onBack={() => window.history.back()} allLogs={allLogs} />;
-            case 'settings': return <SettingsView onBack={() => window.history.back()} allLogs={allLogs} />;
+            case 'settings': return <SettingsView onBack={() => navigate('main')} allLogs={allLogs} />;
             default: return <MainView onSessionSelect={(week, day, type) => navigate(type, { week, dayKey: day })} onNavChange={navigate} completedDays={completedDays} />;
         }
     };
