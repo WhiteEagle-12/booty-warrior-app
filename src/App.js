@@ -135,7 +135,11 @@ const FirebaseProvider = ({ children }) => {
     const signUpWithEmail = (email, password) => createUserWithEmailAndPassword(firebaseServices.auth, email, password);
     const signInWithEmail = (email, password) => signInWithEmailAndPassword(firebaseServices.auth, email, password);
     const continueAnonymously = () => signInAnonymously(firebaseServices.auth);
-    const upgradeAnonymousUser = (email, password) => {
+    
+    const upgradeAnonymousUser = async (email, password) => {
+        if (!firebaseServices.auth.currentUser) {
+            throw new Error("No user is currently signed in.");
+        }
         const credential = EmailAuthProvider.credential(email, password);
         return linkWithCredential(firebaseServices.auth.currentUser, credential);
     };
@@ -396,7 +400,7 @@ const UpgradeAccountModal = ({ onClose }) => {
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
-    const { upgradeAnonymousUser } = useContext(FirebaseContext);
+    const { upgradeAnonymousUser, handleSignOut } = useContext(FirebaseContext);
 
     const handleUpgrade = async (e) => {
         e.preventDefault();
@@ -406,7 +410,13 @@ const UpgradeAccountModal = ({ onClose }) => {
             await upgradeAnonymousUser(email, password);
             onClose();
         } catch (err) {
-            setError(err.message);
+            if (err.code === 'auth/email-already-in-use') {
+                setError("This email is already in use by another account. Please sign out and sign in with that email to access your data.");
+            } else if (err.code === 'auth/weak-password') {
+                setError("Password is too weak. It must be at least 6 characters long.");
+            } else {
+                setError(err.message);
+            }
         } finally {
             setLoading(false);
         }
