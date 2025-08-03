@@ -195,7 +195,7 @@ const ExerciseCard = ({ exerciseName, week, dayKey, allLogs, onLogChange }) => {
     const suggestion = useMemo(() => getProgressionSuggestion(exerciseName, lastPerformance), [exerciseName, lastPerformance]);
     const sets = Array.from({ length: exercise.sets }, (_, i) => i + 1);
     const isCompleted = sets.every(setNum => allLogs[`${week}-${dayKey}-${exerciseName}-${setNum}`]?.load && allLogs[`${week}-${dayKey}-${exerciseName}-${setNum}`]?.reps);
-    return (<div className="bg-white dark:bg-gray-800 rounded-xl shadow-md overflow-hidden"><button onClick={() => setIsOpen(!isOpen)} className="w-full p-4 text-left flex justify-between items-center bg-gray-50 dark:bg-gray-700/50 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"><div><h3 className="text-lg font-semibold text-gray-900 dark:text-white">{exerciseName}</h3><p className="text-sm text-gray-500 dark:text-gray-400">{exercise.sets} sets x {exercise.reps}</p></div><div className="flex items-center space-x-3">{isCompleted && <CheckCircle className="text-green-500" />}{isOpen ? <ChevronUp className="text-gray-500 dark:text-gray-400" /> : <ChevronDown className="text-gray-500 dark:text-gray-400" />}</div></button>{isOpen && (<div className="p-4"><div className="mb-3 p-3 flex items-center gap-3 bg-blue-50 dark:bg-blue-900/50 rounded-lg"><Lightbulb className="text-blue-500 dark:text-blue-400 flex-shrink-0" size={20}/><p className="text-sm text-blue-800 dark:text-blue-200"><span className="font-bold">Suggestion:</span> {suggestion}</p></div><div className="overflow-x-auto"><div className="grid grid-cols-6 gap-2 mb-2 px-3 text-xs font-medium text-gray-500 dark:text-gray-400 min-w-[480px]"><span></span><span className="text-center">Target Reps</span><span className="text-center">Target Effort</span><span className="text-center">Load</span><span className="text-center">Reps</span><span className="text-center">RIR</span></div><div className="space-y-2 min-w-[480px]">{sets.map(setNumber => (<SetRow key={setNumber} set={{ number: setNumber, reps: exercise.reps, effort: setNumber === exercise.sets ? 'To Failure' : '~1-2 RIR' }} logData={allLogs[`${week}-${dayKey}-${exerciseName}-${setNumber}`] || {}} onLogChange={(setNum, field, val) => onLogChange(exerciseName, setNum, field, val)} lastSetData={lastPerformance ? lastPerformance[setNumber] : null}/>))}</div></div><IntensityTechnique technique={exercise.lastSetTechnique} /></div>)}</div>);
+    return (<div className="bg-white dark:bg-gray-800 rounded-xl shadow-md overflow-hidden"><button onClick={() => setIsOpen(!isOpen)} className="w-full p-4 text-left flex justify-between items-center bg-gray-50 dark:bg-gray-700/50 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"><div><h3 className="text-lg font-semibold text-gray-900 dark:text-white">{exerciseName}</h3><p className="text-sm text-gray-500 dark:text-gray-400">{exercise.sets} sets x {exercise.reps}</p></div><div className="flex items-center space-x-3">{isCompleted && <CheckCircle className="text-green-500" />}{isOpen ? <ChevronUp className="text-gray-500 dark:text-gray-400" /> : <ChevronDown className="text-gray-500 dark:text-gray-400" />}</div></button>{isOpen && (<div className="p-4"><div className="mb-3 p-3 flex items-center gap-3 bg-blue-50 dark:bg-blue-900/50 rounded-lg"><Lightbulb className="text-blue-500 dark:text-blue-400 flex-shrink-0" size={20}/><p className="text-sm text-blue-800 dark:text-blue-200"><span className="font-bold">Suggestion:</span> {suggestion}</p></div><div className="overflow-x-auto"><div className="grid grid-cols-6 gap-2 mb-2 px-3 text-xs font-medium text-gray-500 dark:text-gray-400 min-w-[480px]"><span></span><span className="text-center">Target Reps</span><span className="text-center">Target Effort</span><span className="text-center">Load</span><span className="text-center">Reps</span><span className="text-center">RIR</span></div><div className="space-y-2 min-w-[480px]">{sets.map(setNumber => (<SetRow key={setNumber} set={{ number: setNumber, reps: exercise.reps, effort: setNumber === exercise.sets ? 'To Failure' : '~1-2 RIR' }} logData={allLogs[`${week}-${dayKey}-${exerciseName}-${setNum}`] || {}} onLogChange={(setNum, field, val) => onLogChange(exerciseName, setNum, field, val)} lastSetData={lastPerformance ? lastPerformance[setNumber] : null}/>))}</div></div><IntensityTechnique technique={exercise.lastSetTechnique} /></div>)}</div>);
 };
 
 const LiftingSession = ({ week, dayKey, onBack, allLogs, setAllLogs }) => {
@@ -264,12 +264,18 @@ const SettingsView = ({ onBack, allLogs }) => {
     };
 
     const hasLogs = Object.keys(allLogs).length > 0;
+    
     const exportOptions = useMemo(() => {
-        if (!hasLogs) return [];
+        const logs = Object.values(allLogs);
+        if (logs.length === 0) {
+            return { weeks: [], workouts: [] };
+        }
+    
         const dayOrder = { Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6, Sun: 7 };
-        const loggedWeeks = [...new Set(Object.values(allLogs).map(log => log.week))].sort((a, b) => a - b);
-        const loggedWorkouts = [...new Set(Object.values(allLogs).map(log => `workout:${log.week}-${log.dayKey}`))].sort((a, b) => {
-            const [, weekA, dayA] = a.split(/-|:/); const [, weekB, dayB] = b.split(/-|:/);
+        const loggedWeeks = [...new Set(logs.map(log => log.week))].sort((a, b) => a - b);
+        const loggedWorkouts = [...new Set(logs.map(log => `workout:${log.week}-${log.dayKey}`))].sort((a, b) => {
+            const [, weekA, dayA] = a.split(/-|:/);
+            const [, weekB, dayB] = b.split(/-|:/);
             return ((parseInt(weekA) - 1) * 7 + dayOrder[dayA]) - ((parseInt(weekB) - 1) * 7 + dayOrder[dayB]);
         });
         return { weeks: loggedWeeks, workouts: loggedWorkouts };
@@ -371,9 +377,8 @@ const AppCore = () => {
                 const workoutName = getWorkoutForDay(week, day.day);
                 const workout = programStructure[workoutName];
                 
-                // FIX: Check if workout exists before accessing its properties
                 if (!workout) {
-                    status.set(dayKey, { pm: false, isDayComplete: true }); // Treat rest days or non-existent workouts as "complete" for the view
+                    status.set(dayKey, { pm: false, isDayComplete: true });
                     return;
                 }
 
