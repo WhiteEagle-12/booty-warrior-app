@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useMemo, createContext, useContext, useCallback } from 'react';
-import { ChevronDown, ChevronUp, Dumbbell, CheckCircle, ArrowLeft, TrendingUp, BarChart2, Sun, Moon, Settings, Flame, Repeat, StretchVertical, Lightbulb, Download, LogOut, User } from 'lucide-react';
+import { ChevronDown, ChevronUp, Dumbbell, CheckCircle, ArrowLeft, TrendingUp, BarChart2, Sun, Moon, Settings, Flame, Repeat, StretchVertical, Lightbulb, Download, LogOut, User, Mail, KeyRound } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
 // Firebase Imports - using modular v9+ syntax
 import { initializeApp } from "firebase/app";
 import { getFirestore, doc, onSnapshot, setDoc } from "firebase/firestore";
-import { getAuth, onAuthStateChanged, signInAnonymously, signOut } from "firebase/auth";
+import { getAuth, onAuthStateChanged, signInAnonymously, signOut, createUserWithEmailAndPassword, signInWithEmailAndPassword } from "firebase/auth";
 
 
 // --- PROGRAM DATA (Unchanged) ---
@@ -101,7 +101,7 @@ const FirebaseContext = createContext(null);
 
 const FirebaseProvider = ({ children }) => {
     const [firebaseServices, setFirebaseServices] = useState(null);
-    const [userId, setUserId] = useState(null);
+    const [user, setUser] = useState(null);
     const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
@@ -119,28 +119,34 @@ const FirebaseProvider = ({ children }) => {
         const db = getFirestore(app);
         setFirebaseServices({ auth, db });
 
-        const unsubscribe = onAuthStateChanged(auth, user => {
-            if (user) {
-                setUserId(user.uid);
-            } else {
-                signInAnonymously(auth).catch(error => {
-                    console.error("Anonymous sign-in failed", error);
-                    setIsLoading(false);
-                });
-            }
+        const unsubscribe = onAuthStateChanged(auth, (user) => {
+            setUser(user);
+            setIsLoading(false);
         });
         return () => unsubscribe();
     }, []);
 
     const handleSignOut = () => {
         if (firebaseServices?.auth) {
-            signOut(firebaseServices.auth).catch(error => {
-                console.error("Sign out failed", error);
-            });
+            signOut(firebaseServices.auth).catch(error => console.error("Sign out failed", error));
         }
     };
+    
+    const signUpWithEmail = (email, password) => createUserWithEmailAndPassword(firebaseServices.auth, email, password);
+    const signInWithEmail = (email, password) => signInWithEmailAndPassword(firebaseServices.auth, email, password);
+    const continueAnonymously = () => signInAnonymously(firebaseServices.auth);
 
-    const value = { ...firebaseServices, userId, isLoading, setIsLoading, handleSignOut };
+    const value = { 
+        ...firebaseServices, 
+        user, 
+        userId: user?.uid, 
+        isLoading, 
+        setIsLoading, 
+        handleSignOut,
+        signUpWithEmail,
+        signInWithEmail,
+        continueAnonymously
+    };
 
     return (
         <FirebaseContext.Provider value={value}>
@@ -232,7 +238,7 @@ const MainView = ({ onSessionSelect, onNavChange, completedDays }) => {
 
 const SettingsView = ({ onBack, allLogs }) => {
     const { theme, toggleTheme } = useContext(ThemeContext);
-    const { userId, handleSignOut } = useContext(FirebaseContext);
+    const { user, handleSignOut } = useContext(FirebaseContext);
     const [exportSelection, setExportSelection] = useState('all');
 
     const exportData = (logsToExport, filename) => {
@@ -266,11 +272,8 @@ const SettingsView = ({ onBack, allLogs }) => {
     const hasLogs = Object.keys(allLogs).length > 0;
     
     const exportOptions = useMemo(() => {
+        if (!hasLogs) return { weeks: [], workouts: [] };
         const logs = Object.values(allLogs);
-        if (!hasLogs) {
-            return { weeks: [], workouts: [] };
-        }
-    
         const dayOrder = { Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6, Sun: 7 };
         const loggedWeeks = [...new Set(logs.map(log => log.week))].sort((a, b) => a - b);
         const loggedWorkouts = [...new Set(logs.map(log => `workout:${log.week}-${log.dayKey}`))].sort((a, b) => {
@@ -281,7 +284,7 @@ const SettingsView = ({ onBack, allLogs }) => {
         return { weeks: loggedWeeks, workouts: loggedWorkouts };
     }, [allLogs, hasLogs]);
 
-    return (<div className="p-4 md:p-6 pb-24"><button onClick={onBack} className="flex items-center gap-2 text-sm font-medium text-blue-600 dark:text-blue-400 mb-4 hover:underline"><ArrowLeft size={16}/> Back to Program</button><div className="flex items-center mb-6"><Settings className="text-blue-500 dark:text-blue-400 mr-3" size={32} /><div><h1 className="text-3xl font-bold dark:text-white">Settings</h1></div></div><div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-md space-y-6"><div className="flex justify-between items-center"><span className="font-semibold dark:text-gray-200">Dark Mode</span><button onClick={toggleTheme} className={`relative inline-flex items-center h-6 rounded-full w-11 transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 ${theme === 'dark' ? 'bg-blue-600' : 'bg-gray-200'}`}><span className={`inline-block w-4 h-4 transform bg-white rounded-full transition-transform ${theme === 'dark' ? 'translate-x-6' : 'translate-x-1'}`} /></button></div><div className="border-t border-gray-200 dark:border-gray-700"></div><div><h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">Data Management</h3><div className="flex flex-col sm:flex-row gap-4 items-center"><select value={exportSelection} onChange={(e) => setExportSelection(e.target.value)} className="w-full sm:w-auto flex-grow p-2 bg-white dark:bg-gray-700 rounded-md border-gray-300 dark:border-gray-600 shadow-sm" disabled={!hasLogs}><option value="all">All Data</option>{exportOptions.weeks?.length > 0 && (<optgroup label="By Week">{exportOptions.weeks.map(w => <option key={`week-${w}`} value={`week:${w}`}>Week {w}</option>)}</optgroup>)}{exportOptions.workouts?.length > 0 && (<optgroup label="By Single Workout">{exportOptions.workouts.map(w_key => { const [, week, day] = w_key.split(/-|:/); return (<option key={w_key} value={w_key}>Week {week} - {day}</option>);})}</optgroup>)}</select><button onClick={handleExport} disabled={!hasLogs} className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg shadow-md hover:bg-blue-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"><Download size={16} /> Export CSV</button></div></div><div className="border-t border-gray-200 dark:border-gray-700"></div><div><h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">Account</h3><div className="bg-gray-100 dark:bg-gray-900/50 p-4 rounded-lg space-y-3"><div className="flex items-center gap-3"><User className="text-gray-500 dark:text-gray-400" size={20} /><p className="text-sm text-gray-600 dark:text-gray-300 break-all"><strong>User ID:</strong> {userId || 'Loading...'}</p></div><button onClick={handleSignOut} className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg shadow-md hover:bg-red-700 transition-colors"><LogOut size={16} /> Sign Out & Start New Program</button></div></div></div></div>);
+    return (<div className="p-4 md:p-6 pb-24"><button onClick={onBack} className="flex items-center gap-2 text-sm font-medium text-blue-600 dark:text-blue-400 mb-4 hover:underline"><ArrowLeft size={16}/> Back to Program</button><div className="flex items-center mb-6"><Settings className="text-blue-500 dark:text-blue-400 mr-3" size={32} /><div><h1 className="text-3xl font-bold dark:text-white">Settings</h1></div></div><div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-md space-y-6"><div className="flex justify-between items-center"><span className="font-semibold dark:text-gray-200">Dark Mode</span><button onClick={toggleTheme} className={`relative inline-flex items-center h-6 rounded-full w-11 transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 ${theme === 'dark' ? 'bg-blue-600' : 'bg-gray-200'}`}><span className={`inline-block w-4 h-4 transform bg-white rounded-full transition-transform ${theme === 'dark' ? 'translate-x-6' : 'translate-x-1'}`} /></button></div><div className="border-t border-gray-200 dark:border-gray-700"></div><div><h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">Data Management</h3><div className="flex flex-col sm:flex-row gap-4 items-center"><select value={exportSelection} onChange={(e) => setExportSelection(e.target.value)} className="w-full sm:w-auto flex-grow p-2 bg-white dark:bg-gray-700 rounded-md border-gray-300 dark:border-gray-600 shadow-sm" disabled={!hasLogs}><option value="all">All Data</option>{exportOptions.weeks?.length > 0 && (<optgroup label="By Week">{exportOptions.weeks.map(w => <option key={`week-${w}`} value={`week:${w}`}>Week {w}</option>)}</optgroup>)}{exportOptions.workouts?.length > 0 && (<optgroup label="By Single Workout">{exportOptions.workouts.map(w_key => { const [, week, day] = w_key.split(/-|:/); return (<option key={w_key} value={w_key}>Week {week} - {day}</option>);})}</optgroup>)}</select><button onClick={handleExport} disabled={!hasLogs} className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg shadow-md hover:bg-blue-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"><Download size={16} /> Export CSV</button></div></div><div className="border-t border-gray-200 dark:border-gray-700"></div><div><h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">Account</h3><div className="bg-gray-100 dark:bg-gray-900/50 p-4 rounded-lg space-y-3"><div className="flex items-center gap-3"><User className="text-gray-500 dark:text-gray-400" size={20} /><p className="text-sm text-gray-600 dark:text-gray-300 break-all"><strong>{user?.isAnonymous ? "Anonymous User ID" : "User Email"}:</strong> {user?.isAnonymous ? user.uid : user?.email || 'Loading...'}</p></div><button onClick={handleSignOut} className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg shadow-md hover:bg-red-700 transition-colors"><LogOut size={16} /> Sign Out</button></div></div></div></div>);
 };
 
 const DashboardView = ({ onBack, allLogs }) => {
@@ -296,8 +299,8 @@ const DashboardView = ({ onBack, allLogs }) => {
     }, [filteredExercises, selectedExercise]);
     
     const chartData = useMemo(() => {
+        if (!selectedExercise || Object.keys(allLogs).length === 0) return [];
         const dayOrder = { Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6, Sun: 7 };
-        
         const sessions = Object.values(allLogs).reduce((acc, log) => {
             if (log.exercise === selectedExercise && log.load && log.reps) {
                 const sessionKey = `${log.week}-${log.dayKey}`;
@@ -306,14 +309,12 @@ const DashboardView = ({ onBack, allLogs }) => {
             }
             return acc;
         }, {});
-
         const processedData = Object.values(sessions).map(session => {
             if (!session.sets || session.sets.length === 0) return null;
             const topSet = session.sets.reduce((best, current) => (calculateE1RM(current.load, current.reps, current.rir) > calculateE1RM(best.load, best.reps, best.rir) ? current : best));
             if (!topSet || isNaN(topSet.load) || isNaN(topSet.reps)) return null;
             return { sessionLabel: `W${session.week} ${session.dayKey}`, e1RM: calculateE1RM(topSet.load, topSet.reps, topSet.rir), load: topSet.load, reps: topSet.reps };
         }).filter(Boolean);
-
         return processedData.sort((a, b) => { 
             const [wA, dA] = a.sessionLabel.substring(1).split(' '); 
             const [wB, dB] = b.sessionLabel.substring(1).split(' '); 
@@ -324,18 +325,67 @@ const DashboardView = ({ onBack, allLogs }) => {
     return (<div className="p-4 md:p-6 pb-24"><button onClick={onBack} className="flex items-center gap-2 text-sm font-medium text-blue-600 dark:text-blue-400 mb-4 hover:underline"><ArrowLeft size={16} /> Back to Program</button><div className="flex items-center mb-6"><TrendingUp className="text-blue-500 dark:text-blue-400 mr-3" size={32} /><div><h1 className="text-3xl font-bold dark:text-white">Dashboard</h1><p className="text-lg text-gray-600 dark:text-gray-400">Track Your Progress</p></div></div><div className="mb-6 space-y-4"><div><label htmlFor="exercise-search" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Search Exercise:</label><input id="exercise-search" type="text" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} placeholder="e.g., Bench Press" className="w-full p-2 bg-white dark:bg-gray-800 rounded-md border-gray-300 dark:border-gray-600 shadow-sm"/></div><div><label htmlFor="exercise-select" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Select Exercise:</label><select id="exercise-select" value={selectedExercise} onChange={e => setSelectedExercise(e.target.value)} className="w-full p-2 bg-white dark:bg-gray-800 rounded-md border-gray-300 dark:border-gray-600 shadow-sm">{filteredExercises.map(ex => <option key={ex} value={ex}>{ex}</option>)}</select></div></div>{chartData.length > 0 ? (<div className="space-y-8"><div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-4 w-full aspect-video"><h3 className="font-semibold dark:text-gray-200 mb-4">RIR-Adjusted e1RM Progression</h3><ResponsiveContainer><LineChart data={chartData}><CartesianGrid strokeDasharray="3 3" className="stroke-gray-200 dark:stroke-gray-700" /><XAxis dataKey="sessionLabel" tick={{ fill: 'var(--text-color-secondary)' }} /><YAxis domain={[dataMin => Math.max(0, Math.floor(dataMin * 0.9)), 'auto']} tick={{ fill: 'var(--text-color-secondary)' }} /><Tooltip contentStyle={{ backgroundColor: 'var(--tooltip-bg)', border: '1px solid var(--tooltip-border)' }} /><Legend /><Line type="monotone" dataKey="e1RM" name="e1RM" stroke="#3b82f6" strokeWidth={2} dot={{ r: 4 }} activeDot={{ r: 6 }} /></LineChart></ResponsiveContainer></div><div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-4 w-full aspect-video"><h3 className="font-semibold dark:text-gray-200 mb-4">Load & Reps for Top Set</h3><ResponsiveContainer><LineChart data={chartData}><CartesianGrid strokeDasharray="3 3" className="stroke-gray-200 dark:stroke-gray-700" /><XAxis dataKey="sessionLabel" tick={{ fill: 'var(--text-color-secondary)' }} /><YAxis yAxisId="left" stroke="#8884d8" label={{ value: 'Load', angle: -90, position: 'insideLeft', fill: '#8884d8' }} domain={[dataMin => Math.max(0, Math.floor(dataMin * 0.9)), 'auto']} tick={{ fill: '#8884d8' }} /><YAxis yAxisId="right" orientation="right" stroke="#82ca9d" label={{ value: 'Reps', angle: 90, position: 'insideRight', fill: '#82ca9d' }} domain={[dataMin => Math.max(0, Math.floor(dataMin * 0.8)), 'auto']} allowDecimals={false} tick={{ fill: '#82ca9d' }} /><Tooltip contentStyle={{ backgroundColor: 'var(--tooltip-bg)', border: '1px solid var(--tooltip-border)' }} /><Legend /><Line yAxisId="left" type="monotone" dataKey="load" name="Load" stroke="#8884d8" /><Line yAxisId="right" type="monotone" dataKey="reps" name="Reps" stroke="#82ca9d" /></LineChart></ResponsiveContainer></div></div>) : (<div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-8 w-full aspect-video flex flex-col justify-center items-center text-center"><BarChart2 size={48} className="text-gray-400 dark:text-gray-500 mb-4" /><h3 className="font-semibold text-xl dark:text-gray-200">No Data Yet</h3><p className="text-gray-500 dark:text-gray-400">{selectedExercise ? `Log some sets for ${selectedExercise} to see your progress.` : 'Select an exercise to view your charts.'}</p></div>)}</div>);
 };
 
+// --- NEW: Auth View Component ---
+const AuthView = () => {
+    const [email, setEmail] = useState('');
+    const [password, setPassword] = useState('');
+    const [error, setError] = useState('');
+    const [loading, setLoading] = useState(false);
+    const { signUpWithEmail, signInWithEmail, continueAnonymously } = useContext(FirebaseContext);
+
+    const handleAuthAction = async (action) => {
+        setLoading(true);
+        setError('');
+        try {
+            await action(email, password);
+        } catch (err) {
+            setError(err.message);
+        } finally {
+            setLoading(false);
+        }
+    };
+    
+    return (
+        <div className="min-h-screen flex items-center justify-center bg-gray-100 dark:bg-gray-900 p-4">
+            <div className="w-full max-w-md bg-white dark:bg-gray-800 rounded-xl shadow-lg p-8 space-y-6">
+                <div className="text-center">
+                    <Dumbbell className="mx-auto text-blue-500" size={48} />
+                    <h1 className="text-3xl font-bold text-gray-900 dark:text-white mt-4">Booty Warrior</h1>
+                    <p className="text-gray-600 dark:text-gray-400">Sign in or create an account to track your progress.</p>
+                </div>
+                {error && <p className="text-red-500 text-sm text-center bg-red-100 dark:bg-red-900/50 p-3 rounded-md">{error}</p>}
+                <div className="space-y-4">
+                    <div className="relative"><Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} /><input type="email" placeholder="Email" value={email} onChange={e => setEmail(e.target.value)} className="w-full p-3 pl-10 text-sm bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"/></div>
+                    <div className="relative"><KeyRound className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} /><input type="password" placeholder="Password" value={password} onChange={e => setPassword(e.target.value)} className="w-full p-3 pl-10 text-sm bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500"/></div>
+                </div>
+                <div className="space-y-3">
+                    <button onClick={() => handleAuthAction(signInWithEmail)} disabled={loading} className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-blue-600 text-white rounded-lg shadow-md hover:bg-blue-700 transition-colors disabled:bg-gray-400">{loading ? 'Signing In...' : 'Sign In'}</button>
+                    <button onClick={() => handleAuthAction(signUpWithEmail)} disabled={loading} className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-green-600 text-white rounded-lg shadow-md hover:bg-green-700 transition-colors disabled:bg-gray-400">{loading ? 'Creating...' : 'Create Account'}</button>
+                </div>
+                <div className="relative my-4"><div className="absolute inset-0 flex items-center"><div className="w-full border-t border-gray-300 dark:border-gray-600" /></div><div className="relative flex justify-center text-sm"><span className="px-2 bg-white dark:bg-gray-800 text-gray-500 dark:text-gray-400">Or</span></div></div>
+                <button onClick={continueAnonymously} disabled={loading} className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded-lg shadow-md hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors disabled:bg-gray-400">Continue Anonymously</button>
+            </div>
+        </div>
+    );
+};
+
+
 // --- App Structure & Routing ---
 const AppCore = () => {
     const [pageState, setPageState] = useState({ view: 'main', data: {} });
     const [allLogs, setAllLogs] = useState({});
-    const { db, userId, isLoading, setIsLoading } = useContext(FirebaseContext);
+    const { user, db, isLoading: isAuthLoading, setIsLoading } = useContext(FirebaseContext);
     const { setTheme } = useContext(ThemeContext);
+    const [isDataLoading, setIsDataLoading] = useState(true);
 
     // Data loading from Firestore
     useEffect(() => {
-        if (!userId || !db) return;
-        setIsLoading(true);
-        const userDocRef = doc(db, 'workoutLogs', userId);
+        if (!user || !db) {
+            if(!isAuthLoading) setIsDataLoading(false);
+            return;
+        }
+        setIsDataLoading(true);
+        const userDocRef = doc(db, 'workoutLogs', user.uid);
         const unsubscribe = onSnapshot(userDocRef, (doc) => {
             if (doc.exists()) {
                 const data = doc.data();
@@ -345,23 +395,23 @@ const AppCore = () => {
                 setAllLogs({});
                 setTheme('dark');
             }
-            setIsLoading(false);
+            setIsDataLoading(false);
         }, (error) => {
             console.error("Error fetching data from Firestore:", error);
-            setIsLoading(false);
+            setIsDataLoading(false);
         });
         return () => unsubscribe();
-    }, [userId, db, setTheme, setIsLoading]);
+    }, [user, db, setTheme, setIsLoading]);
 
     // Debounced data saving to Firestore
     useEffect(() => {
-        if (isLoading || !userId || !db) return; // Don't save on initial load
+        if (isAuthLoading || isDataLoading || !user || !db) return;
         const handler = setTimeout(() => {
-            const userDocRef = doc(db, 'workoutLogs', userId);
+            const userDocRef = doc(db, 'workoutLogs', user.uid);
             setDoc(userDocRef, { logs: allLogs }, { merge: true });
-        }, 2000); // Debounce for 2 seconds
+        }, 2000);
         return () => clearTimeout(handler);
-    }, [allLogs, userId, db, isLoading]);
+    }, [allLogs, user, db, isAuthLoading, isDataLoading]);
 
     // Navigation logic
     useEffect(() => {
@@ -404,7 +454,7 @@ const AppCore = () => {
         return status;
     }, [allLogs]);
 
-    if (isLoading) {
+    if (isAuthLoading || isDataLoading) {
         return (
             <div className="bg-gray-100 dark:bg-gray-900 min-h-screen flex justify-center items-center">
                 <div className="flex flex-col items-center">
@@ -413,6 +463,10 @@ const AppCore = () => {
                 </div>
             </div>
         );
+    }
+
+    if (!user) {
+        return <AuthView />;
     }
     
     const renderContent = () => {
