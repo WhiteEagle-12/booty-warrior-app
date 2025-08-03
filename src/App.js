@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useMemo, createContext, useContext, useCallback } from 'react';
-import { ChevronDown, ChevronUp, Dumbbell, CheckCircle, ArrowLeft, TrendingUp, BarChart2, Sun, Moon, Settings, Flame, Repeat, StretchVertical, Lightbulb, Download, LogOut, User, Mail, KeyRound, X } from 'lucide-react';
+import { ChevronDown, ChevronUp, Dumbbell, CheckCircle, ArrowLeft, TrendingUp, BarChart2, Sun, Moon, Settings, Flame, Repeat, StretchVertical, Lightbulb, Download, User } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
 // Firebase Imports - using modular v9+ syntax
 import { initializeApp } from "firebase/app";
 import { getFirestore, doc, onSnapshot, setDoc } from "firebase/firestore";
-import { getAuth, onAuthStateChanged, signInAnonymously, signOut } from "firebase/auth";
+import { getAuth, onAuthStateChanged, signInAnonymously } from "firebase/auth";
 
 
 // --- PROGRAM DATA (Unchanged) ---
@@ -31,11 +31,11 @@ const exercises = {
     'DB Bulgarian Split Squat': { sets: 3, reps: '8-12', rest: '2 min', lastSetTechnique: 'Failure', equipment: 'dumbbell' },
 };
 const programStructure = {
-    'Upper (Strength Focus)': { exercises: ['Incline DB Press', 'Pullups', 'DB Lateral Raise', 'Barbell Bench Press', 'Bayesian Cable Curl', 'Overhead Cable Triceps Extension'] },
-    'Lower (Strength Focus)': { exercises: ['Smith Machine Squat', 'Hack Squat', 'Lying Leg Curl', 'Standing Calf Raise', 'Cable Crunch'] },
-    'Pull (Hypertrophy Focus)': { exercises: ['Chest Supported Row', 'Pullups', 'DB Lateral Raise', 'Preacher Curl'] },
-    'Push (Hypertrophy Focus)': { exercises: ['Incline DB Press', 'Barbell Bench Press', 'DB Lateral Raise', 'EZ-Bar Skull Crusher', 'Pec Flies'] },
-    'Legs (Hypertrophy Focus)': { exercises: ['DB Bulgarian Split Squat', 'Barbell RDL', 'Leg Extensions', 'Lying Leg Curl', 'Standing Calf Raise'] },
+    'Upper (Strength Focus)': { exercises: ['Incline DB Press', 'Pullups', 'DB Lateral Raise', 'Barbell Bench Press', 'Bayesian Cable Curl', 'Overhead Cable Triceps Extension'], label: 'Upper' },
+    'Lower (Strength Focus)': { exercises: ['Smith Machine Squat', 'Hack Squat', 'Lying Leg Curl', 'Standing Calf Raise', 'Cable Crunch'], label: 'Lower' },
+    'Pull (Hypertrophy Focus)': { exercises: ['Chest Supported Row', 'Pullups', 'DB Lateral Raise', 'Preacher Curl'], label: 'Pull' },
+    'Push (Hypertrophy Focus)': { exercises: ['Incline DB Press', 'Barbell Bench Press', 'DB Lateral Raise', 'EZ-Bar Skull Crusher', 'Pec Flies'], label: 'Push' },
+    'Legs (Hypertrophy Focus)': { exercises: ['DB Bulgarian Split Squat', 'Barbell RDL', 'Leg Extensions', 'Lying Leg Curl', 'Standing Calf Raise'], label: 'Legs' },
 };
 const weeklySchedule = [
     { day: 'Mon', workout: 'Pull (Hypertrophy Focus)' }, { day: 'Tue', workout: 'Push (Hypertrophy Focus)' },
@@ -161,7 +161,7 @@ const ThemeProvider = ({ children }) => {
     const { customId, db } = useContext(FirebaseContext) || {};
 
     useEffect(() => {
-        const root = window.document.documentElement;
+        const root = document.documentElement;
         root.classList.remove('light', 'dark');
         root.classList.add(theme);
     }, [theme]);
@@ -221,7 +221,7 @@ const WeekView = ({ week, completedDays, onSessionSelect, firstIncompleteWeek })
         if (isWeekComplete) setIsOpen(false);
         else if (week === firstIncompleteWeek) setIsOpen(true);
     }, [isWeekComplete, firstIncompleteWeek, week]);
-    return (<div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-4"><button onClick={() => setIsOpen(!isOpen)} className="w-full flex justify-between items-center text-left"><h3 className="text-xl font-bold text-gray-800 dark:text-gray-200">Week {week}</h3><div className="flex items-center gap-2">{isWeekComplete && <CheckCircle className="text-green-500" />}{isOpen ? <ChevronUp className="text-gray-500 dark:text-gray-400" /> : <ChevronDown className="text-gray-500 dark:text-gray-400" />}</div></button>{isOpen && (<div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3 mt-4">{weeklySchedule.map(day => { const dayKey = `${week}-${day.day}`; const status = completedDays.get(dayKey); const workoutName = getWorkoutForDay(week, day.day); const isRestDay = !workoutName; return (<div key={dayKey} className={`rounded-lg p-3 flex flex-col justify-between transition-all ${isRestDay ? 'bg-indigo-100 dark:bg-indigo-900/50' : status?.isDayComplete ? 'bg-green-100 dark:bg-green-800/50 border border-green-500/50' : status?.pm ? 'bg-yellow-100 dark:bg-yellow-800/50 border border-yellow-500/50' : 'bg-gray-100 dark:bg-gray-700/50'}`}><div className="font-bold text-sm text-gray-800 dark:text-gray-200 mb-2">{day.day}</div><div className="space-y-2 flex-grow flex flex-col justify-end">{!isRestDay ? (<button onClick={() => onSessionSelect(week, day.day, 'lifting')} className="w-full flex items-center justify-between text-xs p-1.5 rounded bg-white dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 shadow-sm transition-colors"><div className="flex items-center gap-1 font-semibold"><Moon size={12} className="text-blue-500"/> PM</div>{status?.pm ? <CheckCircle size={14} className="text-green-500"/> : <Dumbbell size={14} className="text-blue-500"/>}</button>) : <div className="text-center text-xs font-semibold text-indigo-700 dark:text-indigo-300 h-7 flex items-center justify-center">REST</div>}</div></div>);})}</div>)}</div>);
+    return (<div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-4"><button onClick={() => setIsOpen(!isOpen)} className="w-full flex justify-between items-center text-left"><h3 className="text-xl font-bold text-gray-800 dark:text-gray-200">Week {week}</h3><div className="flex items-center gap-2">{isWeekComplete && <CheckCircle className="text-green-500" />}{isOpen ? <ChevronUp className="text-gray-500 dark:text-gray-400" /> : <ChevronDown className="text-gray-500 dark:text-gray-400" />}</div></button>{isOpen && (<div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3 mt-4">{weeklySchedule.map(day => { const dayKey = `${week}-${day.day}`; const status = completedDays.get(dayKey); const workoutName = getWorkoutForDay(week, day.day); const workoutDetails = programStructure[workoutName]; const isRestDay = !workoutName; return (<div key={dayKey} className={`rounded-lg p-3 flex flex-col justify-between transition-all ${isRestDay ? 'bg-indigo-100 dark:bg-indigo-900/50' : status?.isDayComplete ? 'bg-green-100 dark:bg-green-800/50 border border-green-500/50' : status?.pm ? 'bg-yellow-100 dark:bg-yellow-800/50 border border-yellow-500/50' : 'bg-gray-100 dark:bg-gray-700/50'}`}><div className="font-bold text-sm text-gray-800 dark:text-gray-200 mb-2">{day.day}</div><div className="space-y-2 flex-grow flex flex-col justify-end">{!isRestDay ? (<button onClick={() => onSessionSelect(week, day.day, 'lifting')} className="w-full flex items-center justify-between text-xs p-1.5 rounded bg-white dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 shadow-sm transition-colors"><div className="flex items-center gap-1 font-semibold">{workoutDetails?.label || 'Workout'}</div>{status?.pm ? <CheckCircle size={14} className="text-green-500"/> : <Dumbbell size={14} className="text-purple-500"/>}</button>) : <div className="text-center text-xs font-semibold text-indigo-700 dark:text-indigo-300 h-7 flex items-center justify-center">Rest Day</div>}</div></div>);})}</div>)}</div>);
 };
 
 const MainView = ({ onSessionSelect, onNavChange, completedDays }) => {
@@ -232,7 +232,7 @@ const MainView = ({ onSessionSelect, onNavChange, completedDays }) => {
         }
         return programInfo.weeks + 1; 
     }, [completedDays]);
-    return (<div className="p-4 md:p-6"><div className="flex flex-col sm:flex-row justify-between items-start mb-6 gap-4"><div className="flex items-center"><Dumbbell className="text-blue-500 dark:text-blue-400 mr-3" size={36} /><div><h1 className="text-3xl font-bold dark:text-white">{programInfo.name}</h1><p className="text-lg text-gray-600 dark:text-gray-400">Your 8-Week Plan</p></div></div><div className="flex gap-2 w-full sm:w-auto"><button onClick={() => onNavChange('dashboard')} className="flex-1 sm:flex-none justify-center flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg shadow-md hover:bg-blue-700 transition-colors"><BarChart2 size={16} /> <span className="sm:hidden">Dashboard</span></button><button onClick={() => onNavChange('settings')} className="p-3 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded-lg shadow-md hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"><Settings size={16} /></button></div></div><div className="space-y-4 pb-24">{weeks.map(week => (<WeekView key={week} week={week} completedDays={completedDays} onSessionSelect={onSessionSelect} firstIncompleteWeek={firstIncompleteWeek} />))}</div></div>);
+    return (<div className="p-4 md:p-6"><div className="flex flex-col sm:flex-row justify-between items-start mb-6 gap-4"><div className="flex items-center"><Dumbbell className="text-purple-500 dark:text-purple-400 mr-3" size={36} /><div><h1 className="text-3xl font-bold dark:text-white">{programInfo.name}</h1><p className="text-lg text-gray-600 dark:text-gray-400">Your 8-Week Plan</p></div></div><div className="flex gap-2 w-full sm:w-auto"><button onClick={() => onNavChange('dashboard')} className="flex-1 sm:flex-none justify-center flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg shadow-md hover:bg-blue-700 transition-colors"><BarChart2 size={16} /> <span className="sm:hidden">Dashboard</span></button><button onClick={() => onNavChange('settings')} className="p-3 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded-lg shadow-md hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"><Settings size={16} /></button></div></div><div className="space-y-4 pb-24">{weeks.map(week => (<WeekView key={week} week={week} completedDays={completedDays} onSessionSelect={onSessionSelect} firstIncompleteWeek={firstIncompleteWeek} />))}</div></div>);
 };
 
 const SettingsView = ({ onBack, allLogs }) => {
@@ -357,6 +357,7 @@ const AppCore = () => {
     // Data loading from Firestore
     useEffect(() => {
         if (!user || !db || !customId) {
+            setAllLogs({}); // Clear logs if no customId
             if(!isLoading) setIsDataLoading(false);
             return;
         }
