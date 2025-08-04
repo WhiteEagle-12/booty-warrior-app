@@ -90,35 +90,32 @@ const getProgressionSuggestion = (exerciseName, lastPerformance) => {
     const topSet = lastSets.reduce((best, current) => (!best || calculateE1RM(current.load, current.reps, current.rir) > calculateE1RM(best.load, best.reps, best.rir) ? current : best), null);
     if (!topSet) return "Log your first set to get a baseline.";
 
-    const [minReps, maxRpsStr] = exerciseDetails.reps.split('-');
+    const [minRepsStr, maxRpsStr] = exerciseDetails.reps.split('-');
+    const minReps = parseInt(minRepsStr, 10);
     const maxReps = parseInt(maxRpsStr, 10);
     const lastReps = parseInt(topSet.reps, 10);
     const lastWeight = parseFloat(topSet.load);
 
-    // Case 1: Met or exceeded the rep range -> Increase weight
     if (lastReps >= maxReps) {
-        let increment = 5; // Default for barbells/machines
-        if (exerciseDetails.equipment === 'dumbbell') increment = 5; // Smallest common jump
+        let increment = 5;
+        if (exerciseDetails.equipment === 'dumbbell') increment = 5;
         if (exerciseDetails.equipment === 'bodyweight') return `Aim for ${lastReps + 1} reps or add weight.`;
-        
         const newWeight = lastWeight + increment;
         return `Try increasing weight to ${newWeight} lbs/kg for ${minReps}-${maxReps} reps.`;
     }
     
-    // Case 2: Within the rep range -> Increase reps
-    if (lastReps >= parseInt(minReps, 10) && lastReps < maxReps) {
+    if (lastReps >= minReps && lastReps < maxReps) {
         return `Aim for ${lastReps + 1} reps with ${lastWeight} lbs/kg to reach the top of the rep range.`;
     }
 
-    // Case 3: Below the rep range -> Decrease weight
-    if (lastReps < parseInt(minReps, 10)) {
-        let decrement = 5; // Default
+    if (lastReps < minReps) {
+        let decrement = 5;
         if (exerciseDetails.equipment === 'dumbbell') decrement = 5;
-        const newWeight = Math.max(0, lastWeight - decrement); // Ensure weight doesn't go below 0
+        const newWeight = Math.max(0, lastWeight - decrement);
         return `Try lowering weight to ~${newWeight} lbs/kg to hit the ${minReps}-${maxReps} rep range.`;
     }
 
-    return `Aim for ${minReps}-${maxReps} reps.`; // Fallback
+    return `Aim for ${minReps}-${maxReps} reps.`;
 };
 
 // --- Firebase Context ---
@@ -242,10 +239,11 @@ const LiftingSession = ({ week, dayKey, onBack, allLogs, setAllLogs }) => {
 const WeekView = ({ week, completedDays, onSessionSelect, firstIncompleteWeek }) => {
     const isWeekComplete = useMemo(() => weeklySchedule.every(day => day.workout === 'Rest' || completedDays.get(`${week}-${day.day}`)?.isDayComplete), [week, completedDays]);
     const [isOpen, setIsOpen] = useState(week === firstIncompleteWeek);
+    
     useEffect(() => {
-        if (isWeekComplete) setIsOpen(false);
-        else if (week === firstIncompleteWeek) setIsOpen(true);
-    }, [isWeekComplete, firstIncompleteWeek, week]);
+        setIsOpen(week === firstIncompleteWeek);
+    }, [firstIncompleteWeek, week]);
+
     return (<div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-4"><button onClick={() => setIsOpen(!isOpen)} className="w-full flex justify-between items-center text-left"><h3 className="text-xl font-bold text-gray-800 dark:text-gray-200">Week {week}</h3><div className="flex items-center gap-2">{isWeekComplete && <CheckCircle className="text-green-500" />}{isOpen ? <ChevronUp className="text-gray-500 dark:text-gray-400" /> : <ChevronDown className="text-gray-500 dark:text-gray-400" />}</div></button>{isOpen && (<div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3 mt-4">{weeklySchedule.map(day => { const dayKey = `${week}-${day.day}`; const status = completedDays.get(dayKey); const workoutName = getWorkoutForDay(week, day.day); const workoutDetails = programStructure[workoutName]; const isRestDay = !workoutName; return (<div key={dayKey} className={`rounded-lg p-3 flex flex-col justify-between transition-all ${isRestDay ? 'bg-indigo-100 dark:bg-indigo-900/50' : status?.isDayComplete ? 'bg-green-100 dark:bg-green-800/50 border border-green-500/50' : 'bg-gray-100 dark:bg-gray-700/50'}`}><div className="font-bold text-sm text-gray-800 dark:text-gray-200 mb-2">{day.day}</div><div className="space-y-2 flex-grow flex flex-col justify-end">{!isRestDay ? (<button onClick={() => onSessionSelect(week, day.day, 'lifting')} className="w-full flex items-center justify-between text-xs p-1.5 rounded bg-white dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 shadow-sm transition-colors"><div className="flex items-center gap-1 font-semibold">{workoutDetails?.label || 'Workout'}</div>{status?.pm ? <CheckCircle size={14} className="text-green-500"/> : <Dumbbell size={14} className="text-blue-500"/>}</button>) : <div className="text-center text-xs font-semibold text-indigo-700 dark:text-indigo-300 h-7 flex items-center justify-center">Rest Day</div>}</div></div>);})}</div>)}</div>);
 };
 
@@ -368,7 +366,12 @@ const DashboardView = ({ onBack, allLogs }) => {
         });
     }, [selectedExercise, allLogs]);
 
-    return (<div className="p-4 md:p-6 pb-24"><button onClick={onBack} className="flex items-center gap-2 text-sm font-medium text-blue-600 dark:text-blue-400 mb-4 hover:underline"><ArrowLeft size={16} /> Back to Program</button><div className="flex items-center mb-6"><TrendingUp className="text-blue-500 dark:text-blue-400 mr-3" size={32} /><div><h1 className="text-3xl font-bold dark:text-white">Dashboard</h1><p className="text-lg text-gray-600 dark:text-gray-400">Track Your Progress</p></div></div><div className="mb-6 space-y-4"><div><label htmlFor="exercise-search" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Search Exercise:</label><input id="exercise-search" type="text" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} placeholder="e.g., Bench Press" className="w-full p-2 bg-white dark:bg-gray-800 rounded-md border-gray-300 dark:border-gray-600 shadow-sm"/></div><div><label htmlFor="exercise-select" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Select Exercise:</label><select id="exercise-select" value={selectedExercise} onChange={e => setSelectedExercise(e.target.value)} className="w-full p-2 bg-white dark:bg-gray-800 rounded-md border-gray-300 dark:border-gray-600 shadow-sm">{filteredExercises.map(ex => <option key={ex} value={ex}>{ex}</option>)}</select></div></div>{chartData.length > 0 ? (<div className="space-y-8"><div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-4 w-full aspect-video"><h3 className="font-semibold dark:text-gray-200 mb-4">RIR-Adjusted e1RM Progression</h3><ResponsiveContainer><LineChart data={chartData}><CartesianGrid strokeDasharray="3 3" className="stroke-gray-200 dark:stroke-gray-700" /><XAxis dataKey="sessionLabel" tick={{ fill: 'var(--text-color-secondary)' }} /><YAxis domain={[dataMin => Math.max(0, Math.floor(dataMin * 0.9)), 'auto']} tick={{ fill: 'var(--text-color-secondary)' }} /><Tooltip contentStyle={{ backgroundColor: 'var(--tooltip-bg)', border: '1px solid var(--tooltip-border)' }} /><Legend /><Line type="monotone" dataKey="e1RM" name="e1RM" stroke="#3b82f6" strokeWidth={2} dot={{ r: 4 }} activeDot={{ r: 6 }} /></LineChart></ResponsiveContainer></div><div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-4 w-full aspect-video"><h3 className="font-semibold dark:text-gray-200 mb-4">Load & Reps for Top Set</h3><ResponsiveContainer><LineChart data={chartData}><CartesianGrid strokeDasharray="3 3" className="stroke-gray-200 dark:stroke-gray-700" /><XAxis dataKey="sessionLabel" tick={{ fill: 'var(--text-color-secondary)' }} /><YAxis yAxisId="left" stroke="#8884d8" label={{ value: 'Load', angle: -90, position: 'insideLeft', fill: '#8884d8' }} domain={[dataMin => Math.max(0, Math.floor(dataMin * 0.9)), 'auto']} tick={{ fill: '#8884d8' }} /><YAxis yAxisId="right" orientation="right" stroke="#82ca9d" label={{ value: 'Reps', angle: 90, position: 'insideRight', fill: '#82ca9d' }} domain={[dataMin => Math.max(0, Math.floor(dataMin * 0.8)), 'auto']} allowDecimals={false} tick={{ fill: '#82ca9d' }} /><Tooltip contentStyle={{ backgroundColor: 'var(--tooltip-bg)', border: '1px solid var(--tooltip-border)' }} /><Legend /><Line yAxisId="left" type="monotone" dataKey="load" name="Load" stroke="#8884d8" /><Line yAxisId="right" type="monotone" dataKey="reps" name="Reps" stroke="#82ca9d" /></LineChart></ResponsiveContainer></div></div>) : (<div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-8 w-full aspect-video flex flex-col justify-center items-center text-center"><BarChart2 size={48} className="text-gray-400 dark:text-gray-500 mb-4" /><h3 className="font-semibold text-xl dark:text-gray-200">No Data Yet</h3><p className="text-gray-500 dark:text-gray-400">{selectedExercise ? `Log some sets for ${selectedExercise} to see your progress.` : 'Select an exercise to view your charts.'}</p></div>)}</div>);
+    const renderColorfulLegendText = (value, entry) => {
+        const { color } = entry;
+        return <span style={{ color }}>{value}</span>;
+    };
+
+    return (<div className="p-4 md:p-6 pb-24"><button onClick={onBack} className="flex items-center gap-2 text-sm font-medium text-blue-600 dark:text-blue-400 mb-4 hover:underline"><ArrowLeft size={16} /> Back to Program</button><div className="flex items-center mb-6"><TrendingUp className="text-blue-500 dark:text-blue-400 mr-3" size={32} /><div><h1 className="text-3xl font-bold dark:text-white">Dashboard</h1><p className="text-lg text-gray-600 dark:text-gray-400">Track Your Progress</p></div></div><div className="mb-6 space-y-4"><div><label htmlFor="exercise-search" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Search Exercise:</label><input id="exercise-search" type="text" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} placeholder="e.g., Bench Press" className="w-full p-2 bg-white dark:bg-gray-800 rounded-md border-gray-300 dark:border-gray-600 shadow-sm"/></div><div><label htmlFor="exercise-select" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Select Exercise:</label><select id="exercise-select" value={selectedExercise} onChange={e => setSelectedExercise(e.target.value)} className="w-full p-2 bg-white dark:bg-gray-800 rounded-md border-gray-300 dark:border-gray-600 shadow-sm">{filteredExercises.map(ex => <option key={ex} value={ex}>{ex}</option>)}</select></div></div>{chartData.length > 0 ? (<div className="space-y-8"><div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-4 w-full aspect-video"><h3 className="font-semibold dark:text-gray-200 mb-4">RIR-Adjusted e1RM Progression</h3><ResponsiveContainer><LineChart data={chartData}><CartesianGrid strokeDasharray="3 3" className="stroke-gray-200 dark:stroke-gray-700" /><XAxis dataKey="sessionLabel" tick={{ fill: '#9ca3af' }} /><YAxis domain={[dataMin => Math.max(0, Math.floor(dataMin * 0.9)), 'auto']} tick={{ fill: '#9ca3af' }} /><Tooltip contentStyle={{ backgroundColor: 'var(--tooltip-bg)', border: '1px solid var(--tooltip-border)' }} /><Legend align="center" formatter={(value) => <span className="text-blue-500">{value}</span>} /><Line type="monotone" dataKey="e1RM" name="e1RM" stroke="#3b82f6" strokeWidth={2} dot={{ r: 4 }} activeDot={{ r: 6 }} /></LineChart></ResponsiveContainer></div><div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-4 w-full aspect-video"><h3 className="font-semibold dark:text-gray-200 mb-4">Load & Reps for Top Set</h3><ResponsiveContainer><LineChart data={chartData}><CartesianGrid strokeDasharray="3 3" className="stroke-gray-200 dark:stroke-gray-700" /><XAxis dataKey="sessionLabel" tick={{ fill: '#9ca3af' }} /><YAxis yAxisId="left" stroke="#8884d8" label={{ value: 'Load', angle: -90, position: 'insideLeft', fill: '#8884d8' }} domain={[dataMin => Math.max(0, Math.floor(dataMin * 0.9)), 'auto']} tick={{ fill: '#8884d8' }} /><YAxis yAxisId="right" orientation="right" stroke="#82ca9d" label={{ value: 'Reps', angle: 90, position: 'insideRight', fill: '#82ca9d' }} domain={[dataMin => Math.max(0, Math.floor(dataMin * 0.8)), 'auto']} allowDecimals={false} tick={{ fill: '#82ca9d' }} /><Tooltip contentStyle={{ backgroundColor: 'var(--tooltip-bg)', border: '1px solid var(--tooltip-border)' }} /><Legend align="center" formatter={renderColorfulLegendText} /><Line yAxisId="left" type="monotone" dataKey="load" name="Load" stroke="#8884d8" /><Line yAxisId="right" type="monotone" dataKey="reps" name="Reps" stroke="#82ca9d" /></LineChart></ResponsiveContainer></div></div>) : (<div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-8 w-full aspect-video flex flex-col justify-center items-center text-center"><BarChart2 size={48} className="text-gray-400 dark:text-gray-500 mb-4" /><h3 className="font-semibold text-xl dark:text-gray-200">No Data Yet</h3><p className="text-gray-500 dark:text-gray-400">{selectedExercise ? `Log some sets for ${selectedExercise} to see your progress.` : 'Select an exercise to view your charts.'}</p></div>)}</div>);
 };
 
 // --- App Structure & Routing ---
