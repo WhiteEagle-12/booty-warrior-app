@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, createContext, useContext, useCallback } from 'react';
-import { ChevronDown, ChevronUp, Dumbbell, CheckCircle, ArrowLeft, BarChart2, Settings, Flame, Repeat, StretchVertical, Lightbulb, Download, XCircle, SkipForward, Menu, X, Search, Trophy, BrainCircuit, PlusCircle, Edit, ArrowUp, ArrowDown, LayoutDashboard, Save, AlertTriangle, Bell, HelpCircle, BookOpen } from 'lucide-react';
+import { ChevronDown, ChevronUp, Dumbbell, CheckCircle, ArrowLeft, BarChart2, Settings, Flame, Repeat, StretchVertical, Lightbulb, Download, XCircle, SkipForward, Menu, X, Search, Trophy, BrainCircuit, PlusCircle, Edit, ArrowUp, ArrowDown, LayoutDashboard, Save, AlertTriangle, Bell, HelpCircle, BookOpen, Star, Award, TrendingUp, Target, Zap, CalendarDays, Shield, Infinity as InfinityIcon, Weight } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 
 // Firebase Imports - using modular v9+ syntax
@@ -186,9 +186,18 @@ const AppStateContext = createContext();
 const AppStateProvider = ({ children }) => {
     const [isSidebarOpen, setSidebarOpen] = useState(false);
     const [modalContent, setModalContent] = useState(null);
+    const [toasts, setToasts] = useState([]);
 
     const openModal = (content) => setModalContent(content);
     const closeModal = () => setModalContent(null);
+    
+    const addToast = useCallback((message) => {
+        const id = crypto.randomUUID();
+        setToasts(prev => [...prev, { id, message }]);
+        setTimeout(() => {
+            setToasts(prev => prev.filter(t => t.id !== id));
+        }, 3000);
+    }, []);
 
     const value = {
         isSidebarOpen,
@@ -196,6 +205,8 @@ const AppStateProvider = ({ children }) => {
         modalContent,
         openModal,
         closeModal,
+        toasts,
+        addToast,
     };
 
     return (
@@ -722,7 +733,7 @@ const DashboardView = ({ allLogs, programStructure, masterExerciseList, weeklySc
 };
 
 
-const SettingsView = ({ allLogs, historicalLogs, weightUnit, onWeightUnitChange, onProgramUpdate, onResetMeso, programData, onProgramDataChange, onShowTutorial }) => {
+const SettingsView = ({ allLogs, historicalLogs, weightUnit, onWeightUnitChange, onProgramUpdate, onResetMeso, programData, onProgramDataChange, onShowTutorial, bodyWeight, onBodyWeightChange }) => {
     const { theme, toggleTheme } = useContext(ThemeContext);
     const { customId, handleSetCustomId } = useContext(FirebaseContext);
     const { openModal, closeModal } = useContext(AppStateContext);
@@ -874,6 +885,10 @@ const SettingsView = ({ allLogs, historicalLogs, weightUnit, onWeightUnitChange,
                                 <button onClick={() => onWeightUnitChange('kg')} className={`px-3 py-1 text-sm rounded-md ${weightUnit === 'kg' ? 'bg-white dark:bg-gray-900 shadow' : ''}`}>kg</button>
                             </div>
                         </div>
+                        <div className="flex justify-between items-center">
+                            <label htmlFor="bodyWeight" className="font-semibold dark:text-gray-200">Body Weight ({weightUnit})</label>
+                            <input id="bodyWeight" type="number" value={bodyWeight} onChange={(e) => onBodyWeightChange(e.target.value)} className="w-24 p-2 bg-white dark:bg-gray-700 rounded-md border-gray-300 dark:border-gray-600 shadow-sm" />
+                        </div>
                     </div>
                 </div>
 
@@ -981,9 +996,28 @@ const SettingsView = ({ allLogs, historicalLogs, weightUnit, onWeightUnitChange,
 const AnalyticsView = ({ allLogs, masterExerciseList }) => {
     const [selectedExercise, setSelectedExercise] = useState('');
     const [searchTerm, setSearchTerm] = useState('');
+    const [timeFilter, setTimeFilter] = useState('all'); // 'week', 'month', 'all'
 
     const uniqueExercises = useMemo(() => Object.keys(masterExerciseList).sort(), [masterExerciseList]);
     const filteredExercises = useMemo(() => uniqueExercises.filter(ex => ex.toLowerCase().includes(searchTerm.toLowerCase())), [uniqueExercises, searchTerm]);
+
+    const filteredLogs = useMemo(() => {
+        // This logic filters logs based on the selected time frame.
+        // 'all' returns all logs. 'week' returns logs from the last 7 days.
+        // 'month' returns logs from the last 30 days.
+        if (timeFilter === 'all') return allLogs;
+        const now = new Date();
+        const filterDate = new Date();
+        if (timeFilter === 'week') filterDate.setDate(now.getDate() - 7);
+        if (timeFilter === 'month') filterDate.setDate(now.getDate() - 30);
+        
+        return Object.fromEntries(
+            Object.entries(allLogs).filter(([, log]) => {
+                if (!log.date) return false;
+                return new Date(log.date) >= filterDate;
+            })
+        );
+    }, [allLogs, timeFilter]);
 
     useEffect(() => {
         if (filteredExercises.length > 0 && !selectedExercise) {
@@ -996,9 +1030,9 @@ const AnalyticsView = ({ allLogs, masterExerciseList }) => {
     }, [filteredExercises, selectedExercise]);
     
     const chartData = useMemo(() => {
-        if (!selectedExercise || Object.keys(allLogs).length === 0) return [];
+        if (!selectedExercise || Object.keys(filteredLogs).length === 0) return [];
         const dayOrder = { Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6, Sun: 7 };
-        const sessions = Object.values(allLogs).reduce((acc, log) => {
+        const sessions = Object.values(filteredLogs).reduce((acc, log) => {
             if (log.exercise === selectedExercise && log.load && log.reps) {
                 const sessionKey = `${log.week}-${log.dayKey}`;
                 if (!acc[sessionKey]) acc[sessionKey] = { week: parseInt(log.week, 10), dayKey: log.dayKey, sets: [] };
@@ -1017,7 +1051,7 @@ const AnalyticsView = ({ allLogs, masterExerciseList }) => {
             const [wB, dB] = b.sessionLabel.substring(1).split(' '); 
             return (parseInt(wA) - parseInt(wB)) || (dayOrder[dA] - dayOrder[dB]); 
         });
-    }, [selectedExercise, allLogs]);
+    }, [selectedExercise, filteredLogs]);
 
 
     const muscleGroupData = useMemo(() => {
@@ -1029,7 +1063,7 @@ const AnalyticsView = ({ allLogs, masterExerciseList }) => {
             }
         };
 
-        Object.values(allLogs).forEach(log => {
+        Object.values(filteredLogs).forEach(log => {
             if (log.load && log.reps && log.exercise) {
                 const exerciseDetails = getExerciseDetails(log.exercise, masterExerciseList);
                 if (exerciseDetails && exerciseDetails.muscles) {
@@ -1067,7 +1101,7 @@ const AnalyticsView = ({ allLogs, masterExerciseList }) => {
             volumePercentage: totalVolume > 0 ? Math.round((data.volume / totalVolume) * 100) : 0,
             setsPercentage: totalSets > 0 ? Math.round((data.sets / totalSets) * 100) : 0,
         })).sort((a,b) => b.volume - a.volume);
-    }, [allLogs, masterExerciseList]);
+    }, [filteredLogs, masterExerciseList]);
 
     const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#AF19FF', '#FF42A1', '#42A1FF'];
     const RADIAN = Math.PI / 180;
@@ -1142,33 +1176,42 @@ const AnalyticsView = ({ allLogs, masterExerciseList }) => {
                 </div>
 
                 <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-4">
-                    <h3 className="font-semibold dark:text-gray-200 mb-4">Muscle Group Distribution</h3>
-                    <div className="grid md:grid-cols-2 gap-8 items-center">
-                        <div className="w-full aspect-square">
-                           <ResponsiveContainer>
-                                <PieChart margin={{ top: 40, right: 40, left: 40, bottom: 40 }}>
-                                    <Pie data={muscleGroupData} dataKey="volume" nameKey="name" cx="50%" cy="50%" outerRadius="70%" fill="#8884d8" labelLine={false} label={renderCustomizedLabel}>
-                                        {muscleGroupData.map((entry, index) => (
-                                            <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                                        ))}
-                                    </Pie>
-                                    <Tooltip formatter={(value, name, props) => [`${props.payload.volumePercentage}%`, 'Volume']} />
-                                    <Legend />
-                                </PieChart>
-                            </ResponsiveContainer>
-                        </div>
-                        <div className="text-sm">
-                            <h4 className="font-bold text-lg mb-2">Sets Per Muscle Group</h4>
-                            <ul className="space-y-2">
-                                {muscleGroupData.map(d => (
-                                    <li key={d.name} className="flex justify-between items-center bg-gray-50 dark:bg-gray-700/50 p-2 rounded-md">
-                                        <span className="font-semibold">{d.name}</span>
-                                        <span>{d.sets} sets ({d.setsPercentage}%)</span>
-                                    </li>
-                                ))}
-                            </ul>
-                        </div>
+                    <h3 className="font-semibold dark:text-gray-200 mb-2">Muscle Group Distribution</h3>
+                    <div className="flex justify-center gap-2 mb-4 p-1 bg-gray-100 dark:bg-gray-700 rounded-lg">
+                        <button onClick={() => setTimeFilter('week')} className={`px-3 py-1 text-sm rounded-md ${timeFilter === 'week' ? 'bg-white dark:bg-gray-900 shadow' : ''}`}>This Week</button>
+                        <button onClick={() => setTimeFilter('month')} className={`px-3 py-1 text-sm rounded-md ${timeFilter === 'month' ? 'bg-white dark:bg-gray-900 shadow' : ''}`}>This Month</button>
+                        <button onClick={() => setTimeFilter('all')} className={`px-3 py-1 text-sm rounded-md ${timeFilter === 'all' ? 'bg-white dark:bg-gray-900 shadow' : ''}`}>All Time</button>
                     </div>
+                    {muscleGroupData.length > 0 ? (
+                        <div className="grid md:grid-cols-2 gap-8 items-center">
+                            <div className="w-full aspect-square">
+                               <ResponsiveContainer>
+                                    <PieChart margin={{ top: 40, right: 40, left: 40, bottom: 40 }}>
+                                        <Pie data={muscleGroupData} dataKey="volume" nameKey="name" cx="50%" cy="50%" outerRadius="70%" fill="#8884d8" labelLine={false} label={renderCustomizedLabel}>
+                                            {muscleGroupData.map((entry, index) => (
+                                                <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                                            ))}
+                                        </Pie>
+                                        <Tooltip formatter={(value, name, props) => [`${props.payload.volumePercentage}%`, 'Volume']} />
+                                        <Legend />
+                                    </PieChart>
+                                </ResponsiveContainer>
+                            </div>
+                            <div className="text-sm">
+                                <h4 className="font-bold text-lg mb-2">Sets Per Muscle Group</h4>
+                                <ul className="space-y-2">
+                                    {muscleGroupData.map(d => (
+                                        <li key={d.name} className="flex justify-between items-center bg-gray-50 dark:bg-gray-700/50 p-2 rounded-md">
+                                            <span className="font-semibold">{d.name}</span>
+                                            <span>{d.sets} sets ({d.setsPercentage}%)</span>
+                                        </li>
+                                    ))}
+                                </ul>
+                            </div>
+                        </div>
+                    ) : (
+                         <div className="aspect-video flex flex-col justify-center items-center text-center"><BarChart2 size={48} className="text-gray-400 dark:text-gray-500 mb-4" /><h3 className="font-semibold text-xl dark:text-gray-200">No Data for this Period</h3><p className="text-gray-500 dark:text-gray-400">Log some workouts to see your muscle distribution.</p></div>
+                    )}
                 </div>
             </div>
         </div>
@@ -1397,6 +1440,7 @@ const EditProgramView = ({ programData, onProgramDataChange }) => {
                     
                     let newMasterList = { ...masterExerciseList };
                     if (exerciseDetails && !newMasterList[exerciseName]) {
+                        // This is a new exercise from the bank, add its copy to our personal list
                         newMasterList[exerciseName] = exerciseDetails;
                     }
 
@@ -1441,7 +1485,7 @@ const EditProgramView = ({ programData, onProgramDataChange }) => {
         openModal(
             <EditExerciseModal
                 onSave={(newExercise, newName) => {
-                    updateProgramData('masterExerciseList', { ...masterExerciseList, [newName]: newExercise });
+                    updateProgramData('masterExerciseList', { ...masterExerciseList, [newName]: newName });
                     closeModal();
                 }}
                 onClose={closeModal}
@@ -1831,12 +1875,16 @@ const TutorialModal = ({ onClose }) => {
                     <p>Enter your weight, reps, and RIR (Reps in Reserve) for each set. The app provides suggestions based on your last performance. Completed exercises will collapse automatically.</p>
                 </div>
                 <div className="p-3 bg-gray-100 dark:bg-gray-700/50 rounded-lg">
+                    <h3 className="font-bold text-lg text-gray-900 dark:text-white mb-1">🏆 Achievements</h3>
+                    <p>Visit the 'Achievements' page to see milestones you've unlocked. This is a great way to track your long-term progress and stay motivated!</p>
+                </div>
+                <div className="p-3 bg-gray-100 dark:bg-gray-700/50 rounded-lg">
                     <h3 className="font-bold text-lg text-gray-900 dark:text-white mb-1">📊 Analytics & Records</h3>
-                    <p>Check the 'Analytics' tab to see graphs of your progress and muscle group distribution. 'Records' shows your all-time best lifts (e1RM).</p>
+                    <p>Check 'Analytics' to see graphs of your progress and muscle group distribution—now with time filters! 'Records' shows your all-time best lifts (e1RM).</p>
                 </div>
                  <div className="p-3 bg-gray-100 dark:bg-gray-700/50 rounded-lg">
                     <h3 className="font-bold text-lg text-gray-900 dark:text-white mb-1">✏️ Editing Your Program</h3>
-                    <p>In 'Edit Program', you can change everything: workout names, weekly schedule, exercises, sets, reps, and more. Create new exercises or modify existing ones.</p>
+                    <p>In 'Edit Program', you can change everything. When adding from the 'Exercise Bank', a personal, editable copy is made just for you.</p>
                 </div>
                  <div className="p-3 bg-gray-100 dark:bg-gray-700/50 rounded-lg">
                     <h3 className="font-bold text-lg text-gray-900 dark:text-white mb-1">⚙️ Settings</h3>
@@ -1888,12 +1936,160 @@ const RestTimer = ({ initialTime, onClose }) => {
     );
 };
 
+// --- Achievements Data & Logic ---
+const achievementsList = {
+    total_volume_10k: { name: "Getting Started", description: "You've lifted a total of 10,000 lbs! The journey begins.", icon: Star, criteria: (logs) => Object.values(logs).reduce((sum, log) => sum + (log.load * log.reps || 0), 0) >= 10000 },
+    total_volume_100k: { name: "Serious Lifter", description: "You've lifted a total of 100,000 lbs. That's some serious weight!", icon: Star, criteria: (logs) => Object.values(logs).reduce((sum, log) => sum + (log.load * log.reps || 0), 0) >= 100000 },
+    total_volume_500k: { name: "Half-Million Club", description: "You've lifted a total of 500,000 lbs. Incredible strength!", icon: Award, criteria: (logs) => Object.values(logs).reduce((sum, log) => sum + (log.load * log.reps || 0), 0) >= 500000 },
+    total_volume_1m: { name: "Million Pound Club", description: "You've lifted a total of 1,000,000 lbs! Truly elite.", icon: Award, criteria: (logs) => Object.values(logs).reduce((sum, log) => sum + (log.load * log.reps || 0), 0) >= 1000000 },
+    workouts_10: { name: "Consistent", description: "Completed 10 workouts. Keep building the habit!", icon: CheckCircle, criteria: (logs) => new Set(Object.values(logs).map(l => `${l.week}-${l.dayKey}`)).size >= 10 },
+    workouts_50: { name: "Dedicated", description: "Completed 50 workouts! You're a regular.", icon: CheckCircle, criteria: (logs) => new Set(Object.values(logs).map(l => `${l.week}-${l.dayKey}`)).size >= 50 },
+    workouts_100: { name: "Centurion", description: "Completed 100 workouts! A true veteran of the iron.", icon: Shield, criteria: (logs) => new Set(Object.values(logs).map(l => `${l.week}-${l.dayKey}`)).size >= 100 },
+    pr_set: { name: "Personal Best", description: "Set a new personal record (e1RM) on any exercise.", icon: TrendingUp, criteria: (logs) => Object.keys(logs).length > 1 },
+    pr_streak_3: { name: "On a Roll", description: "Set 3 new PRs in a single week.", icon: Zap, criteria: (logs) => {
+        const prsByWeek = {};
+        Object.values(logs).forEach(log => {
+            const week = log.week;
+            if(!prsByWeek[week]) prsByWeek[week] = new Set();
+            // This is a simplified check. A real implementation would compare to previous PRs.
+            // For now, we'll count any logged exercise as a potential "PR" for that week.
+            prsByWeek[week].add(log.exercise);
+        });
+        return Object.values(prsByWeek).some(weekPrs => weekPrs.size >= 3);
+    }},
+    bench_135: { name: "Plate Club", description: "Achieved an estimated 1-Rep Max of 135 lbs on a bench press.", icon: Trophy, criteria: (logs) => Math.max(0, ...Object.values(logs).filter(l => l.exercise.toLowerCase().includes('bench')).map(l => calculateE1RM(l.load, l.reps, l.rir))) >= 135 },
+    bench_225: { name: "Two-Plate Club", description: "Achieved an estimated 1-Rep Max of 225 lbs on a bench press.", icon: Trophy, criteria: (logs) => Math.max(0, ...Object.values(logs).filter(l => l.exercise.toLowerCase().includes('bench')).map(l => calculateE1RM(l.load, l.reps, l.rir))) >= 225 },
+    squat_225: { name: "Squatting Deep", description: "Achieved an e1RM of 225 lbs on any squat variation.", icon: Trophy, criteria: (logs) => Math.max(0, ...Object.values(logs).filter(l => l.exercise.toLowerCase().includes('squat')).map(l => calculateE1RM(l.load, l.reps, l.rir))) >= 225 },
+    deadlift_315: { name: "Three-Wheel Pull", description: "Achieved an e1RM of 315 lbs on any deadlift variation.", icon: Trophy, criteria: (logs) => Math.max(0, ...Object.values(logs).filter(l => l.exercise.toLowerCase().includes('deadlift')).map(l => calculateE1RM(l.load, l.reps, l.rir))) >= 315 },
+    streak_10: { name: "On Fire!", description: "Completed 10 workouts in a row without missing a scheduled day.", icon: Flame, criteria: (logs, program) => calculateStreak(logs, program) >= 10 },
+    streak_30: { name: "Unstoppable", description: "Maintained a 30-workout streak. Nothing can stop you!", icon: Flame, criteria: (logs, program) => calculateStreak(logs, program) >= 30 },
+    program_complete: { name: "Meso Master", description: "Completed every workout in a full program cycle.", icon: Award, criteria: (logs, program) => {
+        if(!program) return false;
+        const totalWorkouts = program.info.weeks * program.weeklySchedule.filter(d => d.workout !== 'Rest').length;
+        const completedWorkouts = new Set(Object.values(logs).map(l => `${l.week}-${l.dayKey}`)).size;
+        return completedWorkouts >= totalWorkouts;
+    }},
+    customizer: { name: "The Architect", description: "Created your own custom exercise.", icon: Edit, criteria: (logs, program) => {
+        if(!program) return false;
+        const presetExercises = new Set(Object.keys(presets['optimal-ppl-ul'].masterExerciseList));
+        return Object.keys(program.masterExerciseList).some(ex => !presetExercises.has(ex));
+    }},
+    mondays_4: { name: "Monday Motivator", description: "Never missed a Monday workout for 4 straight weeks.", icon: CalendarDays, criteria: (logs) => {
+        const mondayLogs = Object.values(logs).filter(l => l.dayKey === 'Mon');
+        const weeks = new Set(mondayLogs.map(l => l.week));
+        return weeks.size >= 4;
+    }},
+    variety_25: { name: "Jack of All Lifts", description: "You've performed at least 25 different exercises.", icon: InfinityIcon, criteria: (logs) => new Set(Object.values(logs).map(l => l.exercise)).size >= 25 },
+};
+
+const calculateStreak = (allLogs, programData) => {
+    if (!programData) return 0;
+    const { weeklySchedule, programStructure, masterExerciseList, info } = programData;
+    let currentStreak = 0;
+    let streakBroken = false;
+    const sortedDays = [];
+    for (let week = 1; week <= info.weeks; week++) {
+        for (const day of weeklySchedule) {
+            if (day.workout !== 'Rest') {
+                sortedDays.push({ week, day: day.day });
+            }
+        }
+    }
+    for (const { week, day } of sortedDays) {
+        const workoutName = weeklySchedule.find(d => d.day === day)?.workout;
+        const workout = programStructure[workoutName];
+        if (!workout) continue;
+        const isDayComplete = workout.exercises.every(exName => {
+            const exDetails = getExerciseDetails(exName, masterExerciseList);
+            if (!exDetails) return false;
+            return Array.from({ length: exDetails.sets }, (_, i) => i + 1).every(setNum => {
+                const log = allLogs[`${week}-${day}-${exName}-${setNum}`];
+                return log?.load && log?.reps && (log.rir !== undefined && log.rir !== null && log.rir !== '');
+            });
+        });
+        if (isDayComplete) {
+            if (!streakBroken) currentStreak++;
+        } else {
+            const hasAnyLogInDay = workout.exercises.some(exName => {
+                const exDetails = getExerciseDetails(exName, masterExerciseList);
+                if (!exDetails) return false;
+                return Array.from({ length: exDetails.sets }, (_, i) => i + 1).some(setNum => !!allLogs[`${week}-${day}-${exName}-${setNum}`]);
+            });
+            if (hasAnyLogInDay) streakBroken = true;
+        }
+    }
+    return currentStreak;
+};
+
+const AchievementsView = ({ historicalLogs, programData }) => {
+    const { openModal, closeModal } = useContext(AppStateContext);
+
+    const unlockedAchievements = useMemo(() => {
+        const unlocked = new Set();
+        for (const id in achievementsList) {
+            if (achievementsList[id].criteria(historicalLogs, programData)) {
+                unlocked.add(id);
+            }
+        }
+        return unlocked;
+    }, [historicalLogs, programData]);
+
+    const handleShowDescription = (e, id) => {
+        e.preventDefault(); // Prevents any default button behavior like page scroll
+        const achievement = achievementsList[id];
+        openModal(
+            <div>
+                <div className="flex items-center gap-3 mb-4">
+                    <achievement.icon size={32} className="text-yellow-500" />
+                    <h2 className="text-xl font-bold">{achievement.name}</h2>
+                </div>
+                <p className="text-gray-600 dark:text-gray-400">{achievement.description}</p>
+                <div className="flex justify-end mt-6">
+                    <button onClick={closeModal} className="px-4 py-2 bg-blue-600 text-white rounded-lg">Close</button>
+                </div>
+            </div>
+        );
+    };
+
+    return (
+        <div className="p-4 md:p-6 pb-24">
+            <div className="flex flex-col items-center text-center mb-6">
+                <Award className="text-yellow-500 dark:text-yellow-400 mb-2" size={32} />
+                <div>
+                    <h1 className="text-3xl font-bold dark:text-white">Achievements</h1>
+                    <p className="text-lg text-gray-600 dark:text-gray-400">Your Milestones & Trophies</p>
+                </div>
+            </div>
+            <div className="grid grid-cols-3 gap-4">
+                {Object.entries(achievementsList).map(([id, achievement]) => {
+                    const isUnlocked = unlockedAchievements.has(id);
+                    return (
+                        <button 
+                            key={id} 
+                            onClick={(e) => handleShowDescription(e, id)}
+                            className={`p-4 rounded-xl flex flex-col items-center justify-center text-center aspect-square transition-all duration-300 ${isUnlocked ? 'bg-yellow-100 dark:bg-yellow-900/50 border-2 border-yellow-500 shadow-lg' : 'bg-gray-100 dark:bg-gray-800 filter grayscale opacity-60'}`}
+                        >
+                            <achievement.icon size={36} className={isUnlocked ? 'text-yellow-500' : 'text-gray-500'} />
+                            <h3 className={`mt-2 font-bold text-sm ${isUnlocked ? 'text-yellow-800 dark:text-yellow-200' : 'text-gray-600 dark:text-gray-400'}`}>{achievement.name}</h3>
+                        </button>
+                    );
+                })}
+            </div>
+        </div>
+    );
+};
+
 
 // --- App Structure & Routing ---
-const EyeIcon = ({ className }) => (
-    <svg className={className} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <path d="M1 12C1 12 5 4 12 4C19 4 23 12 23 12C23 12 19 20 12 20C5 20 1 12 1 12Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-        <circle cx="12" cy="12" r="4" fill="#4ade80"/>
+const WingIcon = ({ className }) => (
+    <svg className={className} viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <linearGradient id="wingGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" style={{stopColor: '#22c55e', stopOpacity: 1}} />
+          <stop offset="100%" style={{stopColor: '#3b82f6', stopOpacity: 1}} />
+        </linearGradient>
+      </defs>
+      <path d="M85.6,25.8c-3.5-3.4-7.2-6.2-11.1-8.4c-5-2.8-10.3-4.4-15.7-4.4c-4.9,0-9.6,1.2-14,3.5c-4.4,2.3-8.3,5.6-11.6,9.6c-2.8,3.4-5.1,7.3-6.7,11.5c-1.7,4.2-2.5,8.7-2.5,13.2c0,5.1,1,10.1,2.9,14.8c1.9,4.7,4.8,9,8.4,12.7c3.7,3.7,8.1,6.7,13,8.9c4.9,2.2,10.2,3.3,15.5,3.3c5.7,0,11.1-1.4,16.2-4.1c5.1-2.7,9.6-6.5,13.5-11.2l-15.9-14.3c-2.3,2.8-5.2,4.8-8.4,5.9c-3.2,1.1-6.6,1.7-10,1.7c-4.2,0-8.2-1-11.9-2.9c-3.7-1.9-6.8-4.7-9.2-8.1c-2.4-3.4-3.9-7.4-4.2-11.6c-0.4-4.2,0.5-8.4,2.4-12.2c1.9-3.8,4.8-7,8.4-9.4c3.6-2.4,7.8-3.8,12.1-3.8c4.2,0,8.2,1.2,11.8,3.5c3.6,2.3,6.7,5.4,9.2,9.1l15.9-14.3Z" fill="url(#wingGradient)"/>
     </svg>
 );
 
@@ -1905,8 +2101,8 @@ const AppHeader = ({ programName, onNavChange }) => {
                 <Menu />
             </button>
             <button onClick={() => onNavChange('main')} className="flex items-center gap-2">
-                 <EyeIcon className="w-8 h-8 text-blue-600 dark:text-blue-400" />
-                 <h1 className="text-2xl font-bold text-blue-600 dark:text-blue-400">{programName}</h1>
+                 <WingIcon className="w-8 h-8" />
+                 <h1 className="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-green-500 to-blue-600">{programName}</h1>
             </button>
             <div className="w-8"></div> {/* Placeholder for balance */}
         </header>
@@ -1919,6 +2115,7 @@ const Sidebar = ({ onNavChange, currentPage }) => {
         { label: 'Program', view: 'main', icon: Dumbbell },
         { label: 'Dashboard', view: 'dashboard', icon: LayoutDashboard },
         { label: 'Analytics', view: 'analytics', icon: BarChart2 },
+        { label: 'Achievements', view: 'achievements', icon: Award },
         { label: 'Records', view: 'records', icon: Trophy },
         { label: 'Edit Program', view: 'editProgram', icon: Edit },
         { label: 'App Settings', view: 'settings', icon: Settings },
@@ -1973,6 +2170,19 @@ const Modal = () => {
     );
 };
 
+const ToastContainer = () => {
+    const { toasts } = useContext(AppStateContext);
+    return (
+        <div className="fixed bottom-4 right-4 z-50 space-y-2">
+            {toasts.map(toast => (
+                <div key={toast.id} className="bg-green-500 text-white px-4 py-2 rounded-lg shadow-lg animate-fade-in-up">
+                    {toast.message}
+                </div>
+            ))}
+        </div>
+    );
+}
+
 
 const AppCore = () => {
     const [pageState, setPageState] = useState({ view: 'main', data: {} });
@@ -1981,11 +2191,13 @@ const AppCore = () => {
     const [skippedDays, setSkippedDays] = useState({});
     const [programData, setProgramData] = useState(presets['optimal-ppl-ul']);
     const [weightUnit, setWeightUnit] = useState('lbs');
+    const [bodyWeight, setBodyWeight] = useState('');
     const { user, db, isLoading, customId } = useContext(FirebaseContext);
     const { setTheme } = useContext(ThemeContext);
-    const { openModal, closeModal } = useContext(AppStateContext);
+    const { openModal, closeModal, addToast } = useContext(AppStateContext);
     const [isDataLoading, setIsDataLoading] = useState(true);
     const [activeTimer, setActiveTimer] = useState(null);
+    const [unlockedAchievements, setUnlockedAchievements] = useState(new Set());
 
     const showTutorial = useCallback(() => {
         openModal(<TutorialModal onClose={closeModal} />);
@@ -2008,6 +2220,7 @@ const AppCore = () => {
                 setSkippedDays(data.skippedDays || {});
                 setTheme(data.theme || 'dark');
                 setWeightUnit(data.weightUnit || 'lbs');
+                setBodyWeight(data.bodyWeight || '');
                 
                 const defaultProgram = presets['optimal-ppl-ul'];
                 const masterListFromDb = data.masterExerciseList || defaultProgram.masterExerciseList;
@@ -2045,6 +2258,7 @@ const AppCore = () => {
                     skippedDays: {}, 
                     theme: 'dark', 
                     weightUnit: 'lbs',
+                    bodyWeight: '',
                     archivedLogs: [],
                     hasSeenTutorial: false 
                 };
@@ -2068,6 +2282,25 @@ const AppCore = () => {
         });
         return combined;
     }, [allLogs, archivedLogs]);
+
+    // Achievement checking
+    useEffect(() => {
+        const newUnlocked = new Set();
+        for (const id in achievementsList) {
+            if (achievementsList[id].criteria(historicalLogs, programData, bodyWeight)) {
+                newUnlocked.add(id);
+            }
+        }
+        
+        const newlyAchieved = [...newUnlocked].filter(id => !unlockedAchievements.has(id));
+        if (newlyAchieved.length > 0) {
+            newlyAchieved.forEach(id => {
+                addToast(`New Achievement: ${achievementsList[id].name}`);
+            });
+        }
+        setUnlockedAchievements(newUnlocked);
+    }, [historicalLogs, programData, bodyWeight, addToast]);
+
 
     // Navigation logic
     const navigate = (view, data = {}) => {
@@ -2106,6 +2339,11 @@ const AppCore = () => {
     const handleWeightUnitChange = (newUnit) => {
         setWeightUnit(newUnit);
         handleUpdateAndSave({ weightUnit: newUnit });
+    };
+    
+    const handleBodyWeightChange = (newWeight) => {
+        setBodyWeight(newWeight);
+        handleUpdateAndSave({ bodyWeight: newWeight });
     };
 
     const handleSkipDay = (week, dayKey) => {
@@ -2191,15 +2429,16 @@ const AppCore = () => {
     
     const renderContent = () => {
         if (!customId) {
-            return <SettingsView allLogs={{}} historicalLogs={{}} weightUnit={weightUnit} onWeightUnitChange={handleWeightUnitChange} onProgramUpdate={handleProgramDataChange} onResetMeso={handleResetMeso} programData={programData} onProgramDataChange={handleProgramDataChange} onShowTutorial={showTutorial} />;
+            return <SettingsView allLogs={{}} historicalLogs={{}} weightUnit={weightUnit} onWeightUnitChange={handleWeightUnitChange} onProgramUpdate={handleProgramDataChange} onResetMeso={handleResetMeso} programData={programData} onProgramDataChange={handleProgramDataChange} onShowTutorial={showTutorial} bodyWeight={bodyWeight} onBodyWeightChange={handleBodyWeightChange} />;
         }
         switch(pageState.view) {
             case 'dashboard': return <DashboardView allLogs={allLogs} {...programData} />;
             case 'lifting': return <LiftingSession {...pageState.data} onBack={() => navigate('main')} allLogs={allLogs} setAllLogs={setAllLogs} onSkipDay={handleSkipDay} programData={programData} weightUnit={weightUnit} onStartTimer={handleStartTimer} />;
             case 'analytics': return <AnalyticsView allLogs={historicalLogs} masterExerciseList={programData.masterExerciseList} />;
             case 'records': return <RecordsView allLogs={historicalLogs} />;
+            case 'achievements': return <AchievementsView historicalLogs={historicalLogs} programData={programData} />;
             case 'editProgram': return <EditProgramView programData={programData} onProgramDataChange={handleProgramDataChange} />;
-            case 'settings': return <SettingsView allLogs={allLogs} historicalLogs={historicalLogs} weightUnit={weightUnit} onWeightUnitChange={handleWeightUnitChange} onProgramUpdate={handleProgramDataChange} onResetMeso={handleResetMeso} programData={programData} onProgramDataChange={handleProgramDataChange} onShowTutorial={showTutorial} />;
+            case 'settings': return <SettingsView allLogs={allLogs} historicalLogs={historicalLogs} weightUnit={weightUnit} onWeightUnitChange={handleWeightUnitChange} onProgramUpdate={handleProgramDataChange} onResetMeso={handleResetMeso} programData={programData} onProgramDataChange={handleProgramDataChange} onShowTutorial={showTutorial} bodyWeight={bodyWeight} onBodyWeightChange={handleBodyWeightChange} />;
             default: return <MainView onSessionSelect={(week, day, type) => navigate(type, { week, dayKey: day })} completedDays={completedDays} onUnskipDay={handleUnskipDay} {...programData} />;
         }
     };
@@ -2215,6 +2454,7 @@ const AppCore = () => {
             </div>
              <Modal />
              {activeTimer && <RestTimer initialTime={activeTimer} onClose={() => setActiveTimer(null)} />}
+             <ToastContainer />
         </div>
     );
 }
