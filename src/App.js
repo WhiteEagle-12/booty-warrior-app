@@ -2030,20 +2030,163 @@ const calculateStreak = (allLogs, programData) => {
     return currentStreak;
 };
 
+// Helper function to get max e1RM for an exercise type
+const getMaxE1RMFor = (logs, exerciseSubstring) => {
+    const relevantLogs = Object.values(logs).filter(l => l.exercise.toLowerCase().includes(exerciseSubstring));
+    if (relevantLogs.length === 0) return 0;
+    return Math.max(0, ...relevantLogs.map(l => calculateE1RM(l.load, l.reps, l.rir)));
+};
+
 const achievementsList = {
+    // --- Core Progress Achievements ---
     total_volume: {
         name: "Total Volume",
-        description: "Cumulative weight lifted across all exercises.",
+        description: "Cumulative weight lifted across all exercises. This is your career tonnage.",
         icon: Weight,
         type: 'tiered',
         tiers: [
             { name: "Bronze", value: 10000, description: "Lifted a total of 10,000 lbs! The journey begins." },
             { name: "Silver", value: 100000, description: "Lifted a total of 100,000 lbs. That's some serious weight!" },
             { name: "Gold", value: 500000, description: "Lifted a total of 500,000 lbs. Incredible strength!" },
-            { name: "Platinum", value: 1000000, description: "Lifted a total of 1,000,000 lbs! Truly elite." },
+            { name: "Platinum", value: 1000000, description: "Joined the 1,000,000 lbs club! Truly elite." },
         ],
         getValue: (logs) => Object.values(logs).reduce((sum, log) => sum + ((log.load || 0) * (log.reps || 0)), 0),
     },
+    volume_volcano: {
+        name: "Volume Volcano",
+        description: "Set a new personal record for total volume in a single day.",
+        icon: TrendingUp,
+        type: 'tiered',
+        tiers: [
+            { name: "Bronze", value: 10000, description: "Lifted over 10,000 lbs in a single workout." },
+            { name: "Silver", value: 20000, description: "Lifted over 20,000 lbs in a single workout." },
+            { name: "Gold", value: 30000, description: "Lifted over 30,000 lbs in a single workout. A truly volcanic session!" },
+        ],
+        getValue: (logs) => {
+            const dailyVolumes = Object.values(logs).reduce((acc, log) => {
+                const dayKey = `${log.week}-${log.dayKey}`;
+                const volume = (log.load || 0) * (log.reps || 0);
+                acc[dayKey] = (acc[dayKey] || 0) + volume;
+                return acc;
+            }, {});
+            return Math.max(0, ...Object.values(dailyVolumes));
+        },
+    },
+    weekly_avalanche: {
+        name: "Weekly Avalanche",
+        description: "Set a new personal record for total volume in a single week.",
+        icon: TrendingUp,
+        type: 'tiered',
+        tiers: [
+            { name: "Bronze", value: 50000, description: "Lifted over 50,000 lbs in a single week." },
+            { name: "Silver", value: 75000, description: "Lifted over 75,000 lbs in a single week." },
+            { name: "Gold", value: 100000, description: "Lifted over 100,000 lbs in a single week. An avalanche of gains!" },
+        ],
+        getValue: (logs) => {
+            const weeklyVolumes = Object.values(logs).reduce((acc, log) => {
+                const weekKey = log.week;
+                const volume = (log.load || 0) * (log.reps || 0);
+                acc[weekKey] = (acc[weekKey] || 0) + volume;
+                return acc;
+            }, {});
+            return Math.max(0, ...Object.values(weeklyVolumes));
+        },
+    },
+    bench_press_pr: {
+        name: "Bench Press Club",
+        description: "Achieve new e1RM milestones in any bench press variation.",
+        icon: Trophy,
+        type: 'tiered',
+        tiers: [
+            { name: "135 Club", value: 135, description: "Achieved an e1RM of 135 lbs (a plate!) on bench press." },
+            { name: "185 Club", value: 185, description: "Achieved an e1RM of 185 lbs on bench press." },
+            { name: "Two Wheels", value: 225, description: "Achieved an e1RM of 225 lbs (two plates!) on bench press." },
+            { name: "275 Club", value: 275, description: "Achieved an e1RM of 275 lbs on bench press." },
+            { name: "Three Wheels", value: 315, description: "Achieved an e1RM of 315 lbs (three plates!) on bench press." },
+        ],
+        getValue: (logs) => getMaxE1RMFor(logs, 'bench')
+    },
+    squat_pr: {
+        name: "Squat Club",
+        description: "Achieve new e1RM milestones in any squat variation.",
+        icon: Trophy,
+        type: 'tiered',
+        tiers: [
+            { name: "135 Club", value: 135, description: "Achieved an e1RM of 135 lbs on the squat." },
+            { name: "Two Wheels", value: 225, description: "Achieved an e1RM of 225 lbs (two plates!) on the squat." },
+            { name: "Three Wheels", value: 315, description: "Achieved an e1RM of 315 lbs (three plates!) on the squat." },
+            { name: "Four Wheels", value: 405, description: "Achieved an e1RM of 405 lbs (four plates!) on the squat." },
+        ],
+        getValue: (logs) => getMaxE1RMFor(logs, 'squat')
+    },
+    deadlift_pr: {
+        name: "Deadlift Club",
+        description: "Achieve new e1RM milestones in any deadlift variation.",
+        icon: Trophy,
+        type: 'tiered',
+        tiers: [
+            { name: "Two Wheels", value: 225, description: "Achieved an e1RM of 225 lbs on the deadlift." },
+            { name: "Three Wheels", value: 315, description: "Achieved an e1RM of 315 lbs (three plates!) on the deadlift." },
+            { name: "Four Wheels", value: 405, description: "Achieved an e1RM of 405 lbs (four plates!) on the deadlift." },
+            { name: "Five Wheels", value: 495, description: "Achieved an e1RM of 495 lbs (five plates!) on the deadlift." },
+        ],
+        getValue: (logs) => getMaxE1RMFor(logs, 'deadlift')
+    },
+    overhead_overlord: {
+        name: "Overhead Overlord",
+        description: "Achieve new e1RM milestones in any overhead press variation.",
+        icon: Trophy,
+        type: 'tiered',
+        tiers: [
+            { name: "Press Prince", value: 135, description: "Achieved an e1RM of 135 lbs on the overhead press." },
+            { name: "Overlord", value: 185, description: "Achieved an e1RM of 185 lbs on the overhead press." },
+        ],
+        getValue: (logs) => Math.max(0, ...Object.values(logs).filter(l => l.exercise.toLowerCase().includes('press') && !l.exercise.toLowerCase().includes('bench') && !l.exercise.toLowerCase().includes('leg')).map(l => calculateE1RM(l.load, l.reps, l.rir)))
+    },
+    rep_monster: {
+        name: "Rep Monster",
+        description: "Set new repetition personal records at a given weight.",
+        icon: Repeat,
+        type: 'tiered',
+        tiers: [
+            { name: "Bronze", value: 5, description: "Set 5 new rep PRs." },
+            { name: "Silver", value: 25, description: "Set 25 new rep PRs." },
+            { name: "Gold", value: 100, description: "Set 100 new rep PRs." },
+        ],
+        getValue: (logs) => {
+            const prs = {}; // { "exercise-load": maxReps }
+            let prCount = 0;
+            const sortedLogs = Object.values(logs).filter(l => l.date).sort((a, b) => new Date(a.date) - new Date(b.date));
+            
+            for (const log of sortedLogs) {
+                if (log.load && log.reps) {
+                    const key = `${log.exercise}-${log.load}`;
+                    const currentReps = parseInt(log.reps, 10);
+                    const existingPr = prs[key] || 0;
+                    
+                    if (currentReps > existingPr) {
+                        if(existingPr > 0) { // Only count it as a PR if a previous record existed
+                           prCount++;
+                        }
+                        prs[key] = currentReps;
+                    }
+                }
+            }
+            return prCount;
+        },
+    },
+    plate_pr: {
+        name: "Plate PR",
+        description: "First time using 45lb plates on a barbell movement (135 lbs+).",
+        icon: Weight,
+        type: 'simple',
+        criteria: (logs, program) => Object.values(logs).some(l => {
+            const details = getExerciseDetails(l.exercise, program.masterExerciseList);
+            return details?.equipment === 'barbell' && l.load >= 135;
+        }),
+    },
+
+    // --- Consistency Achievements ---
     workouts_completed: {
         name: "Workouts Completed",
         description: "Total number of workout sessions logged.",
@@ -2055,7 +2198,7 @@ const achievementsList = {
             { name: "Gold", value: 100, description: "Completed 100 workouts! A true veteran of the iron." },
             { name: "Platinum", value: 250, description: "Completed 250 workouts. This is a lifestyle." },
         ],
-        getValue: (logs) => new Set(Object.values(logs).map(l => `${l.week}-${l.dayKey}`)).size,
+        getValue: (logs) => new Set(Object.values(logs).filter(l => l.week && l.dayKey).map(l => `${l.week}-${l.dayKey}`)).size,
     },
     workout_streak: {
         name: "Workout Streak",
@@ -2069,113 +2212,193 @@ const achievementsList = {
         ],
         getValue: (logs, program) => calculateStreak(logs, program),
     },
-    bench_press_pr: {
-        name: "Bench Press Progress",
-        description: "Achieve new personal records in any bench press variation.",
-        icon: Trophy,
-        type: 'tiered',
-        tiers: [
-            { name: "Bronze", value: 135, description: "Achieved an e1RM of 135 lbs (a plate!) on bench press." },
-            { name: "Silver", value: 185, description: "Achieved an e1RM of 185 lbs on bench press." },
-            { name: "Gold", value: 225, description: "Achieved an e1RM of 225 lbs (two plates!) on bench press." },
-            { name: "Platinum", value: 275, description: "Achieved an e1RM of 275 lbs on bench press." },
-            { name: "Diamond", value: 315, description: "Achieved an e1RM of 315 lbs (three plates!) on bench press." },
-        ],
-        getValue: (logs) => Math.max(0, ...Object.values(logs).filter(l => l.exercise.toLowerCase().includes('bench')).map(l => calculateE1RM(l.load, l.reps, l.rir)))
+    four_week_flame: {
+        name: "4-Week Flame",
+        description: "Completed 3 or more sessions per week for 4 straight weeks.",
+        icon: Flame,
+        type: 'simple',
+        criteria: (logs) => {
+            const weeklySessions = Object.values(logs).reduce((acc, log) => {
+                if (log.week && log.dayKey) {
+                    if (!acc[log.week]) acc[log.week] = new Set();
+                    acc[log.week].add(log.dayKey);
+                }
+                return acc;
+            }, {});
+
+            const weeks = Object.keys(weeklySessions).map(Number).sort((a,b) => a-b);
+            let consecutiveWeeks = 0;
+            for (let i = 0; i < weeks.length; i++) {
+                if (weeklySessions[weeks[i]].size >= 3) {
+                    if (i > 0 && weeks[i] === weeks[i-1] + 1) {
+                        consecutiveWeeks++;
+                    } else {
+                        consecutiveWeeks = 1;
+                    }
+                    if (consecutiveWeeks >= 4) return true;
+                } else {
+                    consecutiveWeeks = 0;
+                }
+            }
+            return false;
+        }
     },
-    squat_pr: {
-        name: "Squat Progress",
-        description: "Achieve new personal records in any squat variation.",
-        icon: Trophy,
-        type: 'tiered',
-        tiers: [
-            { name: "Bronze", value: 135, description: "Achieved an e1RM of 135 lbs on the squat." },
-            { name: "Silver", value: 225, description: "Achieved an e1RM of 225 lbs (two plates!) on the squat." },
-            { name: "Gold", value: 315, description: "Achieved an e1RM of 315 lbs (three plates!) on the squat." },
-            { name: "Platinum", value: 405, description: "Achieved an e1RM of 405 lbs (four plates!) on the squat." },
-        ],
-        getValue: (logs) => Math.max(0, ...Object.values(logs).filter(l => l.exercise.toLowerCase().includes('squat')).map(l => calculateE1RM(l.load, l.reps, l.rir)))
+    weekend_warrior: {
+        name: "Weekend Warrior",
+        description: "Completed workouts on both a Saturday and Sunday in the same week.",
+        icon: CalendarDays,
+        type: 'simple',
+        criteria: (logs) => {
+            const weeklySessions = Object.values(logs).reduce((acc, log) => {
+                if (log.week && log.dayKey) {
+                    if (!acc[log.week]) acc[log.week] = new Set();
+                    acc[log.week].add(log.dayKey);
+                }
+                return acc;
+            }, {});
+            return Object.values(weeklySessions).some(days => days.has('Sat') && days.has('Sun'));
+        }
     },
-    deadlift_pr: {
-        name: "Deadlift Progress",
-        description: "Achieve new personal records in any deadlift variation.",
-        icon: Trophy,
-        type: 'tiered',
-        tiers: [
-            { name: "Bronze", value: 225, description: "Achieved an e1RM of 225 lbs on the deadlift." },
-            { name: "Silver", value: 315, description: "Achieved an e1RM of 315 lbs (three plates!) on the deadlift." },
-            { name: "Gold", value: 405, description: "Achieved an e1RM of 405 lbs (four plates!) on the deadlift." },
-            { name: "Platinum", value: 495, description: "Achieved an e1RM of 495 lbs (five plates!) on the deadlift." },
-        ],
-        getValue: (logs) => Math.max(0, ...Object.values(logs).filter(l => l.exercise.toLowerCase().includes('deadlift')).map(l => calculateE1RM(l.load, l.reps, l.rir)))
-    },
+
+    // --- Strength Standards Achievements ---
     bodyweight_bench: {
-        name: "Bodyweight Bench",
+        name: "Bench Buddy",
         description: "Bench press a multiple of your bodyweight.",
         icon: Weight,
         type: 'tiered',
         tiers: [
-            { name: "Bronze", value: 1.0, description: "Benching your bodyweight is a classic milestone." },
-            { name: "Silver", value: 1.25, description: "Benching 1.25x your bodyweight." },
-            { name: "Gold", value: 1.5, description: "Benching 1.5x your bodyweight is seriously strong." },
+            { name: "1.0x BW", value: 1.0, description: "Benching your bodyweight is a classic milestone." },
+            { name: "1.25x BW", value: 1.25, description: "Benching 1.25x your bodyweight." },
+            { name: "1.5x BW", value: 1.5, description: "Benching 1.5x your bodyweight is seriously strong." },
         ],
         getValue: (logs, program, bodyWeight) => {
             if (!bodyWeight || bodyWeight <= 0) return 0;
-            const maxBench = Math.max(0, ...Object.values(logs).filter(l => l.exercise.toLowerCase().includes('bench')).map(l => calculateE1RM(l.load, l.reps, l.rir)));
+            const maxBench = getMaxE1RMFor(logs, 'bench');
             return maxBench / bodyWeight;
         }
     },
     bodyweight_squat: {
-        name: "Bodyweight Squat",
+        name: "Squat Society",
         description: "Squat a multiple of your bodyweight.",
         icon: Weight,
         type: 'tiered',
         tiers: [
-            { name: "Bronze", value: 1.5, description: "Squatting 1.5x your bodyweight." },
-            { name: "Silver", value: 2.0, description: "Squatting 2x your bodyweight. Strong foundation!" },
-            { name: "Gold", value: 2.5, description: "Squatting 2.5x your bodyweight is elite." },
+            { name: "1.5x BW", value: 1.5, description: "Squatting 1.5x your bodyweight." },
+            { name: "2.0x BW", value: 2.0, description: "Squatting 2x your bodyweight. Strong foundation!" },
+            { name: "2.5x BW", value: 2.5, description: "Squatting 2.5x your bodyweight is elite." },
         ],
         getValue: (logs, program, bodyWeight) => {
             if (!bodyWeight || bodyWeight <= 0) return 0;
-            const maxSquat = Math.max(0, ...Object.values(logs).filter(l => l.exercise.toLowerCase().includes('squat')).map(l => calculateE1RM(l.load, l.reps, l.rir)));
+            const maxSquat = getMaxE1RMFor(logs, 'squat');
             return maxSquat / bodyWeight;
         }
     },
     bodyweight_deadlift: {
-        name: "Bodyweight Deadlift",
+        name: "Deadlift Department",
         description: "Deadlift a multiple of your bodyweight.",
         icon: Weight,
         type: 'tiered',
         tiers: [
-            { name: "Bronze", value: 2.0, description: "Deadlifting 2x your bodyweight." },
-            { name: "Silver", value: 2.5, description: "Deadlifting 2.5x your bodyweight. Powerful!" },
-            { name: "Gold", value: 3.0, description: "Deadlifting 3x your bodyweight is world-class." },
+            { name: "2.0x BW", value: 2.0, description: "Deadlifting 2x your bodyweight." },
+            { name: "2.5x BW", value: 2.5, description: "Deadlifting 2.5x your bodyweight. Powerful!" },
+            { name: "3.0x BW", value: 3.0, description: "Deadlifting 3x your bodyweight is world-class." },
         ],
         getValue: (logs, program, bodyWeight) => {
             if (!bodyWeight || bodyWeight <= 0) return 0;
-            const maxDeadlift = Math.max(0, ...Object.values(logs).filter(l => l.exercise.toLowerCase().includes('deadlift')).map(l => calculateE1RM(l.load, l.reps, l.rir)));
+            const maxDeadlift = getMaxE1RMFor(logs, 'deadlift');
             return maxDeadlift / bodyWeight;
         }
     },
+    pull_up_pro: {
+        name: "Pull-up Pro",
+        description: "Perform 10 or more strict pull-ups in a single set.",
+        icon: Award,
+        type: 'tiered',
+        tiers: [
+            { name: "Pro", value: 10, description: "Completed 10 strict pull-ups." },
+            { name: "Elite", value: 15, description: "Completed 15 strict pull-ups." },
+            { name: "Master", value: 20, description: "Completed 20 strict pull-ups." },
+        ],
+        getValue: (logs) => Math.max(0, ...Object.values(logs).filter(l => l.exercise.toLowerCase().includes('pullup') || l.exercise.toLowerCase().includes('pull-up')).map(l => parseInt(l.reps, 10) || 0))
+    },
+    unbroken_20: {
+        name: "Unbroken 20",
+        description: "Complete a 20-rep squat set with at least 135 lbs.",
+        icon: InfinityIcon,
+        type: 'simple',
+        criteria: (logs) => Object.values(logs).some(l => l.exercise.toLowerCase().includes('squat') && l.reps >= 20 && l.load >= 135),
+    },
+
+    // --- Technique & Quality Achievements ---
+    rpe_honesty: {
+        name: "RPE Honesty",
+        description: "Log your Reps in Reserve (RIR) for your sets.",
+        icon: Target,
+        type: 'tiered',
+        tiers: [
+            { name: "Bronze", value: 50, description: "Logged RIR for 50 sets." },
+            { name: "Silver", value: 250, description: "Logged RIR for 250 sets." },
+            { name: "Gold", value: 1000, description: "Logged RIR for 1000 sets. You're in tune with your body." },
+        ],
+        getValue: (logs) => Object.values(logs).filter(l => l.rir !== undefined && l.rir !== null && l.rir !== '').length,
+    },
+    paused_and_proud: {
+        name: "Paused & Proud",
+        description: "Log sets for a paused bench press variation.",
+        icon: Shield,
+        type: 'tiered',
+        tiers: [
+            { name: "Bronze", value: 10, description: "Completed 10 sets of paused bench press." },
+            { name: "Silver", value: 50, description: "Completed 50 sets of paused bench press." },
+        ],
+        getValue: (logs) => Object.values(logs).filter(l => l.exercise.toLowerCase().includes('paused') && l.exercise.toLowerCase().includes('bench')).length,
+    },
+    bail_smart: {
+        name: "Bail Smart",
+        description: "Hit the target RIR exactly, showing great effort control.",
+        icon: CheckCircle,
+        type: 'tiered',
+        tiers: [
+            { name: "Bronze", value: 25, description: "Matched the target RIR on 25 sets." },
+            { name: "Silver", value: 100, description: "Matched the target RIR on 100 sets." },
+        ],
+        getValue: (logs, program) => {
+            return Object.values(logs).filter(log => {
+                const details = getExerciseDetails(log.exercise, program.masterExerciseList);
+                if (!details || !details.rir || !log.rir) return false;
+                const targetRir = details.rir[log.set - 1];
+                return targetRir !== undefined && targetRir.toString() === log.rir.toString();
+            }).length;
+        },
+    },
+
+    // --- Program & Meta Achievements ---
     program_complete: { 
         name: "Meso Master", 
         description: "Completed every workout in a full program cycle.", 
         icon: Award, 
+        type: 'simple',
         criteria: (logs, program) => {
-            if(!program) return false;
+            if(!program || !program.info || !program.weeklySchedule) return false;
             const totalWorkouts = program.info.weeks * program.weeklySchedule.filter(d => d.workout !== 'Rest').length;
-            const completedWorkouts = new Set(Object.values(logs).map(l => `${l.week}-${l.dayKey}`)).size;
-            return completedWorkouts >= totalWorkouts;
+            const completedWorkouts = new Set(Object.values(logs).filter(l => l.week && l.dayKey).map(l => `${l.week}-${l.dayKey}`)).size;
+            return completedWorkouts > 0 && completedWorkouts >= totalWorkouts;
         }
     },
     customizer: { 
         name: "The Architect", 
-        description: "Created your own custom exercise.", 
+        description: "Create your own custom exercises to add to your program.", 
         icon: Edit, 
-        criteria: (logs, program) => {
-            if(!program) return false;
+        type: 'tiered',
+        tiers: [
+            { name: "Apprentice", value: 1, description: "Created your first custom exercise." },
+            { name: "Journeyman", value: 5, description: "Created 5 custom exercises." },
+            { name: "Master", value: 10, description: "Created 10 custom exercises. You've built a unique arsenal." },
+        ],
+        getValue: (logs, program) => {
+            if(!program || !program.masterExerciseList) return 0;
             const presetExercises = new Set(Object.keys(presets['optimal-ppl-ul'].masterExerciseList));
-            return Object.keys(program.masterExerciseList).some(ex => !presetExercises.has(ex));
+            return Object.keys(program.masterExerciseList).filter(ex => !presetExercises.has(ex)).length;
         }
     },
 };
@@ -2214,6 +2437,20 @@ const AchievementCard = ({ achievementId, achievement, unlockedStatus, currentVa
         gold: { bg: 'bg-yellow-100 dark:bg-yellow-900/50', text: 'text-yellow-500 dark:text-yellow-400', border: 'border-yellow-500', progress: 'bg-yellow-500' },
         platinum: { bg: 'bg-cyan-100 dark:bg-cyan-900/50', text: 'text-cyan-500 dark:text-cyan-400', border: 'border-cyan-400', progress: 'bg-cyan-500' },
         diamond: { bg: 'bg-sky-100 dark:bg-sky-900/50', text: 'text-sky-500 dark:text-sky-400', border: 'border-sky-400', progress: 'bg-sky-500' },
+        '135 club': { bg: 'bg-gray-100 dark:bg-gray-800/50', text: 'text-gray-600 dark:text-gray-400', border: 'border-gray-400', progress: 'bg-gray-500' },
+        '185 club': { bg: 'bg-gray-100 dark:bg-gray-800/50', text: 'text-gray-600 dark:text-gray-400', border: 'border-gray-400', progress: 'bg-gray-500' },
+        'two wheels': { bg: 'bg-red-100 dark:bg-red-900/50', text: 'text-red-600 dark:text-red-400', border: 'border-red-400', progress: 'bg-red-500' },
+        '275 club': { bg: 'bg-gray-100 dark:bg-gray-800/50', text: 'text-gray-600 dark:text-gray-400', border: 'border-gray-400', progress: 'bg-gray-500' },
+        'three wheels': { bg: 'bg-blue-100 dark:bg-blue-900/50', text: 'text-blue-600 dark:text-blue-400', border: 'border-blue-400', progress: 'bg-blue-500' },
+        'four wheels': { bg: 'bg-purple-100 dark:bg-purple-900/50', text: 'text-purple-600 dark:text-purple-400', border: 'border-purple-400', progress: 'bg-purple-500' },
+        'five wheels': { bg: 'bg-pink-100 dark:bg-pink-900/50', text: 'text-pink-600 dark:text-pink-400', border: 'border-pink-400', progress: 'bg-pink-500' },
+        'press prince': { bg: 'bg-indigo-100 dark:bg-indigo-900/50', text: 'text-indigo-600 dark:text-indigo-400', border: 'border-indigo-400', progress: 'bg-indigo-500' },
+        'overlord': { bg: 'bg-violet-100 dark:bg-violet-900/50', text: 'text-violet-600 dark:text-violet-400', border: 'border-violet-400', progress: 'bg-violet-500' },
+        'pro': { bg: 'bg-teal-100 dark:bg-teal-900/50', text: 'text-teal-600 dark:text-teal-400', border: 'border-teal-400', progress: 'bg-teal-500' },
+        'elite': { bg: 'bg-emerald-100 dark:bg-emerald-900/50', text: 'text-emerald-600 dark:text-emerald-400', border: 'border-emerald-400', progress: 'bg-emerald-500' },
+        'master': { bg: 'bg-lime-100 dark:bg-lime-900/50', text: 'text-lime-600 dark:text-lime-400', border: 'border-lime-400', progress: 'bg-lime-500' },
+        'apprentice': { bg: 'bg-gray-100 dark:bg-gray-800/50', text: 'text-gray-600 dark:text-gray-400', border: 'border-gray-400', progress: 'bg-gray-500' },
+        'journeyman': { bg: 'bg-stone-100 dark:bg-stone-800/50', text: 'text-stone-600 dark:text-stone-400', border: 'border-stone-400', progress: 'bg-stone-500' },
     };
 
     const colorKey = tierName ? tierName.toLowerCase() : 'default';
@@ -2308,7 +2545,7 @@ const AchievementsView = ({ unlockedAchievements, historicalLogs, programData, b
                         achievementId={id}
                         achievement={achievement}
                         unlockedStatus={unlockedAchievements[id]}
-                        currentValue={achievement.getValue ? achievement.getValue(historicalLogs, programData, bodyWeight) : 0}
+                        currentValue={achievement.getValue ? achievement.getValue(historicalLogs, programData, bodyWeight) : (achievement.criteria ? (achievement.criteria(historicalLogs, programData, bodyWeight) ? 1 : 0) : 0)}
                         onClick={handleShowDescription}
                     />
                 ))}
