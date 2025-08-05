@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, createContext, useContext, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, createContext, useContext, useCallback, useRef } from 'react';
 import { ChevronDown, ChevronUp, Dumbbell, CheckCircle, ArrowLeft, BarChart2, Settings, Flame, Repeat, StretchVertical, Lightbulb, Download, XCircle, SkipForward, Menu, X, Search, Trophy, BrainCircuit, PlusCircle, Edit, ArrowUp, ArrowDown, LayoutDashboard, Save, AlertTriangle, Bell, HelpCircle, BookOpen, Star, Award, TrendingUp, Target, Zap, CalendarDays, Shield, Infinity as InfinityIcon, Weight } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 
@@ -187,9 +187,25 @@ const AppStateProvider = ({ children }) => {
     const [isSidebarOpen, setSidebarOpen] = useState(false);
     const [modalContent, setModalContent] = useState(null);
     const [toasts, setToasts] = useState([]);
+    const scrollYRef = useRef(0);
 
-    const openModal = (content) => setModalContent(content);
-    const closeModal = () => setModalContent(null);
+    const openModal = useCallback((content) => {
+        scrollYRef.current = window.scrollY;
+        document.body.style.position = 'fixed';
+        document.body.style.top = `-${scrollYRef.current}px`;
+        document.body.style.width = '100%';
+        document.body.style.overflowY = 'scroll';
+        setModalContent(content);
+    }, []);
+
+    const closeModal = useCallback(() => {
+        document.body.style.position = '';
+        document.body.style.top = '';
+        document.body.style.width = '';
+        document.body.style.overflowY = '';
+        window.scrollTo(0, scrollYRef.current);
+        setModalContent(null);
+    }, []);
     
     const addToast = useCallback((message) => {
         const id = crypto.randomUUID();
@@ -1002,9 +1018,6 @@ const AnalyticsView = ({ allLogs, masterExerciseList }) => {
     const filteredExercises = useMemo(() => uniqueExercises.filter(ex => ex.toLowerCase().includes(searchTerm.toLowerCase())), [uniqueExercises, searchTerm]);
 
     const filteredLogs = useMemo(() => {
-        // This logic filters logs based on the selected time frame.
-        // 'all' returns all logs. 'week' returns logs from the last 7 days.
-        // 'month' returns logs from the last 30 days.
         if (timeFilter === 'all') return allLogs;
         const now = new Date();
         const filterDate = new Date();
@@ -1051,6 +1064,24 @@ const AnalyticsView = ({ allLogs, masterExerciseList }) => {
             const [wB, dB] = b.sessionLabel.substring(1).split(' '); 
             return (parseInt(wA) - parseInt(wB)) || (dayOrder[dA] - dayOrder[dB]); 
         });
+    }, [selectedExercise, filteredLogs]);
+
+    const volumeData = useMemo(() => {
+        if (!selectedExercise || Object.keys(filteredLogs).length === 0) return [];
+        const volumesByWeek = {};
+        Object.values(filteredLogs).forEach(log => {
+            if (log.exercise === selectedExercise && log.load && log.reps && log.week) {
+                const week = log.week;
+                if (!volumesByWeek[week]) {
+                    volumesByWeek[week] = 0;
+                }
+                volumesByWeek[week] += (parseFloat(log.load) * parseInt(log.reps, 10));
+            }
+        });
+        return Object.entries(volumesByWeek).map(([week, volume]) => ({
+            week: `Week ${week}`,
+            totalVolume: Math.round(volume)
+        })).sort((a, b) => parseInt(a.week.split(' ')[1]) - parseInt(b.week.split(' ')[1]));
     }, [selectedExercise, filteredLogs]);
 
 
@@ -1167,6 +1198,19 @@ const AnalyticsView = ({ allLogs, masterExerciseList }) => {
                                 <h4 className="font-semibold text-sm dark:text-gray-300 mb-2">Load & Reps for Top Set</h4>
                                 <ResponsiveContainer>
                                     <LineChart data={chartData}><CartesianGrid strokeDasharray="3 3" className="stroke-gray-200 dark:stroke-gray-700" /><XAxis dataKey="sessionLabel" tick={{ fill: '#9ca3af' }} /><YAxis yAxisId="left" stroke="#8884d8" label={{ value: 'Load', angle: -90, position: 'insideLeft', fill: '#8884d8' }} domain={[dataMin => Math.max(0, Math.floor(dataMin * 0.9)), 'auto']} tick={{ fill: '#8884d8' }} /><YAxis yAxisId="right" orientation="right" stroke="#82ca9d" label={{ value: 'Reps', angle: 90, position: 'insideRight', fill: '#82ca9d' }} domain={[dataMin => Math.max(0, Math.floor(dataMin * 0.8)), 'auto']} allowDecimals={false} tick={{ fill: '#82ca9d' }} /><Tooltip contentStyle={{ backgroundColor: 'var(--tooltip-bg)', border: '1px solid var(--tooltip-border)' }} /><Legend align="center" /><Line yAxisId="left" type="monotone" dataKey="load" name="Load" stroke="#8884d8" /><Line yAxisId="right" type="monotone" dataKey="reps" name="Reps" stroke="#82ca9d" /></LineChart>
+                                </ResponsiveContainer>
+                            </div>
+                             <div className="w-full aspect-video">
+                                <h4 className="font-semibold text-sm dark:text-gray-300 mb-2">Total Weekly Volume</h4>
+                                <ResponsiveContainer>
+                                    <LineChart data={volumeData}>
+                                        <CartesianGrid strokeDasharray="3 3" className="stroke-gray-200 dark:stroke-gray-700" />
+                                        <XAxis dataKey="week" tick={{ fill: '#9ca3af' }} />
+                                        <YAxis domain={[0, 'auto']} tick={{ fill: '#9ca3af' }} />
+                                        <Tooltip contentStyle={{ backgroundColor: 'var(--tooltip-bg)', border: '1px solid var(--tooltip-border)' }} formatter={(value) => [`${value.toLocaleString()} lbs`, 'Total Volume']} />
+                                        <Legend align="center" />
+                                        <Line type="monotone" dataKey="totalVolume" name="Total Volume" stroke="#ffc658" strokeWidth={2} dot={{ r: 4 }} activeDot={{ r: 6 }} />
+                                    </LineChart>
                                 </ResponsiveContainer>
                             </div>
                         </div>
@@ -1936,51 +1980,6 @@ const RestTimer = ({ initialTime, onClose }) => {
 };
 
 // --- Achievements Data & Logic ---
-const achievementsList = {
-    total_volume_10k: { name: "Getting Started", description: "You've lifted a total of 10,000 lbs! The journey begins.", icon: Star, criteria: (logs) => Object.values(logs).reduce((sum, log) => sum + (log.load * log.reps || 0), 0) >= 10000 },
-    total_volume_100k: { name: "Serious Lifter", description: "You've lifted a total of 100,000 lbs. That's some serious weight!", icon: Star, criteria: (logs) => Object.values(logs).reduce((sum, log) => sum + (log.load * log.reps || 0), 0) >= 100000 },
-    total_volume_500k: { name: "Half-Million Club", description: "You've lifted a total of 500,000 lbs. Incredible strength!", icon: Award, criteria: (logs) => Object.values(logs).reduce((sum, log) => sum + (log.load * log.reps || 0), 0) >= 500000 },
-    total_volume_1m: { name: "Million Pound Club", description: "You've lifted a total of 1,000,000 lbs! Truly elite.", icon: Award, criteria: (logs) => Object.values(logs).reduce((sum, log) => sum + (log.load * log.reps || 0), 0) >= 1000000 },
-    workouts_10: { name: "Consistent", description: "Completed 10 workouts. Keep building the habit!", icon: CheckCircle, criteria: (logs) => new Set(Object.values(logs).map(l => `${l.week}-${l.dayKey}`)).size >= 10 },
-    workouts_50: { name: "Dedicated", description: "Completed 50 workouts! You're a regular.", icon: CheckCircle, criteria: (logs) => new Set(Object.values(logs).map(l => `${l.week}-${l.dayKey}`)).size >= 50 },
-    workouts_100: { name: "Centurion", description: "Completed 100 workouts! A true veteran of the iron.", icon: Shield, criteria: (logs) => new Set(Object.values(logs).map(l => `${l.week}-${l.dayKey}`)).size >= 100 },
-    pr_set: { name: "Personal Best", description: "Set a new personal record (e1RM) on any exercise.", icon: TrendingUp, criteria: (logs) => Object.keys(logs).length > 1 },
-    pr_streak_3: { name: "On a Roll", description: "Set 3 new PRs in a single week.", icon: Zap, criteria: (logs) => {
-        const prsByWeek = {};
-        Object.values(logs).forEach(log => {
-            const week = log.week;
-            if(!prsByWeek[week]) prsByWeek[week] = new Set();
-            // This is a simplified check. A real implementation would compare to previous PRs.
-            // For now, we'll count any logged exercise as a potential "PR" for that week.
-            prsByWeek[week].add(log.exercise);
-        });
-        return Object.values(prsByWeek).some(weekPrs => weekPrs.size >= 3);
-    }},
-    bench_135: { name: "Plate Club", description: "Achieved an estimated 1-Rep Max of 135 lbs on a bench press.", icon: Trophy, criteria: (logs) => Math.max(0, ...Object.values(logs).filter(l => l.exercise.toLowerCase().includes('bench')).map(l => calculateE1RM(l.load, l.reps, l.rir))) >= 135 },
-    bench_225: { name: "Two-Plate Club", description: "Achieved an estimated 1-Rep Max of 225 lbs on a bench press.", icon: Trophy, criteria: (logs) => Math.max(0, ...Object.values(logs).filter(l => l.exercise.toLowerCase().includes('bench')).map(l => calculateE1RM(l.load, l.reps, l.rir))) >= 225 },
-    squat_225: { name: "Squatting Deep", description: "Achieved an e1RM of 225 lbs on any squat variation.", icon: Trophy, criteria: (logs) => Math.max(0, ...Object.values(logs).filter(l => l.exercise.toLowerCase().includes('squat')).map(l => calculateE1RM(l.load, l.reps, l.rir))) >= 225 },
-    deadlift_315: { name: "Three-Wheel Pull", description: "Achieved an e1RM of 315 lbs on any deadlift variation.", icon: Trophy, criteria: (logs) => Math.max(0, ...Object.values(logs).filter(l => l.exercise.toLowerCase().includes('deadlift')).map(l => calculateE1RM(l.load, l.reps, l.rir))) >= 315 },
-    streak_10: { name: "On Fire!", description: "Completed 10 workouts in a row without missing a scheduled day.", icon: Flame, criteria: (logs, program) => calculateStreak(logs, program) >= 10 },
-    streak_30: { name: "Unstoppable", description: "Maintained a 30-workout streak. Nothing can stop you!", icon: Flame, criteria: (logs, program) => calculateStreak(logs, program) >= 30 },
-    program_complete: { name: "Meso Master", description: "Completed every workout in a full program cycle.", icon: Award, criteria: (logs, program) => {
-        if(!program) return false;
-        const totalWorkouts = program.info.weeks * program.weeklySchedule.filter(d => d.workout !== 'Rest').length;
-        const completedWorkouts = new Set(Object.values(logs).map(l => `${l.week}-${l.dayKey}`)).size;
-        return completedWorkouts >= totalWorkouts;
-    }},
-    customizer: { name: "The Architect", description: "Created your own custom exercise.", icon: Edit, criteria: (logs, program) => {
-        if(!program) return false;
-        const presetExercises = new Set(Object.keys(presets['optimal-ppl-ul'].masterExerciseList));
-        return Object.keys(program.masterExerciseList).some(ex => !presetExercises.has(ex));
-    }},
-    mondays_4: { name: "Monday Motivator", description: "Never missed a Monday workout for 4 straight weeks.", icon: CalendarDays, criteria: (logs) => {
-        const mondayLogs = Object.values(logs).filter(l => l.dayKey === 'Mon');
-        const weeks = new Set(mondayLogs.map(l => l.week));
-        return weeks.size >= 4;
-    }},
-    variety_25: { name: "Jack of All Lifts", description: "You've performed at least 25 different exercises.", icon: InfinityIcon, criteria: (logs) => new Set(Object.values(logs).map(l => l.exercise)).size >= 25 },
-};
-
 const calculateStreak = (allLogs, programData) => {
     if (!programData) return 0;
     const { weeklySchedule, programStructure, masterExerciseList, info } = programData;
@@ -2020,29 +2019,231 @@ const calculateStreak = (allLogs, programData) => {
     return currentStreak;
 };
 
-const AchievementsView = ({ historicalLogs, programData }) => {
+const achievementsList = {
+    total_volume: {
+        name: "Total Volume",
+        description: "Cumulative weight lifted across all exercises.",
+        icon: Weight,
+        type: 'tiered',
+        tiers: [
+            { name: "Bronze", value: 10000, description: "Lifted a total of 10,000 lbs! The journey begins." },
+            { name: "Silver", value: 100000, description: "Lifted a total of 100,000 lbs. That's some serious weight!" },
+            { name: "Gold", value: 500000, description: "Lifted a total of 500,000 lbs. Incredible strength!" },
+            { name: "Platinum", value: 1000000, description: "Lifted a total of 1,000,000 lbs! Truly elite." },
+        ],
+        getValue: (logs) => Object.values(logs).reduce((sum, log) => sum + ((log.load || 0) * (log.reps || 0)), 0),
+    },
+    workouts_completed: {
+        name: "Workouts Completed",
+        description: "Total number of workout sessions logged.",
+        icon: CheckCircle,
+        type: 'tiered',
+        tiers: [
+            { name: "Bronze", value: 10, description: "Completed 10 workouts. Keep building the habit!" },
+            { name: "Silver", value: 50, description: "Completed 50 workouts! You're a regular." },
+            { name: "Gold", value: 100, description: "Completed 100 workouts! A true veteran of the iron." },
+            { name: "Platinum", value: 250, description: "Completed 250 workouts. This is a lifestyle." },
+        ],
+        getValue: (logs) => new Set(Object.values(logs).map(l => `${l.week}-${l.dayKey}`)).size,
+    },
+    workout_streak: {
+        name: "Workout Streak",
+        description: "Consecutive scheduled workouts completed.",
+        icon: Flame,
+        type: 'tiered',
+        tiers: [
+            { name: "Bronze", value: 10, description: "Completed 10 workouts in a row without missing a scheduled day." },
+            { name: "Silver", value: 30, description: "Maintained a 30-workout streak. Unstoppable!" },
+            { name: "Gold", value: 50, description: "Maintained a 50-workout streak. Legendary consistency." },
+        ],
+        getValue: (logs, program) => calculateStreak(logs, program),
+    },
+    bench_press_pr: {
+        name: "Bench Press e1RM",
+        description: "Achieve new personal records in any bench press variation.",
+        icon: Trophy,
+        type: 'tiered',
+        tiers: [
+            { name: "Bronze", value: 135, description: "Achieved an e1RM of 135 lbs (a plate!) on bench press." },
+            { name: "Silver", value: 185, description: "Achieved an e1RM of 185 lbs on bench press." },
+            { name: "Gold", value: 225, description: "Achieved an e1RM of 225 lbs (two plates!) on bench press." },
+            { name: "Platinum", value: 275, description: "Achieved an e1RM of 275 lbs on bench press." },
+            { name: "Diamond", value: 315, description: "Achieved an e1RM of 315 lbs (three plates!) on bench press." },
+        ],
+        getValue: (logs) => Math.max(0, ...Object.values(logs).filter(l => l.exercise.toLowerCase().includes('bench')).map(l => calculateE1RM(l.load, l.reps, l.rir)))
+    },
+    squat_pr: {
+        name: "Squat e1RM",
+        description: "Achieve new personal records in any squat variation.",
+        icon: Trophy,
+        type: 'tiered',
+        tiers: [
+            { name: "Bronze", value: 135, description: "Achieved an e1RM of 135 lbs on the squat." },
+            { name: "Silver", value: 225, description: "Achieved an e1RM of 225 lbs (two plates!) on the squat." },
+            { name: "Gold", value: 315, description: "Achieved an e1RM of 315 lbs (three plates!) on the squat." },
+            { name: "Platinum", value: 405, description: "Achieved an e1RM of 405 lbs (four plates!) on the squat." },
+        ],
+        getValue: (logs) => Math.max(0, ...Object.values(logs).filter(l => l.exercise.toLowerCase().includes('squat')).map(l => calculateE1RM(l.load, l.reps, l.rir)))
+    },
+    deadlift_pr: {
+        name: "Deadlift e1RM",
+        description: "Achieve new personal records in any deadlift variation.",
+        icon: Trophy,
+        type: 'tiered',
+        tiers: [
+            { name: "Bronze", value: 225, description: "Achieved an e1RM of 225 lbs on the deadlift." },
+            { name: "Silver", value: 315, description: "Achieved an e1RM of 315 lbs (three plates!) on the deadlift." },
+            { name: "Gold", value: 405, description: "Achieved an e1RM of 405 lbs (four plates!) on the deadlift." },
+            { name: "Platinum", value: 495, description: "Achieved an e1RM of 495 lbs (five plates!) on the deadlift." },
+        ],
+        getValue: (logs) => Math.max(0, ...Object.values(logs).filter(l => l.exercise.toLowerCase().includes('deadlift')).map(l => calculateE1RM(l.load, l.reps, l.rir)))
+    },
+    bodyweight_bench: {
+        name: "Bodyweight Bench",
+        description: "Bench press a multiple of your bodyweight.",
+        icon: Weight,
+        type: 'tiered',
+        tiers: [
+            { name: "Bronze", value: 1.0, description: "Benching your bodyweight is a classic milestone." },
+            { name: "Silver", value: 1.25, description: "Benching 1.25x your bodyweight." },
+            { name: "Gold", value: 1.5, description: "Benching 1.5x your bodyweight is seriously strong." },
+        ],
+        getValue: (logs, program, bodyWeight) => {
+            if (!bodyWeight || bodyWeight <= 0) return 0;
+            const maxBench = Math.max(0, ...Object.values(logs).filter(l => l.exercise.toLowerCase().includes('bench')).map(l => calculateE1RM(l.load, l.reps, l.rir)));
+            return maxBench / bodyWeight;
+        }
+    },
+    bodyweight_squat: {
+        name: "Bodyweight Squat",
+        description: "Squat a multiple of your bodyweight.",
+        icon: Weight,
+        type: 'tiered',
+        tiers: [
+            { name: "Bronze", value: 1.5, description: "Squatting 1.5x your bodyweight." },
+            { name: "Silver", value: 2.0, description: "Squatting 2x your bodyweight. Strong foundation!" },
+            { name: "Gold", value: 2.5, description: "Squatting 2.5x your bodyweight is elite." },
+        ],
+        getValue: (logs, program, bodyWeight) => {
+            if (!bodyWeight || bodyWeight <= 0) return 0;
+            const maxSquat = Math.max(0, ...Object.values(logs).filter(l => l.exercise.toLowerCase().includes('squat')).map(l => calculateE1RM(l.load, l.reps, l.rir)));
+            return maxSquat / bodyWeight;
+        }
+    },
+    bodyweight_deadlift: {
+        name: "Bodyweight Deadlift",
+        description: "Deadlift a multiple of your bodyweight.",
+        icon: Weight,
+        type: 'tiered',
+        tiers: [
+            { name: "Bronze", value: 2.0, description: "Deadlifting 2x your bodyweight." },
+            { name: "Silver", value: 2.5, description: "Deadlifting 2.5x your bodyweight. Powerful!" },
+            { name: "Gold", value: 3.0, description: "Deadlifting 3x your bodyweight is world-class." },
+        ],
+        getValue: (logs, program, bodyWeight) => {
+            if (!bodyWeight || bodyWeight <= 0) return 0;
+            const maxDeadlift = Math.max(0, ...Object.values(logs).filter(l => l.exercise.toLowerCase().includes('deadlift')).map(l => calculateE1RM(l.load, l.reps, l.rir)));
+            return maxDeadlift / bodyWeight;
+        }
+    },
+    program_complete: { 
+        name: "Meso Master", 
+        description: "Completed every workout in a full program cycle.", 
+        icon: Award, 
+        criteria: (logs, program) => {
+            if(!program) return false;
+            const totalWorkouts = program.info.weeks * program.weeklySchedule.filter(d => d.workout !== 'Rest').length;
+            const completedWorkouts = new Set(Object.values(logs).map(l => `${l.week}-${l.dayKey}`)).size;
+            return completedWorkouts >= totalWorkouts;
+        }
+    },
+    customizer: { 
+        name: "The Architect", 
+        description: "Created your own custom exercise.", 
+        icon: Edit, 
+        criteria: (logs, program) => {
+            if(!program) return false;
+            const presetExercises = new Set(Object.keys(presets['optimal-ppl-ul'].masterExerciseList));
+            return Object.keys(program.masterExerciseList).some(ex => !presetExercises.has(ex));
+        }
+    },
+};
+
+const AchievementCard = ({ achievementId, achievement, unlockedStatus, onClick }) => {
+    const { icon: Icon } = achievement;
+    let isUnlocked = false;
+    let displayName = achievement.name;
+    let displayDescription = achievement.description;
+    let tierName = null;
+
+    if (achievement.type === 'tiered') {
+        const unlockedTierIndex = unlockedStatus;
+        if (unlockedTierIndex !== undefined && unlockedTierIndex > -1) {
+            isUnlocked = true;
+            const currentTier = achievement.tiers[unlockedTierIndex];
+            tierName = currentTier.name;
+            displayName = `${achievement.name} - ${tierName}`;
+            displayDescription = currentTier.description;
+        }
+    } else {
+        isUnlocked = !!unlockedStatus;
+    }
+
+    const tierColors = {
+        bronze: { bg: 'bg-amber-100 dark:bg-amber-900/50', text: 'text-amber-600 dark:text-amber-400', border: 'border-amber-400' },
+        silver: { bg: 'bg-slate-100 dark:bg-slate-800/50', text: 'text-slate-600 dark:text-slate-400', border: 'border-slate-400' },
+        gold: { bg: 'bg-yellow-100 dark:bg-yellow-900/50', text: 'text-yellow-500 dark:text-yellow-400', border: 'border-yellow-500' },
+        platinum: { bg: 'bg-cyan-100 dark:bg-cyan-900/50', text: 'text-cyan-500 dark:text-cyan-400', border: 'border-cyan-400' },
+        diamond: { bg: 'bg-sky-100 dark:bg-sky-900/50', text: 'text-sky-500 dark:text-sky-400', border: 'border-sky-400' },
+    };
+
+    const colorKey = tierName ? tierName.toLowerCase() : 'default';
+    const colors = tierColors[colorKey] || { bg: 'bg-yellow-100 dark:bg-yellow-900/50', text: 'text-yellow-500', border: 'border-yellow-500' };
+
+    const cardClasses = `p-4 rounded-xl flex flex-col items-center justify-center text-center aspect-square transition-all duration-300 ${isUnlocked ? `${colors.bg} border-2 ${colors.border} shadow-lg` : 'bg-gray-100 dark:bg-gray-800 filter grayscale opacity-60'}`;
+    const iconClasses = isUnlocked ? colors.text : 'text-gray-500';
+    const textClasses = isUnlocked ? 'text-gray-800 dark:text-gray-200' : 'text-gray-600 dark:text-gray-400';
+
+    return (
+        <button onClick={(e) => onClick(e, achievementId)} className={cardClasses}>
+            <Icon size={36} className={iconClasses} />
+            <h3 className={`mt-2 font-bold text-sm ${textClasses}`}>{displayName}</h3>
+        </button>
+    );
+};
+
+const AchievementsView = ({ unlockedAchievements, programData }) => {
     const { openModal, closeModal } = useContext(AppStateContext);
 
-    const unlockedAchievements = useMemo(() => {
-        const unlocked = new Set();
-        for (const id in achievementsList) {
-            if (achievementsList[id].criteria(historicalLogs, programData)) {
-                unlocked.add(id);
-            }
-        }
-        return unlocked;
-    }, [historicalLogs, programData]);
-
     const handleShowDescription = (e, id) => {
-        e.preventDefault(); // Prevents any default button behavior like page scroll
+        e.preventDefault();
         const achievement = achievementsList[id];
+        const unlockedStatus = unlockedAchievements[id];
+        const Icon = achievement.icon;
+        
+        let title = achievement.name;
+        let description = achievement.description;
+        let isUnlocked = false;
+
+        if (achievement.type === 'tiered') {
+            const tierIndex = unlockedStatus;
+            if (tierIndex !== undefined && tierIndex > -1) {
+                const tier = achievement.tiers[tierIndex];
+                title = `${achievement.name} - ${tier.name}`;
+                description = tier.description;
+                isUnlocked = true;
+            }
+        } else {
+            isUnlocked = !!unlockedStatus;
+        }
+
         openModal(
             <div>
                 <div className="flex items-center gap-3 mb-4">
-                    <achievement.icon size={32} className="text-yellow-500" />
-                    <h2 className="text-xl font-bold">{achievement.name}</h2>
+                    <Icon size={32} className={isUnlocked ? 'text-yellow-500' : 'text-gray-500'} />
+                    <h2 className="text-xl font-bold">{title}</h2>
                 </div>
-                <p className="text-gray-600 dark:text-gray-400">{achievement.description}</p>
+                <p className="text-gray-600 dark:text-gray-400">{description}</p>
                 <div className="flex justify-end mt-6">
                     <button onClick={closeModal} className="px-4 py-2 bg-blue-600 text-white rounded-lg">Close</button>
                 </div>
@@ -2059,20 +2260,16 @@ const AchievementsView = ({ historicalLogs, programData }) => {
                     <p className="text-lg text-gray-600 dark:text-gray-400">Your Milestones & Trophies</p>
                 </div>
             </div>
-            <div className="grid grid-cols-3 gap-4">
-                {Object.entries(achievementsList).map(([id, achievement]) => {
-                    const isUnlocked = unlockedAchievements.has(id);
-                    return (
-                        <button 
-                            key={id} 
-                            onClick={(e) => handleShowDescription(e, id)}
-                            className={`p-4 rounded-xl flex flex-col items-center justify-center text-center aspect-square transition-all duration-300 ${isUnlocked ? 'bg-yellow-100 dark:bg-yellow-900/50 border-2 border-yellow-500 shadow-lg' : 'bg-gray-100 dark:bg-gray-800 filter grayscale opacity-60'}`}
-                        >
-                            <achievement.icon size={36} className={isUnlocked ? 'text-yellow-500' : 'text-gray-500'} />
-                            <h3 className={`mt-2 font-bold text-sm ${isUnlocked ? 'text-yellow-800 dark:text-yellow-200' : 'text-gray-600 dark:text-gray-400'}`}>{achievement.name}</h3>
-                        </button>
-                    );
-                })}
+             <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                {Object.entries(achievementsList).map(([id, achievement]) => (
+                    <AchievementCard 
+                        key={id}
+                        achievementId={id}
+                        achievement={achievement}
+                        unlockedStatus={unlockedAchievements[id]}
+                        onClick={handleShowDescription}
+                    />
+                ))}
             </div>
         </div>
     );
@@ -2155,13 +2352,8 @@ const Modal = () => {
     const { modalContent, closeModal } = useContext(AppStateContext);
     if (!modalContent) return null;
 
-    const handleBackdropClick = (e) => {
-        e.preventDefault();
-        closeModal();
-    }
-
     return (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50 p-4" onClick={handleBackdropClick}>
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50 p-4" onClick={closeModal}>
             <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl p-6 w-full max-w-md" onClick={e => e.stopPropagation()}>
                 <div className="flex justify-end -mt-2 -mr-2">
                     <button onClick={closeModal} className="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700"><X size={20} /></button>
@@ -2201,7 +2393,7 @@ const AppCore = () => {
     const { openModal, closeModal, addToast } = useContext(AppStateContext);
     const [isDataLoading, setIsDataLoading] = useState(true);
     const [activeTimer, setActiveTimer] = useState(null);
-    const [unlockedAchievements, setUnlockedAchievements] = useState(new Set());
+    const [unlockedAchievements, setUnlockedAchievements] = useState({});
 
     const showTutorial = useCallback(() => {
         openModal(<TutorialModal onClose={closeModal} />);
@@ -2225,7 +2417,7 @@ const AppCore = () => {
                 setTheme(data.theme || 'dark');
                 setWeightUnit(data.weightUnit || 'lbs');
                 setBodyWeight(data.bodyWeight || '');
-                setUnlockedAchievements(new Set(data.unlockedAchievements || []));
+                setUnlockedAchievements(data.unlockedAchievements || {});
                 
                 const defaultProgram = presets['optimal-ppl-ul'];
                 const masterListFromDb = data.masterExerciseList || defaultProgram.masterExerciseList;
@@ -2265,7 +2457,7 @@ const AppCore = () => {
                     weightUnit: 'lbs',
                     bodyWeight: '',
                     archivedLogs: [],
-                    unlockedAchievements: [],
+                    unlockedAchievements: {},
                     hasSeenTutorial: false 
                 };
                 setDoc(userDocRef, initialData).then(() => {
@@ -2291,24 +2483,51 @@ const AppCore = () => {
 
     // Achievement checking
     useEffect(() => {
-        const newUnlocked = new Set();
+        const newUnlockedStatus = {};
         for (const id in achievementsList) {
-            if (achievementsList[id].criteria(historicalLogs, programData, bodyWeight)) {
-                newUnlocked.add(id);
+            const achievement = achievementsList[id];
+            if (achievement.type === 'tiered') {
+                const value = achievement.getValue(historicalLogs, programData, bodyWeight);
+                let highestTier = -1;
+                achievement.tiers.forEach((tier, index) => {
+                    if (value >= tier.value) {
+                        highestTier = index;
+                    }
+                });
+                if (highestTier > -1) {
+                    newUnlockedStatus[id] = highestTier;
+                }
+            } else { // Simple boolean achievement
+                if (achievement.criteria(historicalLogs, programData, bodyWeight)) {
+                    newUnlockedStatus[id] = true;
+                }
             }
         }
         
-        const newlyAchieved = [...newUnlocked].filter(id => !unlockedAchievements.has(id));
-        if (newlyAchieved.length > 0) {
-            newlyAchieved.forEach(id => {
-                addToast(`New Achievement: ${achievementsList[id].name}`);
-            });
-            const updatedAchievements = [...newUnlocked];
-            setUnlockedAchievements(newUnlocked);
+        const newlyAchievedMessages = [];
+        for (const id in newUnlockedStatus) {
+            const oldStatus = unlockedAchievements[id];
+            const newStatus = newUnlockedStatus[id];
+            if (oldStatus === undefined && newStatus !== undefined) {
+                if (achievementsList[id].type === 'tiered') {
+                    newlyAchievedMessages.push(`New Achievement: ${achievementsList[id].name} - ${achievementsList[id].tiers[newStatus].name}`);
+                } else {
+                    newlyAchievedMessages.push(`New Achievement: ${achievementsList[id].name}`);
+                }
+            } else if (typeof oldStatus === 'number' && typeof newStatus === 'number' && newStatus > oldStatus) {
+                newlyAchievedMessages.push(`New Tier: ${achievementsList[id].name} - ${achievementsList[id].tiers[newStatus].name}`);
+            }
+        }
+        
+        if (newlyAchievedMessages.length > 0) {
+            newlyAchievedMessages.forEach(message => addToast(message));
+            setUnlockedAchievements(newUnlockedStatus);
             if (db && customId) {
                 const userDocRef = doc(db, 'workoutLogs', customId);
-                updateDoc(userDocRef, { unlockedAchievements: updatedAchievements });
+                updateDoc(userDocRef, { unlockedAchievements: newUnlockedStatus });
             }
+        } else if (Object.keys(newUnlockedStatus).length !== Object.keys(unlockedAchievements).length) {
+            setUnlockedAchievements(newUnlockedStatus);
         }
     }, [historicalLogs, programData, bodyWeight, addToast, unlockedAchievements, db, customId]);
 
@@ -2447,7 +2666,7 @@ const AppCore = () => {
             case 'lifting': return <LiftingSession {...pageState.data} onBack={() => navigate('main')} allLogs={allLogs} setAllLogs={setAllLogs} onSkipDay={handleSkipDay} programData={programData} weightUnit={weightUnit} onStartTimer={handleStartTimer} />;
             case 'analytics': return <AnalyticsView allLogs={historicalLogs} masterExerciseList={programData.masterExerciseList} />;
             case 'records': return <RecordsView allLogs={historicalLogs} />;
-            case 'achievements': return <AchievementsView historicalLogs={historicalLogs} programData={programData} />;
+            case 'achievements': return <AchievementsView unlockedAchievements={unlockedAchievements} programData={programData} />;
             case 'editProgram': return <EditProgramView programData={programData} onProgramDataChange={handleProgramDataChange} />;
             case 'settings': return <SettingsView allLogs={allLogs} historicalLogs={historicalLogs} weightUnit={weightUnit} onWeightUnitChange={handleWeightUnitChange} onProgramUpdate={handleProgramDataChange} onResetMeso={handleResetMeso} programData={programData} onProgramDataChange={handleProgramDataChange} onShowTutorial={showTutorial} bodyWeight={bodyWeight} onBodyWeightChange={handleBodyWeightChange} />;
             default: return <MainView onSessionSelect={(week, day, type) => navigate(type, { week, dayKey: day })} completedDays={completedDays} onUnskipDay={handleUnskipDay} {...programData} />;
