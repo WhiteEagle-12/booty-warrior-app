@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, createContext, useContext, useCallback } from 'react';
-import { ChevronDown, ChevronUp, Dumbbell, CheckCircle, ArrowLeft, BarChart2, Settings, Flame, Repeat, StretchVertical, Lightbulb, Download, XCircle, SkipForward, Menu, X, Search, Trophy, BrainCircuit, PlusCircle, Edit, ArrowUp, ArrowDown, LayoutDashboard, Save, AlertTriangle, Bell } from 'lucide-react';
+import { ChevronDown, ChevronUp, Dumbbell, CheckCircle, ArrowLeft, BarChart2, Settings, Flame, Repeat, StretchVertical, Lightbulb, Download, XCircle, SkipForward, Menu, X, Search, Trophy, BrainCircuit, PlusCircle, Edit, ArrowUp, ArrowDown, LayoutDashboard, Save, AlertTriangle, Bell, HelpCircle, BookOpen } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 
 // Firebase Imports - using modular v9+ syntax
@@ -14,25 +14,25 @@ const presets = {
         name: "Optimal PPL-UL",
         info: { name: "Project Overload", weeks: 8, split: "Pull/Push/Legs/Rest/Upper/Lower" },
         masterExerciseList: {
-            'Incline DB Press': { sets: 2, reps: '5-7', rir: '0', rest: '2-3 min', equipment: 'dumbbell', muscles: { primary: 'Chest', secondary: 'Shoulders' } },
-            'Barbell Bench Press': { sets: 2, reps: '5-7', rir: '0', rest: '2-3 min', equipment: 'barbell', muscles: { primary: 'Chest', secondary: 'Triceps' } },
-            'Pullups': { sets: 4, reps: '5-7', rir: '0', rest: '2-3 min', equipment: 'bodyweight', muscles: { primary: 'Back', secondary: 'Biceps' } },
-            'DB Lateral Raise': { sets: 3, reps: '8-10', rir: '0', rest: '1-2 min', equipment: 'dumbbell', muscles: { primary: 'Shoulders', secondary: null } },
-            'Bayesian Cable Curl': { sets: 3, reps: '6-8', rir: '0', rest: '1-2 min', equipment: 'machine', muscles: { primary: 'Biceps', secondary: null } },
-            'Overhead Triceps Extension': { sets: 3, reps: '6-8', rir: '0', rest: '1-2 min', equipment: 'machine', muscles: { primary: 'Triceps', secondary: null } },
-            'Smith Machine Squat': { sets: 2, reps: '5-7', rir: '0', rest: '2-3 min', equipment: 'machine', muscles: { primary: 'Quads', secondary: 'Glutes' } },
-            'Hack Squat': { sets: 2, reps: '5-7', rir: '0', rest: '2-3 min', equipment: 'machine', muscles: { primary: 'Quads', secondary: 'Glutes' } },
-            'Lying Leg Curl': { sets: 3, reps: '5-7', rir: '0', rest: '1-2 min', equipment: 'machine', muscles: { primary: 'Hamstrings', secondary: null } },
-            'Leg Extensions': { sets: 3, reps: '5-7', rir: '0', rest: '1-2 min', equipment: 'machine', muscles: { primary: 'Quads', secondary: null } },
-            'Standing Calf Raise': { sets: 4, reps: '5-7', rir: '0', rest: '1 min', equipment: 'machine', muscles: { primary: 'Calves', secondary: null } },
-            'Cable Crunch': { sets: 3, reps: '10-12', rir: '0', rest: '1 min', equipment: 'machine', muscles: { primary: 'Abs', secondary: null } },
-            'Chest Supported Row': { sets: 4, reps: '5-7', rir: '0', rest: '2-3 min', equipment: 'machine', muscles: { primary: 'Back', secondary: 'Biceps' } },
-            'Preacher Curl': { sets: 3, reps: '8-10', rir: '0', rest: '1-2 min', equipment: 'barbell', muscles: { primary: 'Biceps', secondary: null } },
-            'Pec Flies': { sets: 2, reps: '6-8', rir: '0', rest: '1-2 min', equipment: 'machine', muscles: { primary: 'Chest', secondary: null } },
-            'Barbell RDL': { sets: 4, reps: '5-7', rir: '0', rest: '2-3 min', equipment: 'barbell', muscles: { primary: 'Hamstrings', secondary: 'Glutes' } },
-            'DB Bulgarian Split Squat': { sets: 3, reps: '5-7', rir: '0', rest: '2 min', equipment: 'dumbbell', muscles: { primary: 'Quads', secondary: 'Glutes' } },
-            'Safety Bar Squats': { sets: 2, reps: '5-7', rir: '0', rest: '2-3 min', equipment: 'barbell', muscles: { primary: 'Quads', secondary: 'Glutes' } },
-            'DB Rows': { sets: 2, reps: '5-7', rir: '0', rest: '2-3 min', equipment: 'dumbbell', muscles: { primary: 'Back', secondary: 'Biceps' } },
+            'Incline DB Press': { sets: 2, reps: '5-7', rir: ['0', '0'], rest: '2-3 min', equipment: 'dumbbell', muscles: { primary: 'Chest', secondary: 'Shoulders', tertiary: null, primaryContribution: 1, secondaryContribution: 0.5, tertiaryContribution: 0 } },
+            'Barbell Bench Press': { sets: 2, reps: '5-7', rir: ['0', '0'], rest: '2-3 min', equipment: 'barbell', muscles: { primary: 'Chest', secondary: 'Triceps', tertiary: null, primaryContribution: 1, secondaryContribution: 0.5, tertiaryContribution: 0 } },
+            'Pullups': { sets: 4, reps: '5-7', rir: ['0', '0', '0', '0'], rest: '2-3 min', equipment: 'bodyweight', muscles: { primary: 'Back', secondary: 'Biceps', tertiary: null, primaryContribution: 1, secondaryContribution: 0.5, tertiaryContribution: 0 } },
+            'DB Lateral Raise': { sets: 3, reps: '8-10', rir: ['0', '0', '0'], rest: '1-2 min', equipment: 'dumbbell', muscles: { primary: 'Shoulders', secondary: null, tertiary: null, primaryContribution: 1, secondaryContribution: 0, tertiaryContribution: 0 } },
+            'Bayesian Cable Curl': { sets: 3, reps: '6-8', rir: ['0', '0', '0'], rest: '1-2 min', equipment: 'machine', muscles: { primary: 'Biceps', secondary: null, tertiary: null, primaryContribution: 1, secondaryContribution: 0, tertiaryContribution: 0 } },
+            'Overhead Triceps Extension': { sets: 3, reps: '6-8', rir: ['0', '0', '0'], rest: '1-2 min', equipment: 'machine', muscles: { primary: 'Triceps', secondary: null, tertiary: null, primaryContribution: 1, secondaryContribution: 0, tertiaryContribution: 0 } },
+            'Smith Machine Squat': { sets: 2, reps: '5-7', rir: ['0', '0'], rest: '2-3 min', equipment: 'machine', muscles: { primary: 'Quads', secondary: 'Glutes', tertiary: null, primaryContribution: 1, secondaryContribution: 0.5, tertiaryContribution: 0 } },
+            'Hack Squat': { sets: 2, reps: '5-7', rir: ['0', '0'], rest: '2-3 min', equipment: 'machine', muscles: { primary: 'Quads', secondary: 'Glutes', tertiary: null, primaryContribution: 1, secondaryContribution: 0.5, tertiaryContribution: 0 } },
+            'Lying Leg Curl': { sets: 3, reps: '5-7', rir: ['0', '0', '0'], rest: '1-2 min', equipment: 'machine', muscles: { primary: 'Hamstrings', secondary: null, tertiary: null, primaryContribution: 1, secondaryContribution: 0, tertiaryContribution: 0 } },
+            'Leg Extensions': { sets: 3, reps: '5-7', rir: ['0', '0', '0'], rest: '1-2 min', equipment: 'machine', muscles: { primary: 'Quads', secondary: null, tertiary: null, primaryContribution: 1, secondaryContribution: 0, tertiaryContribution: 0 } },
+            'Standing Calf Raise': { sets: 4, reps: '5-7', rir: ['0', '0', '0', '0'], rest: '1 min', equipment: 'machine', muscles: { primary: 'Calves', secondary: null, tertiary: null, primaryContribution: 1, secondaryContribution: 0, tertiaryContribution: 0 } },
+            'Cable Crunch': { sets: 3, reps: '10-12', rir: ['0', '0', '0'], rest: '1 min', equipment: 'machine', muscles: { primary: 'Abs', secondary: null, tertiary: null, primaryContribution: 1, secondaryContribution: 0, tertiaryContribution: 0 } },
+            'Chest Supported Row': { sets: 4, reps: '5-7', rir: ['0', '0', '0', '0'], rest: '2-3 min', equipment: 'machine', muscles: { primary: 'Back', secondary: 'Biceps', tertiary: null, primaryContribution: 1, secondaryContribution: 0.5, tertiaryContribution: 0 } },
+            'Preacher Curl': { sets: 3, reps: '8-10', rir: ['0', '0', '0'], rest: '1-2 min', equipment: 'barbell', muscles: { primary: 'Biceps', secondary: null, tertiary: null, primaryContribution: 1, secondaryContribution: 0, tertiaryContribution: 0 } },
+            'Pec Flies': { sets: 2, reps: '6-8', rir: ['0', '0'], rest: '1-2 min', equipment: 'machine', muscles: { primary: 'Chest', secondary: null, tertiary: null, primaryContribution: 1, secondaryContribution: 0, tertiaryContribution: 0 } },
+            'Barbell RDL': { sets: 4, reps: '5-7', rir: ['0', '0', '0', '0'], rest: '2-3 min', equipment: 'barbell', muscles: { primary: 'Hamstrings', secondary: 'Glutes', tertiary: null, primaryContribution: 1, secondaryContribution: 0.5, tertiaryContribution: 0 } },
+            'DB Bulgarian Split Squat': { sets: 3, reps: '5-7', rir: ['0', '0', '0'], rest: '2 min', equipment: 'dumbbell', muscles: { primary: 'Quads', secondary: 'Glutes', tertiary: null, primaryContribution: 1, secondaryContribution: 0.5, tertiaryContribution: 0 } },
+            'Safety Bar Squats': { sets: 2, reps: '5-7', rir: ['0', '0'], rest: '2-3 min', equipment: 'barbell', muscles: { primary: 'Quads', secondary: 'Glutes', tertiary: null, primaryContribution: 1, secondaryContribution: 0.5, tertiaryContribution: 0 } },
+            'DB Rows': { sets: 2, reps: '5-7', rir: ['0', '0'], rest: '2-3 min', equipment: 'dumbbell', muscles: { primary: 'Back', secondary: 'Biceps', tertiary: null, primaryContribution: 1, secondaryContribution: 0.5, tertiaryContribution: 0 } },
         },
         programStructure: {
             'Upper (Strength Focus)': { exercises: ['Incline DB Press', 'Pullups', 'DB Rows', 'Barbell Bench Press', 'Bayesian Cable Curl', 'Overhead Triceps Extension'], label: 'Upper' },
@@ -56,11 +56,53 @@ const presets = {
         ],
         settings: {
             restTimer: {
-                enabled: false,
+                enabled: true,
                 duration: 120 // 2 minutes in seconds
             }
         }
     }
+};
+
+// --- EXERCISE BANK DATA ---
+const exerciseBank = {
+    // Chest
+    'Barbell Bench Press': { sets: 3, reps: '8-12', rir: ['2', '2', '2'], rest: '2-3 min', equipment: 'barbell', muscles: { primary: 'Chest', secondary: 'Triceps', tertiary: 'Shoulders', primaryContribution: 1, secondaryContribution: 0.5, tertiaryContribution: 0.3 } },
+    'Incline Dumbbell Press': { sets: 3, reps: '8-12', rir: ['2', '2', '2'], rest: '2-3 min', equipment: 'dumbbell', muscles: { primary: 'Chest', secondary: 'Shoulders', tertiary: 'Triceps', primaryContribution: 1, secondaryContribution: 0.6, tertiaryContribution: 0.3 } },
+    'Dumbbell Bench Press': { sets: 3, reps: '8-12', rir: ['2', '2', '2'], rest: '2-3 min', equipment: 'dumbbell', muscles: { primary: 'Chest', secondary: 'Triceps', tertiary: 'Shoulders', primaryContribution: 1, secondaryContribution: 0.5, tertiaryContribution: 0.3 } },
+    'Machine Chest Press': { sets: 3, reps: '10-15', rir: ['1', '1', '1'], rest: '1-2 min', equipment: 'machine', muscles: { primary: 'Chest', secondary: 'Triceps', tertiary: 'Shoulders', primaryContribution: 1, secondaryContribution: 0.4, tertiaryContribution: 0.2 } },
+    'Cable Crossover': { sets: 3, reps: '12-15', rir: ['1', '1', '1'], rest: '1-2 min', equipment: 'machine', muscles: { primary: 'Chest', secondary: null, tertiary: null, primaryContribution: 1, secondaryContribution: 0, tertiaryContribution: 0 } },
+    'Push-ups': { sets: 3, reps: 'To Failure', rir: ['0', '0', '0'], rest: '1-2 min', equipment: 'bodyweight', muscles: { primary: 'Chest', secondary: 'Triceps', tertiary: 'Shoulders', primaryContribution: 1, secondaryContribution: 0.5, tertiaryContribution: 0.4 } },
+    // Back
+    'Deadlift': { sets: 3, reps: '4-6', rir: ['2', '2', '2'], rest: '3-5 min', equipment: 'barbell', muscles: { primary: 'Back', secondary: 'Glutes', tertiary: 'Hamstrings', primaryContribution: 1, secondaryContribution: 0.8, tertiaryContribution: 0.7 } },
+    'Pull-ups': { sets: 4, reps: '6-10', rir: ['1', '1', '1', '1'], rest: '2-3 min', equipment: 'bodyweight', muscles: { primary: 'Back', secondary: 'Biceps', tertiary: null, primaryContribution: 1, secondaryContribution: 0.6, tertiaryContribution: 0 } },
+    'Lat Pulldown': { sets: 3, reps: '10-12', rir: ['1', '1', '1'], rest: '1-2 min', equipment: 'machine', muscles: { primary: 'Back', secondary: 'Biceps', tertiary: null, primaryContribution: 1, secondaryContribution: 0.5, tertiaryContribution: 0 } },
+    'Barbell Row': { sets: 3, reps: '8-10', rir: ['2', '2', '2'], rest: '2-3 min', equipment: 'barbell', muscles: { primary: 'Back', secondary: 'Biceps', tertiary: 'Shoulders', primaryContribution: 1, secondaryContribution: 0.5, tertiaryContribution: 0.2 } },
+    'Dumbbell Row': { sets: 3, reps: '8-12', rir: ['1', '1', '1'], rest: '2 min', equipment: 'dumbbell', muscles: { primary: 'Back', secondary: 'Biceps', tertiary: null, primaryContribution: 1, secondaryContribution: 0.5, tertiaryContribution: 0 } },
+    'T-Bar Row': { sets: 3, reps: '8-12', rir: ['1', '1', '1'], rest: '2 min', equipment: 'machine', muscles: { primary: 'Back', secondary: 'Biceps', tertiary: null, primaryContribution: 1, secondaryContribution: 0.5, tertiaryContribution: 0 } },
+    // Legs
+    'Barbell Squat': { sets: 3, reps: '6-10', rir: ['2', '2', '2'], rest: '3-5 min', equipment: 'barbell', muscles: { primary: 'Quads', secondary: 'Glutes', tertiary: 'Hamstrings', primaryContribution: 1, secondaryContribution: 0.8, tertiaryContribution: 0.4 } },
+    'Leg Press': { sets: 4, reps: '10-15', rir: ['1', '1', '1', '1'], rest: '2-3 min', equipment: 'machine', muscles: { primary: 'Quads', secondary: 'Glutes', tertiary: 'Hamstrings', primaryContribution: 1, secondaryContribution: 0.7, tertiaryContribution: 0.3 } },
+    'Romanian Deadlift': { sets: 3, reps: '8-12', rir: ['2', '2', '2'], rest: '2-3 min', equipment: 'barbell', muscles: { primary: 'Hamstrings', secondary: 'Glutes', tertiary: 'Back', primaryContribution: 1, secondaryContribution: 0.8, tertiaryContribution: 0.3 } },
+    'Leg Extension': { sets: 3, reps: '12-15', rir: ['1', '1', '1'], rest: '1-2 min', equipment: 'machine', muscles: { primary: 'Quads', secondary: null, tertiary: null, primaryContribution: 1, secondaryContribution: 0, tertiaryContribution: 0 } },
+    'Leg Curl': { sets: 3, reps: '12-15', rir: ['1', '1', '1'], rest: '1-2 min', equipment: 'machine', muscles: { primary: 'Hamstrings', secondary: null, tertiary: null, primaryContribution: 1, secondaryContribution: 0, tertiaryContribution: 0 } },
+    'Bulgarian Split Squat': { sets: 3, reps: '8-12', rir: ['1', '1', '1'], rest: '2 min', equipment: 'dumbbell', muscles: { primary: 'Quads', secondary: 'Glutes', tertiary: null, primaryContribution: 1, secondaryContribution: 0.8, tertiaryContribution: 0 } },
+    'Calf Raise': { sets: 4, reps: '15-20', rir: ['1', '1', '1', '1'], rest: '1 min', equipment: 'machine', muscles: { primary: 'Calves', secondary: null, tertiary: null, primaryContribution: 1, secondaryContribution: 0, tertiaryContribution: 0 } },
+    // Shoulders
+    'Overhead Press (Barbell)': { sets: 3, reps: '6-10', rir: ['2', '2', '2'], rest: '2-3 min', equipment: 'barbell', muscles: { primary: 'Shoulders', secondary: 'Triceps', tertiary: 'Chest', primaryContribution: 1, secondaryContribution: 0.6, tertiaryContribution: 0.2 } },
+    'Seated Dumbbell Press': { sets: 3, reps: '8-12', rir: ['1', '1', '1'], rest: '2 min', equipment: 'dumbbell', muscles: { primary: 'Shoulders', secondary: 'Triceps', tertiary: null, primaryContribution: 1, secondaryContribution: 0.5, tertiaryContribution: 0 } },
+    'Lateral Raise': { sets: 4, reps: '12-15', rir: ['1', '1', '1', '1'], rest: '1-2 min', equipment: 'dumbbell', muscles: { primary: 'Shoulders', secondary: null, tertiary: null, primaryContribution: 1, secondaryContribution: 0, tertiaryContribution: 0 } },
+    'Face Pull': { sets: 3, reps: '15-20', rir: ['1', '1', '1'], rest: '1 min', equipment: 'machine', muscles: { primary: 'Shoulders', secondary: 'Back', tertiary: null, primaryContribution: 1, secondaryContribution: 0.4, tertiaryContribution: 0 } },
+    'Barbell Shrug': { sets: 3, reps: '10-15', rir: ['1', '1', '1'], rest: '1 min', equipment: 'barbell', muscles: { primary: 'Back', secondary: null, tertiary: null, primaryContribution: 1, secondaryContribution: 0, tertiaryContribution: 0 } },
+    // Biceps
+    'Barbell Curl': { sets: 3, reps: '8-12', rir: ['1', '1', '1'], rest: '1-2 min', equipment: 'barbell', muscles: { primary: 'Biceps', secondary: null, tertiary: null, primaryContribution: 1, secondaryContribution: 0, tertiaryContribution: 0 } },
+    'Dumbbell Curl': { sets: 3, reps: '10-15', rir: ['1', '1', '1'], rest: '1-2 min', equipment: 'dumbbell', muscles: { primary: 'Biceps', secondary: null, tertiary: null, primaryContribution: 1, secondaryContribution: 0, tertiaryContribution: 0 } },
+    'Hammer Curl': { sets: 3, reps: '10-15', rir: ['1', '1', '1'], rest: '1-2 min', equipment: 'dumbbell', muscles: { primary: 'Biceps', secondary: 'Forearms', tertiary: null, primaryContribution: 1, secondaryContribution: 0.3, tertiaryContribution: 0 } },
+    'Preacher Curl': { sets: 3, reps: '10-12', rir: ['1', '1', '1'], rest: '1-2 min', equipment: 'machine', muscles: { primary: 'Biceps', secondary: null, tertiary: null, primaryContribution: 1, secondaryContribution: 0, tertiaryContribution: 0 } },
+    // Triceps
+    'Triceps Pushdown': { sets: 3, reps: '10-15', rir: ['1', '1', '1'], rest: '1-2 min', equipment: 'machine', muscles: { primary: 'Triceps', secondary: null, tertiary: null, primaryContribution: 1, secondaryContribution: 0, tertiaryContribution: 0 } },
+    'Skull Crusher': { sets: 3, reps: '10-12', rir: ['2', '2', '2'], rest: '1-2 min', equipment: 'barbell', muscles: { primary: 'Triceps', secondary: null, tertiary: null, primaryContribution: 1, secondaryContribution: 0, tertiaryContribution: 0 } },
+    'Overhead Triceps Extension (Dumbbell)': { sets: 3, reps: '10-15', rir: ['1', '1', '1'], rest: '1-2 min', equipment: 'dumbbell', muscles: { primary: 'Triceps', secondary: null, tertiary: null, primaryContribution: 1, secondaryContribution: 0, tertiaryContribution: 0 } },
+    'Dips': { sets: 3, reps: 'To Failure', rir: ['1', '1', '1'], rest: '2 min', equipment: 'bodyweight', muscles: { primary: 'Triceps', secondary: 'Chest', tertiary: 'Shoulders', primaryContribution: 1, secondaryContribution: 0.6, tertiaryContribution: 0.4 } },
 };
 
 // --- Helper Functions & Context ---
@@ -260,9 +302,36 @@ const IntensityTechnique = ({ technique }) => {
     return (<div className="mt-2 flex items-center gap-2 text-xs text-gray-600 dark:text-gray-400 bg-gray-100 dark:bg-gray-700/50 px-2 py-1 rounded-md">{icon}<div><span className="font-semibold">Intensity:</span> {technique}</div></div>);
 };
 
-const SetRow = ({ setNumber, logData, onLogChange, lastSetData, exerciseDetails, weightUnit }) => {
-    const targetEffort = `~${exerciseDetails.rir} RIR`;
+const SetRow = ({ setNumber, logData, onLogChange, lastSetData, exerciseDetails, weightUnit, exerciseName, totalSets }) => {
+    const targetRir = (exerciseDetails.rir && Array.isArray(exerciseDetails.rir) && exerciseDetails.rir[setNumber - 1]) || 'N/A';
+    const targetEffort = `~${targetRir} RIR`;
     const placeholderWeight = lastSetData?.load ? (weightUnit === 'kg' ? (lastSetData.load / 2.20462).toFixed(1) : lastSetData.load) : `Weight (${weightUnit})`;
+
+    const handleKeyDown = (e) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            const currentField = e.target.name;
+            let nextField;
+            let nextSet = setNumber;
+
+            if (currentField === 'load') {
+                nextField = 'reps';
+            } else if (currentField === 'reps') {
+                nextField = 'rir';
+            } else if (currentField === 'rir') {
+                if (setNumber < totalSets) {
+                    nextField = 'load';
+                    nextSet = setNumber + 1;
+                } else {
+                    e.target.blur();
+                    return;
+                }
+            }
+            
+            const nextInputId = `input-${exerciseName}-${nextSet}-${nextField}`;
+            document.getElementById(nextInputId)?.focus();
+        }
+    };
 
     return (
         <div className="grid grid-cols-3 sm:grid-cols-6 gap-2 items-center py-2 px-3 bg-gray-50 dark:bg-gray-700/50 rounded-md">
@@ -271,17 +340,17 @@ const SetRow = ({ setNumber, logData, onLogChange, lastSetData, exerciseDetails,
             <div className="hidden sm:block text-sm text-center font-medium text-blue-600 dark:text-blue-400">{targetEffort}</div>
             <div>
                 <label className="sm:hidden text-xs text-gray-500">Load</label>
-                <input type="number" placeholder={placeholderWeight} value={logData.displayLoad || ''} onChange={(e) => onLogChange(setNumber, 'load', e.target.value)} className="w-full p-1.5 text-sm bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 placeholder:text-gray-400 dark:placeholder:text-gray-500"/>
+                <input id={`input-${exerciseName}-${setNumber}-load`} name="load" type="number" placeholder={placeholderWeight} value={logData.displayLoad || ''} onChange={(e) => onLogChange(setNumber, 'load', e.target.value)} onKeyDown={handleKeyDown} className="w-full p-1.5 text-sm bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 placeholder:text-gray-400 dark:placeholder:text-gray-500"/>
             </div>
             <div>
                 <label className="sm:hidden text-xs text-gray-500">Reps</label>
-                <input type="number" placeholder={lastSetData?.reps || "Reps"} value={logData.reps || ''} onChange={(e) => onLogChange(setNumber, 'reps', e.target.value)} className="w-full p-1.5 text-sm bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 placeholder:text-gray-400 dark:placeholder:text-gray-500"/>
+                <input id={`input-${exerciseName}-${setNumber}-reps`} name="reps" type="number" placeholder={lastSetData?.reps || "Reps"} value={logData.reps || ''} onChange={(e) => onLogChange(setNumber, 'reps', e.target.value)} onKeyDown={handleKeyDown} className="w-full p-1.5 text-sm bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 placeholder:text-gray-400 dark:placeholder:text-gray-500"/>
             </div>
             <div>
                 <label className="sm:hidden text-xs text-gray-500">RIR</label>
-                <input type="number" placeholder={lastSetData?.rir ?? "RIR"} value={logData.rir || ''} 
+                <input id={`input-${exerciseName}-${setNumber}-rir`} name="rir" type="number" placeholder={lastSetData?.rir ?? "RIR"} value={logData.rir || ''} 
                     onChange={(e) => onLogChange(setNumber, 'rir', e.target.value)} 
-                    onBlur={() => onLogChange(setNumber, 'rir', logData.rir || '', true)}
+                    onKeyDown={handleKeyDown}
                     className="w-full p-1.5 text-sm bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 placeholder:text-gray-400 dark:placeholder:text-gray-500"
                 />
             </div>
@@ -290,7 +359,7 @@ const SetRow = ({ setNumber, logData, onLogChange, lastSetData, exerciseDetails,
 };
 
 
-const ExerciseCard = ({ exerciseName, week, dayKey, allLogs, onLogChange, masterExerciseList, weightUnit, onLastSetBlur }) => {
+const ExerciseCard = ({ exerciseName, week, dayKey, allLogs, onLogChange, masterExerciseList, weightUnit }) => {
     const exercise = getExerciseDetails(exerciseName, masterExerciseList);
     const sets = Array.from({ length: exercise?.sets || 0 }, (_, i) => i + 1);
     
@@ -313,30 +382,12 @@ const ExerciseCard = ({ exerciseName, week, dayKey, allLogs, onLogChange, master
     const currentSetLog = allLogs[`${week}-${dayKey}-${exerciseName}-1`];
     const suggestion = useMemo(() => getProgressionSuggestion(exerciseName, lastPerformance, currentSetLog, masterExerciseList), [exerciseName, lastPerformance, currentSetLog, masterExerciseList]);
     
-    const handleLocalLogChange = (setNumber, field, value, isBlur = false) => {
-        onLogChange(exerciseName, setNumber, field, value);
-
-        if (isBlur && field === 'rir' && setNumber === exercise.sets) {
-            onLastSetBlur();
-            setTimeout(() => {
-                const isNowCompleted = sets.every(sNum => {
-                    const log = allLogs[`${week}-${dayKey}-${exerciseName}-${sNum}`];
-                    const finalValue = sNum === setNumber ? value : log?.rir;
-                    return log?.load && log?.reps && (finalValue !== undefined && finalValue !== null && finalValue !== '');
-                });
-                if(isNowCompleted) {
-                    setIsOpen(false);
-                }
-            }, 100);
-        }
-    };
-
     return (
         <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md overflow-hidden">
             <button onClick={() => setIsOpen(!isOpen)} className="w-full p-4 text-left flex justify-between items-center bg-gray-50 dark:bg-gray-700/50 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
                 <div>
                     <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{exerciseName}</h3>
-                    <p className="text-sm text-gray-500 dark:text-gray-400">{exercise.sets} sets x {exercise.reps}</p>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">{exercise.sets} sets &times; {exercise.reps}</p>
                 </div>
                 <div className="flex items-center space-x-3">
                     {isCompleted && <CheckCircle className="text-green-500" />}
@@ -364,10 +415,12 @@ const ExerciseCard = ({ exerciseName, week, dayKey, allLogs, onLogChange, master
                                     key={setNumber} 
                                     setNumber={setNumber}
                                     logData={allLogs[`${week}-${dayKey}-${exerciseName}-${setNumber}`] || {}} 
-                                    onLogChange={handleLocalLogChange}
+                                    onLogChange={(s, f, v) => onLogChange(exerciseName, s, f, v)}
                                     lastSetData={lastPerformance ? lastPerformance[setNumber] : null}
                                     exerciseDetails={exercise}
                                     weightUnit={weightUnit}
+                                    exerciseName={exerciseName}
+                                    totalSets={exercise.sets}
                                 />
                             ))}
                         </div>
@@ -402,17 +455,24 @@ const LiftingSession = ({ week, dayKey, onBack, allLogs, setAllLogs, onSkipDay, 
         } else {
             newLogEntry[field] = value;
         }
-        
+
+        const wasSetComplete = currentLog.load && currentLog.reps && (currentLog.rir !== undefined && currentLog.rir !== null && currentLog.rir !== '');
+        const isSetNowComplete = newLogEntry.load && newLogEntry.reps && (newLogEntry.rir !== undefined && newLogEntry.rir !== null && newLogEntry.rir !== '');
+
         setAllLogs(prev => ({ ...prev, [logId]: newLogEntry }));
 
         if (db && customId) {
             const userDocRef = doc(db, 'workoutLogs', customId);
             updateDoc(userDocRef, { [`logs.${logId}`]: newLogEntry });
         }
+        
+        if (!wasSetComplete && isSetNowComplete) {
+            onStartTimer();
+        }
     };
 
     if (!workout) return (
-         <div className="p-4 md:p-6 pb-24 text-center">
+       <div className="p-4 md:p-6 pb-24 text-center">
             <button onClick={onBack} className="flex items-center gap-2 text-sm font-medium text-blue-600 dark:text-blue-400 hover:underline mb-4"><ArrowLeft size={16}/> Back to Program</button>
             <h2 className="text-2xl font-bold dark:text-white">Rest Day</h2>
             <p className="text-gray-600 dark:text-gray-400">Enjoy your recovery!</p>
@@ -439,8 +499,7 @@ const LiftingSession = ({ week, dayKey, onBack, allLogs, setAllLogs, onSkipDay, 
                         allLogs={allLogs} 
                         onLogChange={handleLogChange} 
                         masterExerciseList={masterExerciseList} 
-                        weightUnit={weightUnit} 
-                        onLastSetBlur={onStartTimer}
+                        weightUnit={weightUnit}
                     />
                 )}
             </div>
@@ -521,22 +580,25 @@ const ProgressBar = ({ completed, total }) => {
 
 const StreakCounter = ({ streak }) => {
     const getStreakColor = (s) => {
+        if (s === 0) return 'text-gray-500';
         if (s < 5) return 'text-orange-400';
         if (s < 10) return 'text-red-500';
         if (s < 20) return 'text-blue-500';
         return 'text-purple-500';
     };
+    const streakColorClass = getStreakColor(streak);
 
     return (
-        <div className="text-center">
-            <div className="relative flex justify-center items-center">
-                 <Flame size={48} className={`absolute -top-1 -right-3 opacity-20 ${getStreakColor(streak)}`} />
-                 <span className={`text-4xl font-bold ${getStreakColor(streak)}`}>{streak}</span>
+        <div className="text-center w-full">
+            <div className={`bg-gray-100 dark:bg-gray-700/50 rounded-xl p-4 flex items-center justify-center gap-2`}>
+                <span className={`text-6xl font-bold ${streakColorClass} mr-2`}>{streak}</span>
+                <Flame size={64} className={streakColorClass} />
             </div>
-            <div className="text-sm font-medium text-gray-600 dark:text-gray-400 mt-1">Day Streak</div>
+            <div className="text-sm font-medium text-gray-600 dark:text-gray-400 mt-2">Day Streak</div>
         </div>
     );
 };
+
 
 const MainView = ({ onSessionSelect, completedDays, onUnskipDay, programStructure, weeklySchedule, info }) => {
     const weeks = Array.from({ length: info.weeks }, (_, i) => i + 1);
@@ -662,7 +724,7 @@ const DashboardView = ({ allLogs, programStructure, masterExerciseList, weeklySc
 };
 
 
-const SettingsView = ({ allLogs, historicalLogs, weightUnit, onWeightUnitChange, onProgramUpdate, onResetMeso, programData, onProgramDataChange }) => {
+const SettingsView = ({ allLogs, historicalLogs, weightUnit, onWeightUnitChange, onProgramUpdate, onResetMeso, programData, onProgramDataChange, onShowTutorial }) => {
     const { theme, toggleTheme } = useContext(ThemeContext);
     const { customId, handleSetCustomId } = useContext(FirebaseContext);
     const { openModal, closeModal } = useContext(AppStateContext);
@@ -671,7 +733,15 @@ const SettingsView = ({ allLogs, historicalLogs, weightUnit, onWeightUnitChange,
 
     const exportData = (logsToExport, filename) => {
         if (Object.keys(logsToExport).length === 0) {
-            alert("No data available to export for this selection.");
+            openModal(
+                <div>
+                    <h2 className="text-xl font-bold mb-4">No Data to Export</h2>
+                    <p className="text-gray-600 dark:text-gray-400">There is no logged data for the selected option.</p>
+                    <div className="flex justify-end gap-2 mt-6">
+                        <button onClick={closeModal} className="px-4 py-2 bg-blue-600 text-white rounded-lg">OK</button>
+                    </div>
+                </div>
+            );
             return;
         }
         const dayOrder = { Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6, Sun: 7 };
@@ -816,7 +886,7 @@ const SettingsView = ({ allLogs, historicalLogs, weightUnit, onWeightUnitChange,
                     <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">Rest Timer</h3>
                     <div className="bg-gray-100 dark:bg-gray-900/50 p-4 rounded-lg space-y-4">
                         <div className="flex justify-between items-center">
-                            <span className="font-semibold dark:text-gray-200">Auto-start Timer After Last Set</span>
+                            <span className="font-semibold dark:text-gray-200">Auto-start Timer After Set</span>
                             <button onClick={() => handleTimerSettingsChange('enabled', !programData.settings.restTimer.enabled)} className={`relative inline-flex items-center h-6 rounded-full w-11 transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 ${programData.settings.restTimer.enabled ? 'bg-blue-600' : 'bg-gray-200'}`}><span className={`inline-block w-4 h-4 transform bg-white rounded-full transition-transform ${programData.settings.restTimer.enabled ? 'translate-x-6' : 'translate-x-1'}`} /></button>
                         </div>
                         <div className="flex justify-between items-center">
@@ -892,6 +962,19 @@ const SettingsView = ({ allLogs, historicalLogs, weightUnit, onWeightUnitChange,
                         </button>
                     </div>
                 </div>
+
+                <div className="border-t border-gray-200 dark:border-gray-700"></div>
+
+                {/* Help Section */}
+                <div>
+                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">Help</h3>
+                    <div className="bg-gray-100 dark:bg-gray-900/50 p-4 rounded-lg space-y-3">
+                        <p className="text-sm text-gray-600 dark:text-gray-300">Need a refresher on how the app works?</p>
+                        <button onClick={onShowTutorial} className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-gray-600 text-white rounded-lg shadow-md hover:bg-gray-700 transition-colors">
+                            <HelpCircle size={16} /> Show Tutorial
+                        </button>
+                    </div>
+                </div>
             </div>
         </div>
     );
@@ -953,18 +1036,24 @@ const AnalyticsView = ({ allLogs, masterExerciseList }) => {
                 const exerciseDetails = getExerciseDetails(log.exercise, masterExerciseList);
                 if (exerciseDetails && exerciseDetails.muscles) {
                     const volume = log.load * log.reps;
-                    const { primary, secondary } = exerciseDetails.muscles;
+                    const { primary, secondary, tertiary, primaryContribution = 1, secondaryContribution = 0.5, tertiaryContribution = 0.25 } = exerciseDetails.muscles;
                     
                     ensureMuscle(primary);
                     if(primary) {
-                        dataByMuscle[primary].volume += volume;
+                        dataByMuscle[primary].volume += volume * primaryContribution;
                         dataByMuscle[primary].sets += 1;
                     }
 
                     ensureMuscle(secondary);
                     if(secondary) {
-                        dataByMuscle[secondary].volume += volume * 0.5;
+                        dataByMuscle[secondary].volume += volume * secondaryContribution;
                         dataByMuscle[secondary].sets += 1;
+                    }
+
+                    ensureMuscle(tertiary);
+                    if(tertiary) {
+                        dataByMuscle[tertiary].volume += volume * tertiaryContribution;
+                        dataByMuscle[tertiary].sets += 1;
                     }
                 }
             }
@@ -983,6 +1072,31 @@ const AnalyticsView = ({ allLogs, masterExerciseList }) => {
     }, [allLogs, masterExerciseList]);
 
     const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#AF19FF', '#FF42A1', '#42A1FF'];
+    const RADIAN = Math.PI / 180;
+    const renderCustomizedLabel = ({ cx, cy, midAngle, outerRadius, percent, name, volumePercentage }) => {
+        const radius = outerRadius + 30;
+        const x = cx + radius * Math.cos(-midAngle * RADIAN);
+        const y = cy + radius * Math.sin(-midAngle * RADIAN);
+        const sin = Math.sin(-midAngle * RADIAN);
+        const cos = Math.cos(-midAngle * RADIAN);
+        const sx = cx + (outerRadius + 10) * cos;
+        const sy = cy + (outerRadius + 10) * sin;
+        const mx = cx + (outerRadius + 20) * cos;
+        const my = cy + (outerRadius + 20) * sin;
+        const ex = mx + (cos >= 0 ? 1 : -1) * 12;
+        const ey = my;
+        const textAnchor = cos >= 0 ? 'start' : 'end';
+
+        return (
+            <g>
+                <path d={`M${sx},${sy}L${mx},${my}L${ex},${ey}`} stroke={"#9ca3af"} fill="none" />
+                <circle cx={ex} cy={ey} r={2} fill={"#9ca3af"} />
+                <text x={ex + (cos >= 0 ? 1 : -1) * 8} y={ey} textAnchor={textAnchor} fill="#9ca3af" dy={4} className="text-xs">
+                    {`${name} (${volumePercentage}%)`}
+                </text>
+            </g>
+        );
+    };
 
     return (
         <div className="p-4 md:p-6 pb-24">
@@ -1033,9 +1147,9 @@ const AnalyticsView = ({ allLogs, masterExerciseList }) => {
                     <h3 className="font-semibold dark:text-gray-200 mb-4">Muscle Group Distribution</h3>
                     <div className="grid md:grid-cols-2 gap-8 items-center">
                         <div className="w-full aspect-square">
-                             <ResponsiveContainer>
-                                <PieChart>
-                                    <Pie data={muscleGroupData} dataKey="volume" nameKey="name" cx="50%" cy="50%" outerRadius="80%" fill="#8884d8" label={({ name, volumePercentage }) => `${name} ${volumePercentage}%`}>
+                           <ResponsiveContainer>
+                                <PieChart margin={{ top: 40, right: 40, left: 40, bottom: 40 }}>
+                                    <Pie data={muscleGroupData} dataKey="volume" nameKey="name" cx="50%" cy="50%" outerRadius="70%" fill="#8884d8" labelLine={false} label={renderCustomizedLabel}>
                                         {muscleGroupData.map((entry, index) => (
                                             <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                                         ))}
@@ -1202,23 +1316,33 @@ const EditProgramView = ({ programData, onProgramDataChange }) => {
     };
 
     const handleDeleteWorkoutDay = (workoutNameToDelete) => {
-        if (!window.confirm(`Are you sure you want to delete "${workoutNameToDelete}"? This cannot be undone.`)) return;
-        
-        const newProgramStructure = { ...programStructure };
-        delete newProgramStructure[workoutNameToDelete];
+        openModal(
+            <div>
+                <h2 className="text-xl font-bold mb-4">Confirm Deletion</h2>
+                <p className="text-gray-600 dark:text-gray-400">Are you sure you want to delete the workout "{workoutNameToDelete}"? This will also remove it from your weekly schedule. This action cannot be undone.</p>
+                <div className="flex justify-end gap-2 mt-6">
+                    <button onClick={closeModal} className="px-4 py-2 bg-gray-200 dark:bg-gray-600 rounded-lg">Cancel</button>
+                    <button onClick={() => {
+                        const newProgramStructure = { ...programStructure };
+                        delete newProgramStructure[workoutNameToDelete];
 
-        const newWorkoutOrder = workoutOrder.filter(name => name !== workoutNameToDelete);
-        
-        const newWeeklySchedule = weeklySchedule.map(day => 
-            day.workout === workoutNameToDelete ? { ...day, workout: 'Rest' } : day
+                        const newWorkoutOrder = workoutOrder.filter(name => name !== workoutNameToDelete);
+                        
+                        const newWeeklySchedule = weeklySchedule.map(day => 
+                            day.workout === workoutNameToDelete ? { ...day, workout: 'Rest' } : day
+                        );
+
+                        onProgramDataChange({
+                            ...programData,
+                            programStructure: newProgramStructure,
+                            workoutOrder: newWorkoutOrder,
+                            weeklySchedule: newWeeklySchedule,
+                        });
+                        closeModal();
+                    }} className="px-4 py-2 bg-red-600 text-white rounded-lg">Confirm Delete</button>
+                </div>
+            </div>
         );
-
-        onProgramDataChange({
-            ...programData,
-            programStructure: newProgramStructure,
-            workoutOrder: newWorkoutOrder,
-            weeklySchedule: newWeeklySchedule,
-        });
     };
     
     const handleRenameWorkoutDay = (oldName) => {
@@ -1269,10 +1393,20 @@ const EditProgramView = ({ programData, onProgramDataChange }) => {
         openModal(
             <AddExerciseToWorkoutModal 
                 masterExerciseList={masterExerciseList}
-                onAdd={(exerciseToAdd) => {
+                onAdd={(exerciseName, exerciseDetails) => {
                     const newProgramStructure = JSON.parse(JSON.stringify(programStructure));
-                    newProgramStructure[workoutName].exercises.push(exerciseToAdd);
-                    updateProgramData('programStructure', newProgramStructure);
+                    newProgramStructure[workoutName].exercises.push(exerciseName);
+                    
+                    let newMasterList = { ...masterExerciseList };
+                    if (exerciseDetails && !newMasterList[exerciseName]) {
+                        newMasterList[exerciseName] = exerciseDetails;
+                    }
+
+                    onProgramDataChange({ 
+                        ...programData, 
+                        programStructure: newProgramStructure,
+                        masterExerciseList: newMasterList
+                    });
                     closeModal();
                 }}
                 onClose={closeModal}
@@ -1439,21 +1573,41 @@ const EditExerciseModal = ({ exercise, exerciseName, onSave, onClose }) => {
         name: exerciseName || '',
         sets: exercise?.sets || 3,
         reps: exercise?.reps || '8-12',
-        rir: exercise?.rir || '1-2',
+        rir: Array.isArray(exercise?.rir) ? exercise.rir : Array(exercise?.sets || 3).fill('1-2'),
         rest: exercise?.rest || '2-3 min',
         lastSetTechnique: exercise?.lastSetTechnique || '',
         equipment: exercise?.equipment || 'barbell',
         muscles: {
             primary: exercise?.muscles?.primary || '',
-            secondary: exercise?.muscles?.secondary || ''
+            secondary: exercise?.muscles?.secondary || '',
+            tertiary: exercise?.muscles?.tertiary || '',
+            primaryContribution: exercise?.muscles?.primaryContribution ?? 1,
+            secondaryContribution: exercise?.muscles?.secondaryContribution ?? 0.5,
+            tertiaryContribution: exercise?.muscles?.tertiaryContribution ?? 0.25,
         }
     });
 
+    useEffect(() => {
+        const numSets = parseInt(details.sets, 10) || 0;
+        if (details.rir.length !== numSets) {
+            setDetails(prev => ({
+                ...prev,
+                rir: Array.from({ length: numSets }, (_, i) => prev.rir[i] || '0')
+            }));
+        }
+    }, [details.sets]);
+
     const isNew = !exerciseName;
+
+    const handleRirChange = (index, value) => {
+        const newRir = [...details.rir];
+        newRir[index] = value;
+        setDetails(prev => ({ ...prev, rir: newRir }));
+    };
 
     const handleChange = (e) => {
         const { name, value } = e.target;
-        if (name === 'primary' || name === 'secondary') {
+        if (['primary', 'secondary', 'tertiary', 'primaryContribution', 'secondaryContribution', 'tertiaryContribution'].includes(name)) {
             setDetails(prev => ({ ...prev, muscles: { ...prev.muscles, [name]: value } }));
         } else {
             setDetails(prev => ({ ...prev, [name]: value }));
@@ -1472,12 +1626,12 @@ const EditExerciseModal = ({ exercise, exerciseName, onSave, onClose }) => {
     return (
         <div>
             <h2 className="text-xl font-bold mb-4">{isNew ? 'Create New Exercise' : `Editing ${exerciseName}`}</h2>
-            <div className="space-y-4">
+            <div className="space-y-4 max-h-[70vh] overflow-y-auto pr-2">
                 <div>
                     <label htmlFor="name" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Exercise Name</label>
                     <input id="name" type="text" name="name" value={details.name} onChange={handleChange} className="w-full p-2 bg-white dark:bg-gray-700 rounded-md border-gray-300 dark:border-gray-600" />
                 </div>
-                <div className="grid grid-cols-3 gap-4">
+                <div className="grid grid-cols-2 gap-4">
                     <div>
                         <label htmlFor="sets" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Sets</label>
                         <input id="sets" type="number" name="sets" value={details.sets} onChange={handleChange} className="w-full p-2 bg-white dark:bg-gray-700 rounded-md border-gray-300 dark:border-gray-600" />
@@ -1486,24 +1640,70 @@ const EditExerciseModal = ({ exercise, exerciseName, onSave, onClose }) => {
                         <label htmlFor="reps" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Reps</label>
                         <input id="reps" type="text" name="reps" value={details.reps} onChange={handleChange} placeholder="e.g., 8-12" className="w-full p-2 bg-white dark:bg-gray-700 rounded-md border-gray-300 dark:border-gray-600" />
                     </div>
-                    <div>
-                        <label htmlFor="rir" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">RIR</label>
-                        <input id="rir" type="text" name="rir" value={details.rir} onChange={handleChange} placeholder="e.g., 1-2" className="w-full p-2 bg-white dark:bg-gray-700 rounded-md border-gray-300 dark:border-gray-600" />
+                </div>
+
+                <div className="bg-gray-100 dark:bg-gray-900/50 p-4 rounded-lg space-y-3">
+                    <h3 className="font-semibold text-lg text-gray-900 dark:text-white -mt-1">RIR Targets Per Set</h3>
+                    <div className="grid grid-cols-3 gap-2">
+                        {Array.from({ length: details.sets }, (_, i) => (
+                            <div key={i}>
+                                <label htmlFor={`rir-${i}`} className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Set {i + 1}</label>
+                                <input id={`rir-${i}`} type="text" value={details.rir[i] || ''} onChange={(e) => handleRirChange(i, e.target.value)} className="w-full p-2 text-sm bg-white dark:bg-gray-700 rounded-md border-gray-300 dark:border-gray-600" />
+                            </div>
+                        ))}
                     </div>
                 </div>
+
                 <div>
                     <label htmlFor="rest" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Rest</label>
                     <input id="rest" type="text" name="rest" value={details.rest} onChange={handleChange} placeholder="e.g., 2-3 min" className="w-full p-2 bg-white dark:bg-gray-700 rounded-md border-gray-300 dark:border-gray-600" />
                 </div>
-                 <div className="grid grid-cols-2 gap-4">
-                     <div>
-                        <label htmlFor="primary" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Primary Muscle</label>
-                        <input id="primary" type="text" name="primary" value={details.muscles.primary} onChange={handleChange} className="w-full p-2 bg-white dark:bg-gray-700 rounded-md border-gray-300 dark:border-gray-600" />
+                 <div className="bg-gray-100 dark:bg-gray-900/50 p-4 rounded-lg space-y-4">
+                     <h3 className="font-semibold text-lg text-gray-900 dark:text-white -mt-1 mb-2">Muscle Groups & Volume</h3>
+                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                         <div>
+                            <label htmlFor="primary" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Primary Muscle</label>
+                            <input id="primary" type="text" name="primary" value={details.muscles.primary} onChange={handleChange} className="w-full p-2 bg-white dark:bg-gray-700 rounded-md border-gray-300 dark:border-gray-600" />
+                        </div>
+                        <div>
+                            <label htmlFor="primaryContribution" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Primary Contribution</label>
+                            <select id="primaryContribution" name="primaryContribution" value={details.muscles.primaryContribution} onChange={handleChange} className="w-full p-2 bg-white dark:bg-gray-700 rounded-md border-gray-300 dark:border-gray-600">
+                                <option value={1}>100% (Primary)</option>
+                                <option value={0.75}>75%</option>
+                                <option value={0.5}>50%</option>
+                                <option value={0.25}>25%</option>
+                            </select>
+                        </div>
+                         <div>
+                            <label htmlFor="secondary" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Secondary Muscle</label>
+                            <input id="secondary" type="text" name="secondary" value={details.muscles.secondary} onChange={handleChange} className="w-full p-2 bg-white dark:bg-gray-700 rounded-md border-gray-300 dark:border-gray-600" />
+                        </div>
+                        <div>
+                            <label htmlFor="secondaryContribution" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Secondary Contribution</label>
+                            <select id="secondaryContribution" name="secondaryContribution" value={details.muscles.secondaryContribution} onChange={handleChange} className="w-full p-2 bg-white dark:bg-gray-700 rounded-md border-gray-300 dark:border-gray-600">
+                                <option value={0.75}>75%</option>
+                                <option value={0.5}>50% (Standard)</option>
+                                <option value={0.25}>25%</option>
+                                <option value={0}>0%</option>
+                            </select>
+                        </div>
+                         <div>
+                            <label htmlFor="tertiary" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Tertiary Muscle</label>
+                            <input id="tertiary" type="text" name="tertiary" value={details.muscles.tertiary} onChange={handleChange} className="w-full p-2 bg-white dark:bg-gray-700 rounded-md border-gray-300 dark:border-gray-600" />
+                        </div>
+                        <div>
+                            <label htmlFor="tertiaryContribution" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Tertiary Contribution</label>
+                             <select id="tertiaryContribution" name="tertiaryContribution" value={details.muscles.tertiaryContribution} onChange={handleChange} className="w-full p-2 bg-white dark:bg-gray-700 rounded-md border-gray-300 dark:border-gray-600">
+                                <option value={0.5}>50%</option>
+                                <option value={0.25}>25% (Standard)</option>
+                                <option value={0}>0%</option>
+                            </select>
+                        </div>
                     </div>
-                    <div>
-                        <label htmlFor="secondary" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Secondary Muscle</label>
-                        <input id="secondary" type="text" name="secondary" value={details.muscles.secondary} onChange={handleChange} className="w-full p-2 bg-white dark:bg-gray-700 rounded-md border-gray-300 dark:border-gray-600" />
-                    </div>
+                </div>
+                 <div>
+                    <label htmlFor="lastSetTechnique" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Intensity Technique (e.g., Dropset)</label>
+                    <input id="lastSetTechnique" type="text" name="lastSetTechnique" value={details.lastSetTechnique} onChange={handleChange} className="w-full p-2 bg-white dark:bg-gray-700 rounded-md border-gray-300 dark:border-gray-600" />
                 </div>
             </div>
             <div className="flex justify-end gap-2 mt-6">
@@ -1516,13 +1716,29 @@ const EditExerciseModal = ({ exercise, exerciseName, onSave, onClose }) => {
 
 const AddExerciseToWorkoutModal = ({ masterExerciseList, onAdd, onClose }) => {
     const [searchTerm, setSearchTerm] = useState('');
+    const [activeTab, setActiveTab] = useState('bank'); // 'bank' or 'mine'
+
+    const listToDisplay = activeTab === 'bank' ? exerciseBank : masterExerciseList;
     const filteredExercises = useMemo(() => {
-        return Object.keys(masterExerciseList).filter(ex => ex.toLowerCase().includes(searchTerm.toLowerCase())).sort();
-    }, [searchTerm, masterExerciseList]);
+        return Object.keys(listToDisplay).filter(ex => ex.toLowerCase().includes(searchTerm.toLowerCase())).sort();
+    }, [searchTerm, listToDisplay]);
+
+    const handleAdd = (exerciseName) => {
+        const details = listToDisplay[exerciseName];
+        onAdd(exerciseName, details);
+    };
 
     return (
         <div>
-            <h2 className="text-xl font-bold mb-4">Add Exercise to Workout</h2>
+            <h2 className="text-xl font-bold mb-4">Add Exercise</h2>
+            <div className="flex border-b border-gray-200 dark:border-gray-700 mb-4">
+                <button onClick={() => setActiveTab('bank')} className={`flex items-center gap-2 px-4 py-2 -mb-px border-b-2 text-sm font-semibold ${activeTab === 'bank' ? 'border-blue-500 text-blue-600 dark:text-blue-400' : 'border-transparent text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'}`}>
+                    <BookOpen size={16} /> Exercise Bank
+                </button>
+                <button onClick={() => setActiveTab('mine')} className={`flex items-center gap-2 px-4 py-2 -mb-px border-b-2 text-sm font-semibold ${activeTab === 'mine' ? 'border-blue-500 text-blue-600 dark:text-blue-400' : 'border-transparent text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'}`}>
+                    <Dumbbell size={16} /> My Exercises
+                </button>
+            </div>
             <div className="relative mb-4">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
                 <input
@@ -1533,23 +1749,24 @@ const AddExerciseToWorkoutModal = ({ masterExerciseList, onAdd, onClose }) => {
                     className="w-full p-2 pl-10 bg-white dark:bg-gray-700 rounded-md border-gray-300 dark:border-gray-600"
                 />
             </div>
-            <div className="max-h-60 overflow-y-auto space-y-2">
+            <div className="max-h-60 overflow-y-auto space-y-2 pr-2">
                 {filteredExercises.map(ex => (
                     <button
                         key={ex}
-                        onClick={() => onAdd(ex)}
+                        onClick={() => handleAdd(ex)}
                         className="w-full text-left p-3 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2"
                     >
                        <PlusCircle size={16} /> {ex}
                     </button>
                 ))}
+                 {filteredExercises.length === 0 && <p className="text-center text-gray-500 py-4">No exercises found.</p>}
             </div>
              <div className="flex justify-end gap-2 mt-6">
                 <button onClick={onClose} className="px-4 py-2 bg-gray-200 dark:bg-gray-600 rounded-lg">Cancel</button>
             </div>
         </div>
-    )
-}
+    );
+};
 
 const LoadPresetModal = ({ onSelect, onClose }) => {
     return (
@@ -1596,6 +1813,77 @@ const RenameWorkoutModal = ({ oldName, onSave, onClose }) => {
                 <button onClick={onClose} className="px-4 py-2 bg-gray-200 dark:bg-gray-600 rounded-lg">Cancel</button>
                 <button onClick={handleSave} className="px-4 py-2 bg-blue-600 text-white rounded-lg">Save</button>
             </div>
+        </div>
+    );
+};
+
+const TutorialModal = ({ onClose }) => {
+    return (
+        <div>
+            <h2 className="text-2xl font-bold mb-4 flex items-center gap-2"><Lightbulb size={24} className="text-blue-500" /> App Tutorial</h2>
+            <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-2 text-gray-600 dark:text-gray-300">
+                <div className="p-3 bg-gray-100 dark:bg-gray-700/50 rounded-lg">
+                    <h3 className="font-bold text-lg text-gray-900 dark:text-white mb-1">📅 Program View</h3>
+                    <p>This is your main screen. It shows your entire program, week by week. Click on a workout day to start logging.</p>
+                </div>
+                 <div className="p-3 bg-gray-100 dark:bg-gray-700/50 rounded-lg">
+                    <h3 className="font-bold text-lg text-gray-900 dark:text-white mb-1">✍️ Logging a Workout</h3>
+                    <p>Enter your weight, reps, and RIR (Reps in Reserve) for each set. The app provides suggestions based on your last performance. Completed exercises will collapse automatically.</p>
+                </div>
+                <div className="p-3 bg-gray-100 dark:bg-gray-700/50 rounded-lg">
+                    <h3 className="font-bold text-lg text-gray-900 dark:text-white mb-1">📊 Analytics & Records</h3>
+                    <p>Check the 'Analytics' tab to see graphs of your progress and muscle group distribution. 'Records' shows your all-time best lifts (e1RM).</p>
+                </div>
+                 <div className="p-3 bg-gray-100 dark:bg-gray-700/50 rounded-lg">
+                    <h3 className="font-bold text-lg text-gray-900 dark:text-white mb-1">✏️ Editing Your Program</h3>
+                    <p>In 'Edit Program', you can change everything: workout names, weekly schedule, exercises, sets, reps, and more. Create new exercises or modify existing ones.</p>
+                </div>
+                 <div className="p-3 bg-gray-100 dark:bg-gray-700/50 rounded-lg">
+                    <h3 className="font-bold text-lg text-gray-900 dark:text-white mb-1">⚙️ Settings</h3>
+                    <p>Set up your Sync ID to keep your data across devices. You can also toggle dark mode, change weight units, export your data, and start a new mesocycle.</p>
+                </div>
+            </div>
+            <div className="flex justify-end mt-6">
+                <button onClick={onClose} className="px-6 py-2 bg-blue-600 text-white rounded-lg">Got it!</button>
+            </div>
+        </div>
+    );
+};
+
+const RestTimer = ({ initialTime, onClose }) => {
+    const [time, setTime] = useState(initialTime);
+    const progress = (time / initialTime) * 100;
+
+    useEffect(() => {
+        if (time <= 0) {
+            onClose();
+            return;
+        }
+        const timerId = setInterval(() => {
+            setTime(t => t - 1);
+        }, 1000);
+        return () => clearInterval(timerId);
+    }, [time, onClose]);
+
+    const minutes = Math.floor(time / 60);
+    const seconds = time % 60;
+
+    return (
+        <div className="fixed bottom-0 left-0 right-0 bg-gray-800/90 backdrop-blur-sm text-white p-3 shadow-2xl z-50 flex items-center gap-4 animate-fade-in-up">
+            <div className="flex-grow">
+                <div className="flex justify-between items-center mb-1">
+                    <span className="text-sm font-bold text-gray-300">RESTING</span>
+                    <span className="text-lg font-mono font-bold tracking-wider">
+                        {String(minutes).padStart(2, '0')}:{String(seconds).padStart(2, '0')}
+                    </span>
+                </div>
+                <div className="w-full bg-gray-700 rounded-full h-2">
+                    <div className="bg-blue-500 h-2 rounded-full transition-all duration-1000 linear" style={{ width: `${progress}%` }}></div>
+                </div>
+            </div>
+            <button onClick={onClose} className="p-2 rounded-full bg-red-500/80 hover:bg-red-500 transition-colors">
+                <X size={20} />
+            </button>
         </div>
     );
 };
@@ -1685,8 +1973,13 @@ const AppCore = () => {
     const [weightUnit, setWeightUnit] = useState('lbs');
     const { user, db, isLoading, customId } = useContext(FirebaseContext);
     const { setTheme } = useContext(ThemeContext);
+    const { openModal, closeModal } = useContext(AppStateContext);
     const [isDataLoading, setIsDataLoading] = useState(true);
     const [activeTimer, setActiveTimer] = useState(null);
+
+    const showTutorial = useCallback(() => {
+        openModal(<TutorialModal onClose={closeModal} />);
+    }, [openModal, closeModal]);
 
     // Data loading from Firestore
     useEffect(() => {
@@ -1697,9 +1990,9 @@ const AppCore = () => {
         }
         setIsDataLoading(true);
         const userDocRef = doc(db, 'workoutLogs', customId);
-        const unsubscribe = onSnapshot(userDocRef, (doc) => {
-            if (doc.exists()) {
-                const data = doc.data();
+        const unsubscribe = onSnapshot(userDocRef, (docSnap) => {
+            if (docSnap.exists()) {
+                const data = docSnap.data();
                 setAllLogs(data.logs || {});
                 setArchivedLogs(data.archivedLogs || []);
                 setSkippedDays(data.skippedDays || {});
@@ -1707,10 +2000,21 @@ const AppCore = () => {
                 setWeightUnit(data.weightUnit || 'lbs');
                 
                 const defaultProgram = presets['optimal-ppl-ul'];
+                const masterListFromDb = data.masterExerciseList || defaultProgram.masterExerciseList;
+                const migratedMasterList = { ...masterListFromDb };
+                for (const exName in migratedMasterList) {
+                    const exercise = migratedMasterList[exName];
+                    if (!Array.isArray(exercise.rir)) {
+                        const numSets = parseInt(exercise.sets, 10) || 0;
+                        const defaultRirValue = typeof exercise.rir === 'string' ? exercise.rir.split('-')[0].trim() : '0';
+                        migratedMasterList[exName].rir = Array(numSets).fill(defaultRirValue);
+                    }
+                }
+
                 const loadedProgram = {
                     name: data.name || defaultProgram.name,
                     info: data.info || defaultProgram.info,
-                    masterExerciseList: data.masterExerciseList || defaultProgram.masterExerciseList,
+                    masterExerciseList: migratedMasterList,
                     programStructure: data.programStructure || defaultProgram.programStructure,
                     weeklySchedule: data.weeklySchedule || defaultProgram.weeklySchedule,
                     workoutOrder: data.workoutOrder || defaultProgram.workoutOrder,
@@ -1718,15 +2022,25 @@ const AppCore = () => {
                 };
                 setProgramData(loadedProgram);
 
+                if (!data.hasSeenTutorial) {
+                    showTutorial();
+                    updateDoc(userDocRef, { hasSeenTutorial: true });
+                }
+
             } else { 
                 const defaultProgram = presets['optimal-ppl-ul'];
-                setDoc(userDocRef, { 
+                const initialData = {
+                    ...defaultProgram,
                     logs: {}, 
                     skippedDays: {}, 
                     theme: 'dark', 
                     weightUnit: 'lbs',
                     archivedLogs: [],
-                    ...defaultProgram
+                    hasSeenTutorial: false 
+                };
+                setDoc(userDocRef, initialData).then(() => {
+                    showTutorial();
+                    updateDoc(userDocRef, { hasSeenTutorial: true });
                 });
             }
             setIsDataLoading(false);
@@ -1735,7 +2049,7 @@ const AppCore = () => {
             setIsDataLoading(false);
         });
         return () => unsubscribe();
-    }, [user, db, customId, setTheme, isLoading]);
+    }, [user, db, customId, setTheme, isLoading, showTutorial]);
 
     const historicalLogs = useMemo(() => {
         const combined = { ...allLogs };
@@ -1759,8 +2073,6 @@ const AppCore = () => {
         };
 
         window.addEventListener('popstate', handlePopState);
-
-        // Handle initial load
         handlePopState({state: window.history.state});
 
         return () => {
@@ -1803,10 +2115,17 @@ const AppCore = () => {
     };
 
     const handleResetMeso = () => {
-        if (db && customId) {
+        if (db && customId && Object.keys(allLogs).length > 0) {
             const userDocRef = doc(db, 'workoutLogs', customId);
             updateDoc(userDocRef, {
                 archivedLogs: arrayUnion(allLogs),
+                logs: {},
+                skippedDays: {}
+            });
+        } else if (db && customId) {
+            // Handle case where there are no logs to archive.
+            const userDocRef = doc(db, 'workoutLogs', customId);
+            updateDoc(userDocRef, {
                 logs: {},
                 skippedDays: {}
             });
@@ -1818,7 +2137,7 @@ const AppCore = () => {
             setActiveTimer(programData.settings.restTimer.duration);
         }
     };
-
+    
     const completedDays = useMemo(() => {
         const status = new Map();
         if (!programData || !programData.info) return status;
@@ -1862,7 +2181,7 @@ const AppCore = () => {
     
     const renderContent = () => {
         if (!customId) {
-            return <SettingsView allLogs={{}} historicalLogs={{}} weightUnit={weightUnit} onWeightUnitChange={handleWeightUnitChange} onProgramUpdate={handleProgramDataChange} onResetMeso={handleResetMeso} programData={programData} onProgramDataChange={handleProgramDataChange} />;
+            return <SettingsView allLogs={{}} historicalLogs={{}} weightUnit={weightUnit} onWeightUnitChange={handleWeightUnitChange} onProgramUpdate={handleProgramDataChange} onResetMeso={handleResetMeso} programData={programData} onProgramDataChange={handleProgramDataChange} onShowTutorial={showTutorial} />;
         }
         switch(pageState.view) {
             case 'dashboard': return <DashboardView allLogs={allLogs} {...programData} />;
@@ -1870,7 +2189,7 @@ const AppCore = () => {
             case 'analytics': return <AnalyticsView allLogs={historicalLogs} masterExerciseList={programData.masterExerciseList} />;
             case 'records': return <RecordsView allLogs={historicalLogs} />;
             case 'editProgram': return <EditProgramView programData={programData} onProgramDataChange={handleProgramDataChange} />;
-            case 'settings': return <SettingsView allLogs={allLogs} historicalLogs={historicalLogs} weightUnit={weightUnit} onWeightUnitChange={handleWeightUnitChange} onProgramUpdate={handleProgramDataChange} onResetMeso={handleResetMeso} programData={programData} onProgramDataChange={handleProgramDataChange} />;
+            case 'settings': return <SettingsView allLogs={allLogs} historicalLogs={historicalLogs} weightUnit={weightUnit} onWeightUnitChange={handleWeightUnitChange} onProgramUpdate={handleProgramDataChange} onResetMeso={handleResetMeso} programData={programData} onProgramDataChange={handleProgramDataChange} onShowTutorial={showTutorial} />;
             default: return <MainView onSessionSelect={(week, day, type) => navigate(type, { week, dayKey: day })} completedDays={completedDays} onUnskipDay={handleUnskipDay} {...programData} />;
         }
     };
@@ -1885,6 +2204,7 @@ const AppCore = () => {
                 </main>
             </div>
              <Modal />
+             {activeTimer && <RestTimer initialTime={activeTimer} onClose={() => setActiveTimer(null)} />}
         </div>
     );
 }
