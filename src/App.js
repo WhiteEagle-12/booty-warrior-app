@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, createContext, useContext, useCallback } from 'react';
-import { ChevronDown, ChevronUp, Dumbbell, CheckCircle, ArrowLeft, TrendingUp, BarChart2, Settings, Flame, Repeat, StretchVertical, Lightbulb, Download, XCircle, SkipForward, Menu, X, Search, Trophy, BrainCircuit, PlusCircle, Edit, ArrowUp, ArrowDown } from 'lucide-react';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Bar, ComposedChart, PieChart, Pie, Cell } from 'recharts';
+import { ChevronDown, ChevronUp, Dumbbell, CheckCircle, ArrowLeft, BarChart2, Settings, Flame, Repeat, StretchVertical, Lightbulb, Download, XCircle, SkipForward, Menu, X, Search, Trophy, BrainCircuit, PlusCircle, Edit, ArrowUp, ArrowDown, LayoutDashboard, Save } from 'lucide-react';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 
 // Firebase Imports - using modular v9+ syntax
 import { initializeApp } from "firebase/app";
@@ -8,53 +8,54 @@ import { getFirestore, doc, onSnapshot, setDoc, updateDoc } from "firebase/fires
 import { getAuth, onAuthStateChanged, signInAnonymously } from "firebase/auth";
 
 
-// --- PROGRAM DATA ---
-const programInfo = { name: "Project Overload", weeks: 8, split: "Pull/Push/Legs/Rest/Upper/Lower" };
-
-const initialMasterExerciseList = {
-    'Incline DB Press': { sets: 2, reps: '5-7', rir: '1-2', rest: '2-3 min', lastSetTechnique: 'Failure', equipment: 'dumbbell', muscles: { primary: 'Chest', secondary: 'Shoulders' } },
-    'Barbell Bench Press': { sets: 2, reps: '5-7', rir: '1-2', rest: '2-3 min', lastSetTechnique: 'Failure', equipment: 'barbell', muscles: { primary: 'Chest', secondary: 'Triceps' } },
-    'Pullups': { sets: 4, reps: '5-7', rir: '1-2', rest: '2-3 min', lastSetTechnique: 'Failure', equipment: 'bodyweight', muscles: { primary: 'Back', secondary: 'Biceps' } },
-    'DB Lateral Raise': { sets: 3, reps: '8-10', rir: '0-1', rest: '1-2 min', lastSetTechnique: 'Myo-reps', equipment: 'dumbbell', muscles: { primary: 'Shoulders', secondary: null } },
-    'Bayesian Cable Curl': { sets: 3, reps: '6-8', rir: '1-2', rest: '1-2 min', lastSetTechnique: 'Failure', equipment: 'machine', muscles: { primary: 'Biceps', secondary: null } },
-    'Overhead Triceps Extension': { sets: 3, reps: '6-8', rir: '1-2', rest: '1-2 min', lastSetTechnique: 'Failure', equipment: 'machine', muscles: { primary: 'Triceps', secondary: null } },
-    'Smith Machine Squat': { sets: 2, reps: '5-7', rir: '1-2', rest: '2-3 min', lastSetTechnique: 'Failure', equipment: 'machine', muscles: { primary: 'Quads', secondary: 'Glutes' } },
-    'Hack Squat': { sets: 2, reps: '5-7', rir: '1-2', rest: '2-3 min', lastSetTechnique: 'Failure', equipment: 'machine', muscles: { primary: 'Quads', secondary: 'Glutes' } },
-    'Lying Leg Curl': { sets: 3, reps: '5-7', rir: '1-2', rest: '1-2 min', lastSetTechnique: 'Failure + LLPs', equipment: 'machine', muscles: { primary: 'Hamstrings', secondary: null } },
-    'Leg Extensions': { sets: 3, reps: '5-7', rir: '0-1', rest: '1-2 min', lastSetTechnique: 'Failure', equipment: 'machine', muscles: { primary: 'Quads', secondary: null } },
-    'Standing Calf Raise': { sets: 4, reps: '5-7', rir: '1-2', rest: '1 min', lastSetTechnique: 'Static Stretch', equipment: 'machine', muscles: { primary: 'Calves', secondary: null } },
-    'Cable Crunch': { sets: 3, reps: '10-12', rir: '0-1', rest: '1 min', lastSetTechnique: 'Myo-reps', equipment: 'machine', muscles: { primary: 'Abs', secondary: null } },
-    'Chest Supported Row': { sets: 4, reps: '5-7', rir: '1-2', rest: '2-3 min', lastSetTechnique: 'Failure', equipment: 'machine', muscles: { primary: 'Back', secondary: 'Biceps' } },
-    'Preacher Curl': { sets: 3, reps: '8-10', rir: '0-1', rest: '1-2 min', lastSetTechnique: 'Failure', equipment: 'barbell', muscles: { primary: 'Biceps', secondary: null } },
-    'Pec Flies': { sets: 2, reps: '6-8', rir: '0-1', rest: '1-2 min', lastSetTechnique: 'Failure', equipment: 'machine', muscles: { primary: 'Chest', secondary: null } },
-    'Barbell RDL': { sets: 4, reps: '5-7', rir: '1-2', rest: '2-3 min', lastSetTechnique: 'Failure', equipment: 'barbell', muscles: { primary: 'Hamstrings', secondary: 'Glutes' } },
-    'DB Bulgarian Split Squat': { sets: 3, reps: '5-7', rir: '1-2', rest: '2 min', lastSetTechnique: 'Failure', equipment: 'dumbbell', muscles: { primary: 'Quads', secondary: 'Glutes' } },
-    'Safety Bar Squats': { sets: 2, reps: '5-7', rir: '1-2', rest: '2-3 min', lastSetTechnique: 'Failure', equipment: 'barbell', muscles: { primary: 'Quads', secondary: 'Glutes' } },
-    'DB Rows': { sets: 2, reps: '5-7', rir: '1-2', rest: '2-3 min', lastSetTechnique: 'Failure', equipment: 'dumbbell', muscles: { primary: 'Back', secondary: 'Biceps' } },
+// --- PRESET PROGRAM DATA ---
+const presets = {
+    "optimal-ppl-ul": {
+        name: "Optimal PPL-UL",
+        info: { name: "Project Overload", weeks: 8, split: "Pull/Push/Legs/Rest/Upper/Lower" },
+        masterExerciseList: {
+            'Incline DB Press': { sets: 2, reps: '5-7', rir: '0', rest: '2-3 min', equipment: 'dumbbell', muscles: { primary: 'Chest', secondary: 'Shoulders' } },
+            'Barbell Bench Press': { sets: 2, reps: '5-7', rir: '0', rest: '2-3 min', equipment: 'barbell', muscles: { primary: 'Chest', secondary: 'Triceps' } },
+            'Pullups': { sets: 4, reps: '5-7', rir: '0', rest: '2-3 min', equipment: 'bodyweight', muscles: { primary: 'Back', secondary: 'Biceps' } },
+            'DB Lateral Raise': { sets: 3, reps: '8-10', rir: '0', rest: '1-2 min', equipment: 'dumbbell', muscles: { primary: 'Shoulders', secondary: null } },
+            'Bayesian Cable Curl': { sets: 3, reps: '6-8', rir: '0', rest: '1-2 min', equipment: 'machine', muscles: { primary: 'Biceps', secondary: null } },
+            'Overhead Triceps Extension': { sets: 3, reps: '6-8', rir: '0', rest: '1-2 min', equipment: 'machine', muscles: { primary: 'Triceps', secondary: null } },
+            'Smith Machine Squat': { sets: 2, reps: '5-7', rir: '0', rest: '2-3 min', equipment: 'machine', muscles: { primary: 'Quads', secondary: 'Glutes' } },
+            'Hack Squat': { sets: 2, reps: '5-7', rir: '0', rest: '2-3 min', equipment: 'machine', muscles: { primary: 'Quads', secondary: 'Glutes' } },
+            'Lying Leg Curl': { sets: 3, reps: '5-7', rir: '0', rest: '1-2 min', equipment: 'machine', muscles: { primary: 'Hamstrings', secondary: null } },
+            'Leg Extensions': { sets: 3, reps: '5-7', rir: '0', rest: '1-2 min', equipment: 'machine', muscles: { primary: 'Quads', secondary: null } },
+            'Standing Calf Raise': { sets: 4, reps: '5-7', rir: '0', rest: '1 min', equipment: 'machine', muscles: { primary: 'Calves', secondary: null } },
+            'Cable Crunch': { sets: 3, reps: '10-12', rir: '0', rest: '1 min', equipment: 'machine', muscles: { primary: 'Abs', secondary: null } },
+            'Chest Supported Row': { sets: 4, reps: '5-7', rir: '0', rest: '2-3 min', equipment: 'machine', muscles: { primary: 'Back', secondary: 'Biceps' } },
+            'Preacher Curl': { sets: 3, reps: '8-10', rir: '0', rest: '1-2 min', equipment: 'barbell', muscles: { primary: 'Biceps', secondary: null } },
+            'Pec Flies': { sets: 2, reps: '6-8', rir: '0', rest: '1-2 min', equipment: 'machine', muscles: { primary: 'Chest', secondary: null } },
+            'Barbell RDL': { sets: 4, reps: '5-7', rir: '0', rest: '2-3 min', equipment: 'barbell', muscles: { primary: 'Hamstrings', secondary: 'Glutes' } },
+            'DB Bulgarian Split Squat': { sets: 3, reps: '5-7', rir: '0', rest: '2 min', equipment: 'dumbbell', muscles: { primary: 'Quads', secondary: 'Glutes' } },
+            'Safety Bar Squats': { sets: 2, reps: '5-7', rir: '0', rest: '2-3 min', equipment: 'barbell', muscles: { primary: 'Quads', secondary: 'Glutes' } },
+            'DB Rows': { sets: 2, reps: '5-7', rir: '0', rest: '2-3 min', equipment: 'dumbbell', muscles: { primary: 'Back', secondary: 'Biceps' } },
+        },
+        programStructure: {
+            'Upper (Strength Focus)': { exercises: ['Incline DB Press', 'Pullups', 'DB Rows', 'Barbell Bench Press', 'Bayesian Cable Curl', 'Overhead Triceps Extension'], label: 'Upper' },
+            'Lower (Strength Focus)': { exercises: ['Smith Machine Squat', 'Hack Squat', 'Safety Bar Squats', 'Lying Leg Curl', 'Standing Calf Raise', 'Cable Crunch'], label: 'Lower' },
+            'Pull (Hypertrophy Focus)': { exercises: ['Chest Supported Row', 'Pullups', 'DB Lateral Raise', 'Preacher Curl'], label: 'Pull' },
+            'Push (Hypertrophy Focus)': { exercises: ['Incline DB Press', 'Barbell Bench Press', 'DB Lateral Raise', 'Overhead Triceps Extension', 'Pec Flies'], label: 'Push' },
+            'Legs (Hypertrophy Focus)': { exercises: ['DB Bulgarian Split Squat', 'Barbell RDL', 'Leg Extensions', 'Lying Leg Curl', 'Standing Calf Raise'], label: 'Legs' },
+        },
+        weeklySchedule: [
+            { day: 'Mon', workout: 'Pull (Hypertrophy Focus)' }, { day: 'Tue', workout: 'Push (Hypertrophy Focus)' },
+            { day: 'Wed', workout: 'Legs (Hypertrophy Focus)' }, { day: 'Thu', workout: 'Rest' },
+            { day: 'Fri', workout: 'Upper (Strength Focus)' }, { day: 'Sat', workout: 'Lower (Strength Focus)' },
+            { day: 'Sun', workout: 'Rest' },
+        ],
+        workoutOrder: [
+            'Pull (Hypertrophy Focus)',
+            'Push (Hypertrophy Focus)',
+            'Legs (Hypertrophy Focus)',
+            'Upper (Strength Focus)',
+            'Lower (Strength Focus)'
+        ],
+    }
 };
-
-const initialProgramStructure = {
-    'Upper (Strength Focus)': { exercises: ['Incline DB Press', 'Pullups', 'DB Rows', 'Barbell Bench Press', 'Bayesian Cable Curl', 'Overhead Triceps Extension'], label: 'Upper' },
-    'Lower (Strength Focus)': { exercises: ['Smith Machine Squat', 'Hack Squat', 'Safety Bar Squats', 'Lying Leg Curl', 'Standing Calf Raise', 'Cable Crunch'], label: 'Lower' },
-    'Pull (Hypertrophy Focus)': { exercises: ['Chest Supported Row', 'Pullups', 'DB Lateral Raise', 'Preacher Curl'], label: 'Pull' },
-    'Push (Hypertrophy Focus)': { exercises: ['Incline DB Press', 'Barbell Bench Press', 'DB Lateral Raise', 'Overhead Triceps Extension', 'Pec Flies'], label: 'Push' },
-    'Legs (Hypertrophy Focus)': { exercises: ['DB Bulgarian Split Squat', 'Barbell RDL', 'Leg Extensions', 'Lying Leg Curl', 'Standing Calf Raise'], label: 'Legs' },
-};
-
-const weeklySchedule = [
-    { day: 'Mon', workout: 'Pull (Hypertrophy Focus)' }, { day: 'Tue', workout: 'Push (Hypertrophy Focus)' },
-    { day: 'Wed', workout: 'Legs (Hypertrophy Focus)' }, { day: 'Thu', workout: 'Rest' },
-    { day: 'Fri', workout: 'Upper (Strength Focus)' }, { day: 'Sat', workout: 'Lower (Strength Focus)' },
-    { day: 'Sun', workout: 'Rest' },
-];
-
-const getWorkoutForDay = (week, day) => {
-    const schedule = weeklySchedule.find(d => d.day === day);
-    if (!schedule || schedule.workout === 'Rest') return null;
-    return schedule.workout;
-};
-
-const getExerciseDetails = (exerciseName, masterList) => masterList[exerciseName] || null;
 
 // --- Helper Functions & Context ---
 const calculateE1RM = (weight, reps, rir) => {
@@ -84,6 +85,8 @@ const findLastPerformanceLogs = (exerciseName, currentWeek, currentDayKey, allLo
     return logsForSession.reduce((acc, log) => { acc[log.set] = log; return acc; }, {});
 };
 
+const getExerciseDetails = (exerciseName, masterList) => masterList[exerciseName] || null;
+
 const getProgressionSuggestion = (exerciseName, lastPerformance, currentPerformance, masterList) => {
     if (!lastPerformance) return "Log your first set to get a baseline.";
     
@@ -101,7 +104,7 @@ const getProgressionSuggestion = (exerciseName, lastPerformance, currentPerforma
     const exerciseDetails = getExerciseDetails(exerciseName, masterList);
     if (!lastTopSet || !exerciseDetails) return "Log your first set to get a baseline.";
 
-    const [minRepsStr, maxRpsStr] = exerciseDetails.reps.split('-');
+    const [minRepsStr, maxRpsStr] = (exerciseDetails.reps || '0-0').split('-');
     const minReps = parseInt(minRepsStr, 10);
     const maxReps = parseInt(maxRpsStr, 10);
     const lastReps = parseInt(lastTopSet.reps, 10);
@@ -243,52 +246,59 @@ const ThemeProvider = ({ children }) => {
 
 // --- Components ---
 const IntensityTechnique = ({ technique }) => {
-    if (!technique || technique === 'Failure') return null;
+    if (!technique) return null;
     let icon = <Flame size={14} className="text-red-500" />;
     if (technique.includes('LLP')) icon = <StretchVertical size={14} className="text-blue-500" />;
     if (technique.includes('Myo-reps')) icon = <Repeat size={14} className="text-purple-500" />;
     if (technique.includes('Stretch')) icon = <StretchVertical size={14} className="text-green-500" />;
-    return (<div className="mt-2 flex items-center gap-2 text-xs text-gray-600 dark:text-gray-400 bg-gray-100 dark:bg-gray-700/50 px-2 py-1 rounded-md">{icon}<div><span className="font-semibold">Last Set:</span> {technique}</div></div>);
+    return (<div className="mt-2 flex items-center gap-2 text-xs text-gray-600 dark:text-gray-400 bg-gray-100 dark:bg-gray-700/50 px-2 py-1 rounded-md">{icon}<div><span className="font-semibold">Intensity:</span> {technique}</div></div>);
 };
 
-const SetRow = ({ set, logData, onLogChange, lastSetData, exerciseDetails }) => {
-    const targetEffort = set.number === exerciseDetails.sets ? 'To Failure' : `~${exerciseDetails.rir} RIR`;
+const SetRow = ({ setNumber, logData, onLogChange, lastSetData, exerciseDetails, weightUnit }) => {
+    const targetEffort = `~${exerciseDetails.rir} RIR`;
+    const placeholderWeight = lastSetData?.load ? (weightUnit === 'kg' ? (lastSetData.load / 2.20462).toFixed(1) : lastSetData.load) : `Weight (${weightUnit})`;
+
     return (
         <div className="grid grid-cols-3 sm:grid-cols-6 gap-2 items-center py-2 px-3 bg-gray-50 dark:bg-gray-700/50 rounded-md">
-            <div className="text-sm font-bold text-gray-800 dark:text-gray-200 col-span-3 sm:col-span-1">Set {set.number}</div>
+            <div className="text-sm font-bold text-gray-800 dark:text-gray-200 col-span-3 sm:col-span-1">Set {setNumber}</div>
             <div className="hidden sm:block text-sm text-center text-gray-600 dark:text-gray-400">{exerciseDetails.reps}</div>
             <div className="hidden sm:block text-sm text-center font-medium text-blue-600 dark:text-blue-400">{targetEffort}</div>
             <div>
                 <label className="sm:hidden text-xs text-gray-500">Load</label>
-                <input type="number" placeholder={lastSetData?.load || "kg/lbs"} value={logData.load || ''} onChange={(e) => onLogChange(set.number, 'load', e.target.value)} className="w-full p-1.5 text-sm bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 placeholder:text-gray-400 dark:placeholder:text-gray-500"/>
+                <input type="number" placeholder={placeholderWeight} value={logData.displayLoad || ''} onChange={(e) => onLogChange(setNumber, 'load', e.target.value)} className="w-full p-1.5 text-sm bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 placeholder:text-gray-400 dark:placeholder:text-gray-500"/>
             </div>
             <div>
                 <label className="sm:hidden text-xs text-gray-500">Reps</label>
-                <input type="number" placeholder={lastSetData?.reps || "Reps"} value={logData.reps || ''} onChange={(e) => onLogChange(set.number, 'reps', e.target.value)} className="w-full p-1.5 text-sm bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 placeholder:text-gray-400 dark:placeholder:text-gray-500"/>
+                <input type="number" placeholder={lastSetData?.reps || "Reps"} value={logData.reps || ''} onChange={(e) => onLogChange(setNumber, 'reps', e.target.value)} className="w-full p-1.5 text-sm bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 placeholder:text-gray-400 dark:placeholder:text-gray-500"/>
             </div>
             <div>
                 <label className="sm:hidden text-xs text-gray-500">RIR</label>
-                <input type="number" placeholder={lastSetData?.rir ?? "RIR"} value={logData.rir || ''} onChange={(e) => onLogChange(set.number, 'rir', e.target.value)} className="w-full p-1.5 text-sm bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 placeholder:text-gray-400 dark:placeholder:text-gray-500"/>
+                <input type="number" placeholder={lastSetData?.rir ?? "RIR"} value={logData.rir || ''} 
+                    onChange={(e) => onLogChange(setNumber, 'rir', e.target.value)} 
+                    onBlur={() => onLogChange(setNumber, 'rir', logData.rir || '', true)}
+                    className="w-full p-1.5 text-sm bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 placeholder:text-gray-400 dark:placeholder:text-gray-500"
+                />
             </div>
         </div>
     );
 };
 
 
-const ExerciseCard = ({ exerciseName, week, dayKey, allLogs, onLogChange, masterExerciseList }) => {
+const ExerciseCard = ({ exerciseName, week, dayKey, allLogs, onLogChange, masterExerciseList, weightUnit }) => {
     const exercise = getExerciseDetails(exerciseName, masterExerciseList);
     const sets = Array.from({ length: exercise?.sets || 0 }, (_, i) => i + 1);
-    const isCompleted = sets.every(setNumber => {
-        const log = allLogs[`${week}-${dayKey}-${exerciseName}-${setNumber}`];
-        return log?.load && log?.reps;
-    });
+    
+    const isCompleted = useMemo(() => {
+        return sets.every(setNumber => {
+            const log = allLogs[`${week}-${dayKey}-${exerciseName}-${setNumber}`];
+            return log?.load && log?.reps && (log?.rir !== undefined && log?.rir !== null && log?.rir !== '');
+        });
+    }, [allLogs, week, dayKey, exerciseName, sets]);
 
     const [isOpen, setIsOpen] = useState(!isCompleted);
     
     useEffect(() => {
-        if (isCompleted) {
-            setIsOpen(false);
-        }
+        setIsOpen(!isCompleted);
     }, [isCompleted]);
 
     if (!exercise) return <div className="bg-red-100 dark:bg-red-900/50 p-4 rounded-lg text-red-700 dark:text-red-300">Exercise "{exerciseName}" not found in master list.</div>;
@@ -297,6 +307,23 @@ const ExerciseCard = ({ exerciseName, week, dayKey, allLogs, onLogChange, master
     const currentSetLog = allLogs[`${week}-${dayKey}-${exerciseName}-1`];
     const suggestion = useMemo(() => getProgressionSuggestion(exerciseName, lastPerformance, currentSetLog, masterExerciseList), [exerciseName, lastPerformance, currentSetLog, masterExerciseList]);
     
+    const handleLocalLogChange = (setNumber, field, value, isBlur = false) => {
+        onLogChange(exerciseName, setNumber, field, value);
+
+        if (isBlur && field === 'rir' && setNumber === exercise.sets) {
+            setTimeout(() => {
+                const isNowCompleted = sets.every(sNum => {
+                    const log = allLogs[`${week}-${dayKey}-${exerciseName}-${sNum}`];
+                    const finalValue = sNum === setNumber ? value : log?.rir;
+                    return log?.load && log?.reps && (finalValue !== undefined && finalValue !== null && finalValue !== '');
+                });
+                if(isNowCompleted) {
+                    setIsOpen(false);
+                }
+            }, 100);
+        }
+    };
+
     return (
         <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md overflow-hidden">
             <button onClick={() => setIsOpen(!isOpen)} className="w-full p-4 text-left flex justify-between items-center bg-gray-50 dark:bg-gray-700/50 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
@@ -320,7 +347,7 @@ const ExerciseCard = ({ exerciseName, week, dayKey, allLogs, onLogChange, master
                             <span></span>
                             <span className="text-center">Target Reps</span>
                             <span className="text-center">Target Effort</span>
-                            <span className="text-center">Load</span>
+                            <span className="text-center">Load ({weightUnit})</span>
                             <span className="text-center">Reps</span>
                             <span className="text-center">RIR</span>
                         </div>
@@ -328,33 +355,45 @@ const ExerciseCard = ({ exerciseName, week, dayKey, allLogs, onLogChange, master
                             {sets.map(setNumber => (
                                 <SetRow 
                                     key={setNumber} 
-                                    set={{ number: setNumber }} 
+                                    setNumber={setNumber}
                                     logData={allLogs[`${week}-${dayKey}-${exerciseName}-${setNumber}`] || {}} 
-                                    onLogChange={(setNum, field, val) => onLogChange(exerciseName, setNum, field, val)}
+                                    onLogChange={handleLocalLogChange}
                                     lastSetData={lastPerformance ? lastPerformance[setNumber] : null}
                                     exerciseDetails={exercise}
+                                    weightUnit={weightUnit}
                                 />
                             ))}
                         </div>
                     </div>
-                    <IntensityTechnique technique={exercise.lastSetTechnique} />
+                    {exercise.lastSetTechnique && <IntensityTechnique technique={exercise.lastSetTechnique} />}
                 </div>
             )}
         </div>
     );
 };
 
-const LiftingSession = ({ week, dayKey, onBack, allLogs, setAllLogs, onSkipDay, programStructure, masterExerciseList }) => {
+const LiftingSession = ({ week, dayKey, onBack, allLogs, setAllLogs, onSkipDay, programStructure, masterExerciseList, weeklySchedule, weightUnit }) => {
     const { db, customId } = useContext(FirebaseContext);
+    const getWorkoutForDay = (w, d) => weeklySchedule.find(s => s.day === d)?.workout;
     const workoutName = getWorkoutForDay(week, dayKey);
     const workout = programStructure[workoutName];
 
     const handleLogChange = (exerciseName, setNumber, field, value) => {
         const logId = `${week}-${dayKey}-${exerciseName}-${setNumber}`;
-        const newLogEntry = {
-            ...(allLogs[logId] || { week, dayKey, session: workoutName, exercise: exerciseName, set: setNumber, date: new Date().toISOString() }),
-            [field]: value
-        };
+        const currentLog = allLogs[logId] || { week, dayKey, session: workoutName, exercise: exerciseName, set: setNumber, date: new Date().toISOString() };
+        
+        let newLogEntry = { ...currentLog };
+
+        if (field === 'load') {
+            newLogEntry.displayLoad = value;
+            if (weightUnit === 'kg') {
+                newLogEntry.load = parseFloat(value) * 2.20462;
+            } else {
+                newLogEntry.load = parseFloat(value);
+            }
+        } else {
+            newLogEntry[field] = value;
+        }
         
         setAllLogs(prev => ({ ...prev, [logId]: newLogEntry }));
 
@@ -364,7 +403,13 @@ const LiftingSession = ({ week, dayKey, onBack, allLogs, setAllLogs, onSkipDay, 
         }
     };
 
-    if (!workout) return <div>Workout not found</div>;
+    if (!workout) return (
+         <div className="p-4 md:p-6 pb-24 text-center">
+            <button onClick={onBack} className="flex items-center gap-2 text-sm font-medium text-blue-600 dark:text-blue-400 hover:underline mb-4"><ArrowLeft size={16}/> Back to Program</button>
+            <h2 className="text-2xl font-bold dark:text-white">Rest Day</h2>
+            <p className="text-gray-600 dark:text-gray-400">Enjoy your recovery!</p>
+        </div>
+    );
 
     return (
         <div className="p-4 md:p-6 pb-24">
@@ -377,19 +422,21 @@ const LiftingSession = ({ week, dayKey, onBack, allLogs, setAllLogs, onSkipDay, 
                 <p className="text-lg text-gray-600 dark:text-gray-400">{workoutName}</p>
             </div>
             <div className="space-y-4">
-                {workout.exercises.map(exName => <ExerciseCard key={exName} exerciseName={exName} week={week} dayKey={dayKey} allLogs={allLogs} onLogChange={handleLogChange} programStructure={programStructure} masterExerciseList={masterExerciseList}/>)}
+                {workout.exercises.map(exName => <ExerciseCard key={exName} exerciseName={exName} week={week} dayKey={dayKey} allLogs={allLogs} onLogChange={handleLogChange} masterExerciseList={masterExerciseList} weightUnit={weightUnit} />)}
             </div>
         </div>
     );
 };
 
-const WeekView = ({ week, completedDays, onSessionSelect, firstIncompleteWeek, onUnskipDay, programStructure }) => {
-    const isWeekComplete = useMemo(() => weeklySchedule.every(day => day.workout === 'Rest' || completedDays.get(`${week}-${day.day}`)?.isDayComplete), [week, completedDays]);
+const WeekView = ({ week, completedDays, onSessionSelect, firstIncompleteWeek, onUnskipDay, programStructure, weeklySchedule }) => {
+    const isWeekComplete = useMemo(() => weeklySchedule.every(day => day.workout === 'Rest' || completedDays.get(`${week}-${day.day}`)?.isDayComplete), [week, completedDays, weeklySchedule]);
     const [isOpen, setIsOpen] = useState(week === firstIncompleteWeek);
     
     useEffect(() => {
         setIsOpen(week === firstIncompleteWeek);
     }, [firstIncompleteWeek, week]);
+    
+    const getWorkoutForDay = (w, d) => weeklySchedule.find(s => s.day === d)?.workout;
 
     return (
         <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-4">
@@ -404,7 +451,7 @@ const WeekView = ({ week, completedDays, onSessionSelect, firstIncompleteWeek, o
                         const status = completedDays.get(dayKey);
                         const workoutName = getWorkoutForDay(week, day.day);
                         const workoutDetails = programStructure[workoutName];
-                        const isRestDay = !workoutName;
+                        const isRestDay = !workoutName || workoutName === 'Rest';
                         
                         let dayClass = 'bg-gray-100 dark:bg-gray-700/50';
                         if (isRestDay) dayClass = 'bg-indigo-100 dark:bg-indigo-900/50';
@@ -423,7 +470,7 @@ const WeekView = ({ week, completedDays, onSessionSelect, firstIncompleteWeek, o
                                         </button>
                                     ) : (
                                         <button onClick={() => onSessionSelect(week, day.day, 'lifting')} className="w-full flex items-center justify-between text-xs p-1.5 rounded bg-white dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 shadow-sm transition-colors">
-                                            <div className="flex items-center gap-1 font-semibold">{workoutDetails?.label || 'Workout'}</div>
+                                            <div className="flex items-center gap-1 font-semibold">{workoutDetails?.label || workoutName}</div>
                                             {status?.isDayComplete ? <CheckCircle size={14} className="text-green-500"/> : <Dumbbell size={14} className="text-blue-500"/>}
                                         </button>
                                     )}
@@ -446,7 +493,7 @@ const ProgressBar = ({ completed, total }) => {
                 <span className="text-sm font-bold text-blue-600 dark:text-blue-400">{percentage}%</span>
             </div>
             <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2.5">
-                <div className="bg-blue-600 h-2.5 rounded-full" style={{ width: `${percentage}%` }}></div>
+                <div className="bg-blue-600 h-2.5 rounded-full transition-all duration-500" style={{ width: `${percentage}%` }}></div>
             </div>
         </div>
     );
@@ -455,53 +502,31 @@ const ProgressBar = ({ completed, total }) => {
 const StreakCounter = ({ streak }) => {
     const getStreakColor = (s) => {
         if (s < 5) return 'text-orange-400';
-        if (s < 10) return 'text-orange-500';
-        if (s < 20) return 'text-red-500';
-        return 'text-red-600';
+        if (s < 10) return 'text-red-500';
+        if (s < 20) return 'text-blue-500';
+        return 'text-purple-500';
     };
 
     return (
         <div className="text-center">
-            <div className={`text-3xl font-bold ${getStreakColor(streak)}`}>{streak}</div>
-            <div className="text-sm font-medium text-gray-600 dark:text-gray-400">Day Streak</div>
+            <div className="relative flex justify-center items-center">
+                 <Flame size={48} className={`absolute -top-1 -right-3 opacity-20 ${getStreakColor(streak)}`} />
+                 <span className={`text-4xl font-bold ${getStreakColor(streak)}`}>{streak}</span>
+            </div>
+            <div className="text-sm font-medium text-gray-600 dark:text-gray-400 mt-1">Day Streak</div>
         </div>
     );
 };
 
-const MainView = ({ onSessionSelect, onNavChange, completedDays, onUnskipDay, programStructure }) => {
-    const weeks = Array.from({ length: programInfo.weeks }, (_, i) => i + 1);
+const MainView = ({ onSessionSelect, completedDays, onUnskipDay, programStructure, weeklySchedule, info }) => {
+    const weeks = Array.from({ length: info.weeks }, (_, i) => i + 1);
     
-    const { totalWorkouts, completedWorkouts, streak } = useMemo(() => {
-        let total = 0;
-        let completed = 0;
-        let currentStreak = 0;
-        let streakBroken = false;
-
-        for (let week = 1; week <= programInfo.weeks; week++) {
-            for (const day of weeklySchedule) {
-                if (day.workout !== 'Rest') {
-                    total++;
-                    const status = completedDays.get(`${week}-${day.day}`);
-                    if (status?.isDayComplete && !status?.isSkipped) {
-                        completed++;
-                        if (!streakBroken) {
-                            currentStreak++;
-                        }
-                    } else if (!status?.isSkipped) {
-                        streakBroken = true;
-                    }
-                }
-            }
-        }
-        return { totalWorkouts: total, completedWorkouts: completed, streak: currentStreak };
-    }, [completedDays]);
-
     const firstIncompleteWeek = useMemo(() => {
-        for (let w = 1; w <= programInfo.weeks; w++) {
+        for (let w = 1; w <= info.weeks; w++) {
             if (!weeklySchedule.every(d => d.workout === 'Rest' || completedDays.get(`${w}-${d.day}`)?.isDayComplete)) return w;
         }
-        return programInfo.weeks + 1;
-    }, [completedDays]);
+        return info.weeks + 1;
+    }, [completedDays, weeklySchedule, info.weeks]);
 
     return (
         <div className="p-4 md:p-6">
@@ -509,91 +534,176 @@ const MainView = ({ onSessionSelect, onNavChange, completedDays, onUnskipDay, pr
                 <div className="flex items-center">
                     <Dumbbell className="text-blue-500 dark:text-blue-400 mr-4" size={48} />
                     <div>
-                        <h1 className="text-3xl font-bold dark:text-white">{programInfo.name}</h1>
-                        <p className="text-lg text-gray-600 dark:text-gray-400">Your 8-Week Plan</p>
+                        <h1 className="text-3xl font-bold dark:text-white">{info.name}</h1>
+                        <p className="text-lg text-gray-600 dark:text-gray-400">Your {info.weeks}-Week Plan</p>
                     </div>
                 </div>
             </div>
             
-            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-4 mb-6 flex justify-around items-center">
-                <div className="flex-grow pr-4">
-                    <ProgressBar completed={completedWorkouts} total={totalWorkouts} />
-                </div>
-                <div className="border-l border-gray-200 dark:border-gray-700 pl-4">
-                     <StreakCounter streak={streak} />
-                </div>
-            </div>
-
             <div className="space-y-4 pb-24">
                 {weeks.map(week => (
-                    <WeekView key={week} week={week} completedDays={completedDays} onSessionSelect={onSessionSelect} firstIncompleteWeek={firstIncompleteWeek} onUnskipDay={onUnskipDay} programStructure={programStructure} />
+                    <WeekView key={week} week={week} completedDays={completedDays} onSessionSelect={onSessionSelect} firstIncompleteWeek={firstIncompleteWeek} onUnskipDay={onUnskipDay} programStructure={programStructure} weeklySchedule={weeklySchedule} />
                 ))}
             </div>
         </div>
     );
 };
 
+const DashboardView = ({ allLogs, programStructure, masterExerciseList, weeklySchedule, info }) => {
+    const { totalSets, completedSets, streak } = useMemo(() => {
+        let weeklySets = 0;
+        weeklySchedule.forEach(day => {
+            if (day.workout !== 'Rest') {
+                const workout = programStructure[day.workout];
+                if (workout) {
+                    workout.exercises.forEach(exName => {
+                        const details = getExerciseDetails(exName, masterExerciseList);
+                        if (details) {
+                            weeklySets += Number(details.sets) || 0;
+                        }
+                    });
+                }
+            }
+        });
+        const total = weeklySets * info.weeks;
+        const completed = Object.values(allLogs).filter(log => log.load && log.reps && (log.rir !== undefined && log.rir !== null && log.rir !== '')).length;
 
-const SettingsView = ({ onBack, allLogs }) => {
+        let currentStreak = 0;
+        let streakBroken = false;
+        
+        const sortedDays = [];
+        for (let week = 1; week <= info.weeks; week++) {
+            for (const day of weeklySchedule) {
+                if (day.workout !== 'Rest') {
+                    sortedDays.push({ week, day: day.day });
+                }
+            }
+        }
+
+        for (const {week, day} of sortedDays) {
+            const workoutName = weeklySchedule.find(d => d.day === day)?.workout;
+            const workout = programStructure[workoutName];
+            if (!workout) continue;
+
+            const isDayComplete = workout.exercises.every(exName => {
+                const exDetails = getExerciseDetails(exName, masterExerciseList);
+                if (!exDetails) return false;
+                return Array.from({ length: exDetails.sets }, (_, i) => i + 1).every(setNum => {
+                    const log = allLogs[`${week}-${day}-${exName}-${setNum}`];
+                    return log?.load && log?.reps && (log.rir !== undefined && log.rir !== null && log.rir !== '');
+                });
+            });
+
+            if (isDayComplete) {
+                if (!streakBroken) {
+                    currentStreak++;
+                }
+            } else {
+                const hasAnyLogInDay = workout.exercises.some(exName => {
+                     const exDetails = getExerciseDetails(exName, masterExerciseList);
+                     if (!exDetails) return false;
+                     return Array.from({ length: exDetails.sets }, (_, i) => i + 1).some(setNum => !!allLogs[`${week}-${day}-${exName}-${setNum}`]);
+                });
+                if(hasAnyLogInDay) streakBroken = true;
+            }
+        }
+
+        return { totalSets: total, completedSets: completed, streak: currentStreak };
+    }, [allLogs, programStructure, masterExerciseList, weeklySchedule, info.weeks]);
+
+    return (
+       <div className="p-4 md:p-6">
+            <div className="flex items-center mb-6">
+                <LayoutDashboard className="text-blue-500 dark:text-blue-400 mr-3" size={32} />
+                <div>
+                    <h1 className="text-3xl font-bold dark:text-white">Dashboard</h1>
+                    <p className="text-lg text-gray-600 dark:text-gray-400">Your Program At a Glance</p>
+                </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-6">
+                    <ProgressBar completed={completedSets} total={totalSets} />
+                </div>
+                 <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-6 flex justify-center items-center">
+                    <StreakCounter streak={streak} />
+                </div>
+            </div>
+
+            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-6">
+                <h3 className="text-xl font-bold mb-2">AI Weekly Summary</h3>
+                <p className="text-gray-600 dark:text-gray-400 mb-4">Get a personalized summary of your last completed week, including highlights, areas for improvement, and tips for next week.</p>
+                <button className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg shadow-md hover:bg-blue-700 transition-colors">
+                    <BrainCircuit size={16} /> Generate AI Summary
+                </button>
+            </div>
+        </div>
+    );
+};
+
+
+const SettingsView = ({ allLogs, weightUnit, onWeightUnitChange, onProgramUpdate }) => {
     const { theme, toggleTheme } = useContext(ThemeContext);
     const { customId, handleSetCustomId } = useContext(FirebaseContext);
-    const [exportSelection, setExportSelection] = useState('all');
+    const { openModal, closeModal } = useContext(AppStateContext);
     const [tempId, setTempId] = useState(customId);
 
-    const exportData = (logsToExport, filename) => {
-        if (Object.keys(logsToExport).length === 0) { 
-            alert("No data available to export for this selection."); 
-            return; 
-        }
-        const dayOrder = { Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6, Sun: 7 };
-        const sortedLogs = Object.values(logsToExport).filter(log => log.exercise).sort((a, b) => ((a.week - 1) * 7 + dayOrder[a.dayKey]) - ((b.week - 1) * 7 + dayOrder[b.dayKey]) || a.set - b.set);
-        const headers = ['Week', 'Day', 'Session', 'Exercise', 'Set', 'Load', 'Reps', 'RIR', 'e1RM'];
-        const csvContent = [headers.join(','), ...sortedLogs.map(log => [log.week, log.dayKey, `"${log.session}"`, `"${log.exercise}"`, log.set, log.load, log.reps, log.rir || '', calculateE1RM(log.load, log.reps, log.rir)].join(','))].join('\n');
-        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-        const link = document.createElement("a");
-        link.href = URL.createObjectURL(blob);
-        link.download = filename;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
+    const handleLoadPreset = () => {
+        openModal(
+            <LoadPresetModal 
+                onSelect={(presetKey) => {
+                    const presetData = presets[presetKey];
+                    if (presetData) {
+                        onProgramUpdate(presetData);
+                    }
+                    closeModal();
+                }}
+                onClose={closeModal}
+            />
+        );
     };
-
-    const handleExport = () => {
-        if (exportSelection === 'all') { exportData(allLogs, 'project_overload_all_data.csv'); return; }
-        const [type, value] = exportSelection.split(':');
-        let logsToExport = {};
-        if (type === 'week') {
-            logsToExport = Object.fromEntries(Object.entries(allLogs).filter(([, log]) => log.week?.toString() === value));
-        } else if (type === 'workout') {
-            const [week, dayKey] = value.split('-');
-            logsToExport = Object.fromEntries(Object.entries(allLogs).filter(([, log]) => log.week?.toString() === week && log.dayKey === dayKey));
-        }
-        exportData(logsToExport, `project_overload_${type}_${value.replace('-', '_')}_data.csv`);
-    };
-
-    const hasLogs = Object.values(allLogs).some(log => log.exercise);
-    
-    const exportOptions = useMemo(() => {
-        if (!hasLogs) return { weeks: [], workouts: [] };
-        const logs = Object.values(allLogs).filter(log => log.exercise);
-        const dayOrder = { Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6, Sun: 7 };
-        const loggedWeeks = [...new Set(logs.map(log => log.week))].sort((a, b) => a - b);
-        const loggedWorkouts = [...new Set(logs.map(log => `workout:${log.week}-${log.dayKey}`))].sort((a, b) => {
-            const [, weekA, dayA] = a.split(/-|:/);
-            const [, weekB, dayB] = b.split(/-|:/);
-            return ((parseInt(weekA) - 1) * 7 + dayOrder[dayA]) - ((parseInt(weekB) - 1) * 7 + dayOrder[dayB]);
-        });
-        return { weeks: loggedWeeks, workouts: loggedWorkouts };
-    }, [allLogs, hasLogs]);
 
     return (
         <div className="p-4 md:p-6 pb-24">
-            <div className="flex items-center mb-6"><Settings className="text-blue-500 dark:text-blue-400 mr-3" size={32} /><div><h1 className="text-3xl font-bold dark:text-white">Settings</h1></div></div>
+            <div className="flex items-center mb-6"><Settings className="text-blue-500 dark:text-blue-400 mr-3" size={32} /><div><h1 className="text-3xl font-bold dark:text-white">App Settings</h1></div></div>
             <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-md space-y-6">
-                <div className="flex justify-between items-center"><span className="font-semibold dark:text-gray-200">Dark Mode</span><button onClick={toggleTheme} className={`relative inline-flex items-center h-6 rounded-full w-11 transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 ${theme === 'dark' ? 'bg-blue-600' : 'bg-gray-200'}`}><span className={`inline-block w-4 h-4 transform bg-white rounded-full transition-transform ${theme === 'dark' ? 'translate-x-6' : 'translate-x-1'}`} /></button></div>
-                <div className="border-t border-gray-200 dark:border-gray-700"></div>
+                
+                {/* Display & Units */}
                 <div>
-                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">User Profile</h3>
+                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">Display & Units</h3>
+                    <div className="space-y-4">
+                         <div className="flex justify-between items-center">
+                            <span className="font-semibold dark:text-gray-200">Dark Mode</span>
+                            <button onClick={toggleTheme} className={`relative inline-flex items-center h-6 rounded-full w-11 transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 ${theme === 'dark' ? 'bg-blue-600' : 'bg-gray-200'}`}><span className={`inline-block w-4 h-4 transform bg-white rounded-full transition-transform ${theme === 'dark' ? 'translate-x-6' : 'translate-x-1'}`} /></button>
+                        </div>
+                        <div className="flex justify-between items-center">
+                            <span className="font-semibold dark:text-gray-200">Weight Unit</span>
+                            <div className="flex items-center gap-2 rounded-lg p-1 bg-gray-100 dark:bg-gray-700">
+                                <button onClick={() => onWeightUnitChange('lbs')} className={`px-3 py-1 text-sm rounded-md ${weightUnit === 'lbs' ? 'bg-white dark:bg-gray-900 shadow' : ''}`}>lbs</button>
+                                <button onClick={() => onWeightUnitChange('kg')} className={`px-3 py-1 text-sm rounded-md ${weightUnit === 'kg' ? 'bg-white dark:bg-gray-900 shadow' : ''}`}>kg</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="border-t border-gray-200 dark:border-gray-700"></div>
+
+                {/* Program Management */}
+                <div>
+                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">Program Management</h3>
+                     <div className="bg-gray-100 dark:bg-gray-900/50 p-4 rounded-lg space-y-3">
+                        <p className="text-sm text-gray-600 dark:text-gray-300">Load a pre-built program template. This will overwrite your current custom program.</p>
+                        <button onClick={handleLoadPreset} className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg shadow-md hover:bg-blue-700 transition-colors">
+                            <Download size={16} /> Load Program Preset
+                        </button>
+                    </div>
+                </div>
+
+                <div className="border-t border-gray-200 dark:border-gray-700"></div>
+                
+                {/* Sync & Data */}
+                <div>
+                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">Sync & Data</h3>
                     <div className="bg-gray-100 dark:bg-gray-900/50 p-4 rounded-lg space-y-3">
                         <div>
                             <label htmlFor="customIdInput" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Personal Sync ID</label>
@@ -602,8 +712,6 @@ const SettingsView = ({ onBack, allLogs }) => {
                         <button onClick={() => handleSetCustomId(tempId)} className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg shadow-md hover:bg-blue-700 transition-colors">Set & Sync</button>
                     </div>
                 </div>
-                <div className="border-t border-gray-200 dark:border-gray-700"></div>
-                <div><h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">Data Management</h3><div className="flex flex-col sm:flex-row gap-4 items-center"><select value={exportSelection} onChange={(e) => setExportSelection(e.target.value)} className="w-full sm:w-auto flex-grow p-2 bg-white dark:bg-gray-700 rounded-md border-gray-300 dark:border-gray-600 shadow-sm" disabled={!hasLogs}><option value="all">All Data</option>{exportOptions.weeks?.length > 0 && (<optgroup label="By Week">{exportOptions.weeks.map(w => <option key={`week-${w}`} value={`week:${w}`}>Week {w}</option>)}</optgroup>)}{exportOptions.workouts?.length > 0 && (<optgroup label="By Single Workout">{exportOptions.workouts.map(w_key => { const [, week, day] = w_key.split(/-|:/); return (<option key={w_key} value={w_key}>Week {week} - {day}</option>);})}</optgroup>)}</select><button onClick={handleExport} disabled={!hasLogs} className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg shadow-md hover:bg-blue-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"><Download size={16} /> Export CSV</button></div></div>
             </div>
         </div>
     );
@@ -650,23 +758,6 @@ const AnalyticsView = ({ allLogs, masterExerciseList }) => {
         });
     }, [selectedExercise, allLogs]);
 
-
-    const weeklyVolume = useMemo(() => {
-        const volumeByWeek = {};
-        Object.values(allLogs).forEach(log => {
-            if (log.load && log.reps && log.week) {
-                const volume = log.load * log.reps;
-                if (!volumeByWeek[log.week]) {
-                    volumeByWeek[log.week] = 0;
-                }
-                volumeByWeek[log.week] += volume;
-            }
-        });
-        return Object.entries(volumeByWeek).map(([week, volume]) => ({
-            week: `Week ${week}`,
-            volume: Math.round(volume)
-        })).sort((a, b) => parseInt(a.week.split(' ')[1]) - parseInt(b.week.split(' ')[1]));
-    }, [allLogs]);
 
     const muscleGroupData = useMemo(() => {
         const dataByMuscle = {};
@@ -724,30 +815,16 @@ const AnalyticsView = ({ allLogs, masterExerciseList }) => {
             </div>
 
             <div className="space-y-8">
-                 <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-4">
-                    <h3 className="font-semibold dark:text-gray-200 mb-4">Total Weekly Volume Over Time</h3>
-                    <ResponsiveContainer width="100%" height={300}>
-                        <LineChart data={weeklyVolume}>
-                            <CartesianGrid strokeDasharray="3 3" className="stroke-gray-200 dark:stroke-gray-700" />
-                            <XAxis dataKey="week" tick={{ fill: '#9ca3af' }} />
-                            <YAxis tick={{ fill: '#9ca3af' }} />
-                            <Tooltip contentStyle={{ backgroundColor: 'var(--tooltip-bg)', border: '1px solid var(--tooltip-border)' }} />
-                            <Legend />
-                            <Line type="monotone" dataKey="volume" stroke="#8884d8" name="Total Volume" strokeWidth={2} />
-                        </LineChart>
-                    </ResponsiveContainer>
-                </div>
-
                 <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-4">
                      <h3 className="font-semibold dark:text-gray-200 mb-4">Individual Exercise Progression</h3>
                      <div className="mb-6 space-y-4">
                         <div>
                             <label htmlFor="exercise-search" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Search Exercise:</label>
-                            <input id="exercise-search" type="text" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} placeholder="e.g., Bench Press" className="w-full p-2 bg-white dark:bg-gray-800 rounded-md border-gray-300 dark:border-gray-600 shadow-sm"/>
+                            <input id="exercise-search" type="text" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} placeholder="e.g., Bench Press" className="w-full p-2 bg-white dark:bg-gray-800 rounded-md border border-gray-300 dark:border-gray-600 shadow-sm"/>
                         </div>
                         <div>
                             <label htmlFor="exercise-select" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Select Exercise:</label>
-                            <select id="exercise-select" value={selectedExercise} onChange={e => setSelectedExercise(e.target.value)} className="w-full p-2 bg-white dark:bg-gray-800 rounded-md border-gray-300 dark:border-gray-600 shadow-sm">
+                            <select id="exercise-select" value={selectedExercise} onChange={e => setSelectedExercise(e.target.value)} className="w-full p-2 bg-white dark:bg-gray-800 rounded-md border border-gray-300 dark:border-gray-600 shadow-sm">
                                 {filteredExercises.map(ex => <option key={ex} value={ex}>{ex}</option>)}
                             </select>
                         </div>
@@ -850,7 +927,7 @@ const RecordsView = ({ allLogs }) => {
                         placeholder="Search for an exercise..."
                         value={searchTerm}
                         onChange={e => setSearchTerm(e.target.value)}
-                        className="w-full p-2 pl-10 bg-white dark:bg-gray-800 rounded-md border-gray-300 dark:border-gray-600 shadow-sm"
+                        className="w-full p-2 pl-10 bg-white dark:bg-gray-800 rounded-md border border-gray-300 dark:border-gray-600 shadow-sm"
                     />
                 </div>
             </div>
@@ -881,18 +958,137 @@ const RecordsView = ({ allLogs }) => {
     );
 };
 
-const EditProgramView = ({ programStructure, onProgramUpdate, masterExerciseList, onMasterListUpdate }) => {
+const EditProgramView = ({ programData, onProgramDataChange }) => {
     const { openModal, closeModal } = useContext(AppStateContext);
+    const { programStructure, masterExerciseList, weeklySchedule, workoutOrder, info } = programData;
+    const [programName, setProgramName] = useState(info.name);
+    const [nameFeedback, setNameFeedback] = useState('');
+    const [isScheduleOpen, setIsScheduleOpen] = useState(false);
 
+    // Update local state if programData from props changes
+    useEffect(() => {
+        setProgramName(info.name);
+    }, [info.name]);
+
+    const handleSaveProgramName = () => {
+        const newProgramData = {
+            ...programData,
+            info: {
+                ...programData.info,
+                name: programName
+            }
+        };
+        onProgramDataChange(newProgramData);
+        setNameFeedback('Saved!');
+        setTimeout(() => setNameFeedback(''), 2000);
+    };
+
+    // Generic update handler
+    const updateProgramData = (field, value) => {
+        onProgramDataChange({ ...programData, [field]: value });
+    };
+
+    // --- Weekly Schedule Handlers ---
+    const handleScheduleChange = (day, newWorkoutName) => {
+        const newSchedule = weeklySchedule.map(d => d.day === day ? { ...d, workout: newWorkoutName } : d);
+        updateProgramData('weeklySchedule', newSchedule);
+    };
+
+    // --- Workout Day Handlers ---
+    const handleAddWorkoutDay = () => {
+        const newWorkoutName = `New Workout ${Object.keys(programStructure).length + 1}`;
+        const newProgramStructure = { ...programStructure, [newWorkoutName]: { exercises: [], label: 'New' } };
+        const newWorkoutOrder = [...workoutOrder, newWorkoutName];
+        onProgramDataChange({ ...programData, programStructure: newProgramStructure, workoutOrder: newWorkoutOrder });
+    };
+
+    const handleReorderWorkoutDay = (index, direction) => {
+        const newOrder = [...workoutOrder];
+        const newIndex = index + direction;
+        if (newIndex < 0 || newIndex >= newOrder.length) return;
+        [newOrder[index], newOrder[newIndex]] = [newOrder[newIndex], newOrder[index]];
+        updateProgramData('workoutOrder', newOrder);
+    };
+
+    const handleDeleteWorkoutDay = (workoutNameToDelete) => {
+        if (!window.confirm(`Are you sure you want to delete "${workoutNameToDelete}"? This cannot be undone.`)) return;
+        
+        const newProgramStructure = { ...programStructure };
+        delete newProgramStructure[workoutNameToDelete];
+
+        const newWorkoutOrder = workoutOrder.filter(name => name !== workoutNameToDelete);
+        
+        const newWeeklySchedule = weeklySchedule.map(day => 
+            day.workout === workoutNameToDelete ? { ...day, workout: 'Rest' } : day
+        );
+
+        onProgramDataChange({
+            ...programData,
+            programStructure: newProgramStructure,
+            workoutOrder: newWorkoutOrder,
+            weeklySchedule: newWeeklySchedule,
+        });
+    };
+    
+    const handleRenameWorkoutDay = (oldName) => {
+        openModal(
+            <RenameWorkoutModal
+                oldName={oldName}
+                onClose={closeModal}
+                onSave={(newName) => {
+                    if (newName && newName.trim() && newName !== oldName) {
+                        const newProgramStructure = { ...programStructure };
+                        newProgramStructure[newName] = newProgramStructure[oldName];
+                        delete newProgramStructure[oldName];
+
+                        const newWorkoutOrder = workoutOrder.map(name => name === oldName ? newName : name);
+                        const newWeeklySchedule = weeklySchedule.map(day => day.workout === oldName ? { ...day, workout: newName } : day);
+
+                        onProgramDataChange({
+                            ...programData,
+                            programStructure: newProgramStructure,
+                            workoutOrder: newWorkoutOrder,
+                            weeklySchedule: newWeeklySchedule,
+                        });
+                    }
+                    closeModal();
+                }}
+            />
+        );
+    };
+
+
+    // --- Exercise Handlers ---
     const handleReorderExercise = (workoutName, index, direction) => {
         const newProgramStructure = JSON.parse(JSON.stringify(programStructure));
         const exercises = newProgramStructure[workoutName].exercises;
         const newIndex = index + direction;
         if (newIndex < 0 || newIndex >= exercises.length) return;
-        [exercises[index], exercises[newIndex]] = [exercises[newIndex], exercises[index]]; // Swap
-        onProgramUpdate(newProgramStructure);
+        [exercises[index], exercises[newIndex]] = [exercises[newIndex], exercises[index]];
+        updateProgramData('programStructure', newProgramStructure);
     };
 
+    const handleDeleteExerciseFromWorkout = (workoutName, exerciseIndex) => {
+       const newProgramStructure = JSON.parse(JSON.stringify(programStructure));
+       newProgramStructure[workoutName].exercises.splice(exerciseIndex, 1);
+       updateProgramData('programStructure', newProgramStructure);
+    };
+    
+    const handleAddExerciseToWorkout = (workoutName) => {
+        openModal(
+            <AddExerciseToWorkoutModal 
+                masterExerciseList={masterExerciseList}
+                onAdd={(exerciseToAdd) => {
+                    const newProgramStructure = JSON.parse(JSON.stringify(programStructure));
+                    newProgramStructure[workoutName].exercises.push(exerciseToAdd);
+                    updateProgramData('programStructure', newProgramStructure);
+                    closeModal();
+                }}
+                onClose={closeModal}
+            />
+        )
+    };
+    
     const handleEditExerciseDetails = (exerciseName) => {
         const exerciseDetails = getExerciseDetails(exerciseName, masterExerciseList);
         openModal(
@@ -910,8 +1106,7 @@ const EditProgramView = ({ programStructure, onProgramUpdate, masterExerciseList
                     for(const workout in newProgramStructure) {
                         newProgramStructure[workout].exercises = newProgramStructure[workout].exercises.map(ex => ex === exerciseName ? newName : ex);
                     }
-                    onMasterListUpdate(newMasterList);
-                    onProgramUpdate(newProgramStructure);
+                    onProgramDataChange({ ...programData, masterExerciseList: newMasterList, programStructure: newProgramStructure });
                     closeModal();
                 }}
                 onClose={closeModal}
@@ -923,7 +1118,7 @@ const EditProgramView = ({ programStructure, onProgramUpdate, masterExerciseList
         openModal(
             <EditExerciseModal
                 onSave={(newExercise, newName) => {
-                    onMasterListUpdate({ ...masterExerciseList, [newName]: newExercise });
+                    updateProgramData('masterExerciseList', { ...masterExerciseList, [newName]: newExercise });
                     closeModal();
                 }}
                 onClose={closeModal}
@@ -931,27 +1126,6 @@ const EditProgramView = ({ programStructure, onProgramUpdate, masterExerciseList
         );
     };
     
-    const handleAddExerciseToWorkout = (workoutName) => {
-        openModal(
-            <AddExerciseToWorkoutModal 
-                masterExerciseList={masterExerciseList}
-                onAdd={(exerciseToAdd) => {
-                    const newProgramStructure = JSON.parse(JSON.stringify(programStructure));
-                    newProgramStructure[workoutName].exercises.push(exerciseToAdd);
-                    onProgramUpdate(newProgramStructure);
-                    closeModal();
-                }}
-                onClose={closeModal}
-            />
-        )
-    };
-
-    const handleDeleteExerciseFromWorkout = (workoutName, exerciseIndex) => {
-         const newProgramStructure = JSON.parse(JSON.stringify(programStructure));
-         newProgramStructure[workoutName].exercises.splice(exerciseIndex, 1);
-         onProgramUpdate(newProgramStructure);
-    };
-
     return (
         <div className="p-4 md:p-6 pb-24">
             <div className="flex justify-between items-center mb-6">
@@ -967,28 +1141,88 @@ const EditProgramView = ({ programStructure, onProgramUpdate, masterExerciseList
                 </button>
             </div>
 
-            <div className="space-y-4">
-                {Object.entries(programStructure).map(([workoutName, workoutDetails]) => (
-                    <div key={workoutName} className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-4">
-                        <div className="flex justify-between items-center mb-2">
-                            <h3 className="text-xl font-bold text-gray-800 dark:text-gray-200">{workoutName}</h3>
-                            <button onClick={() => handleAddExerciseToWorkout(workoutName)} className="p-1 text-blue-500 hover:text-blue-700"><PlusCircle size={20}/></button>
-                        </div>
-                        <ul className="space-y-1">
-                            {workoutDetails.exercises.map((ex, index) => (
-                                <li key={`${workoutName}-${ex}-${index}`} className="flex justify-between items-center p-2 bg-gray-50 dark:bg-gray-700/50 rounded-md group">
-                                    <span className="text-gray-800 dark:text-gray-200">{ex}</span>
-                                    <div className="flex items-center gap-2 text-gray-500 dark:text-gray-400">
-                                        <button onClick={() => handleReorderExercise(workoutName, index, -1)} disabled={index === 0} className="disabled:opacity-20 hover:text-gray-900 dark:hover:text-white"><ArrowUp size={16} /></button>
-                                        <button onClick={() => handleReorderExercise(workoutName, index, 1)} disabled={index === workoutDetails.exercises.length - 1} className="disabled:opacity-20 hover:text-gray-900 dark:hover:text-white"><ArrowDown size={16} /></button>
-                                        <button onClick={() => handleEditExerciseDetails(ex)} className="hover:text-blue-600 dark:hover:text-blue-400"><Edit size={16} /></button>
-                                        <button onClick={() => handleDeleteExerciseFromWorkout(workoutName, index)} className="hover:text-red-600 dark:hover:text-red-400"><XCircle size={16} /></button>
-                                    </div>
-                                </li>
-                            ))}
-                        </ul>
+            {/* Program Name Editor */}
+            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-4 mb-6">
+                 <h3 className="text-xl font-bold text-gray-800 dark:text-gray-200 mb-4">Program Name</h3>
+                 <div className="flex items-center gap-2">
+                     <input 
+                         type="text" 
+                         value={programName} 
+                         onChange={(e) => setProgramName(e.target.value)}
+                         className="w-full p-2 bg-gray-50 dark:bg-gray-700 rounded-md border-gray-300 dark:border-gray-600 shadow-sm text-lg"
+                     />
+                     <button 
+                         onClick={handleSaveProgramName}
+                         className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg shadow-md hover:bg-blue-700 transition-colors"
+                     >
+                         <Save size={16} />
+                         <span className="hidden sm:inline">Save</span>
+                     </button>
+                 </div>
+                 {nameFeedback && <p className="text-green-500 text-sm mt-2">{nameFeedback}</p>}
+            </div>
+
+            {/* Weekly Schedule Editor */}
+            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-4 mb-6">
+                <button onClick={() => setIsScheduleOpen(!isScheduleOpen)} className="w-full flex justify-between items-center text-left">
+                    <h3 className="text-xl font-bold text-gray-800 dark:text-gray-200">Weekly Schedule</h3>
+                    {isScheduleOpen ? <ChevronUp className="text-gray-500 dark:text-gray-400" /> : <ChevronDown className="text-gray-500 dark:text-gray-400" />}
+                </button>
+                {isScheduleOpen && (
+                    <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4 mt-4">
+                        {weeklySchedule.map(({ day, workout }) => (
+                            <div key={day}>
+                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{day}</label>
+                                <select value={workout} onChange={(e) => handleScheduleChange(day, e.target.value)} className="w-full p-2 bg-gray-50 dark:bg-gray-700 rounded-md border-gray-300 dark:border-gray-600 shadow-sm">
+                                    <option value="Rest">Rest</option>
+                                    {workoutOrder.map(woName => <option key={woName} value={woName}>{woName}</option>)}
+                                </select>
+                            </div>
+                        ))}
                     </div>
-                ))}
+                )}
+            </div>
+
+            {/* Workout Day List */}
+            <div className="space-y-4">
+                {workoutOrder.map((workoutName, workoutIndex) => {
+                    const workoutDetails = programStructure[workoutName];
+                    if (!workoutDetails) return null;
+                    return (
+                        <div key={workoutName} className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-4">
+                            <div className="flex justify-between items-center mb-3 border-b border-gray-200 dark:border-gray-700 pb-3">
+                                <h3 className="text-xl font-bold text-gray-800 dark:text-gray-200">{workoutName}</h3>
+                                <div className="flex items-center gap-1">
+                                    <button onClick={() => handleReorderWorkoutDay(workoutIndex, -1)} disabled={workoutIndex === 0} className="p-1 disabled:opacity-20"><ArrowUp size={20}/></button>
+                                    <button onClick={() => handleReorderWorkoutDay(workoutIndex, 1)} disabled={workoutIndex === workoutOrder.length - 1} className="p-1 disabled:opacity-20"><ArrowDown size={20}/></button>
+                                    <button onClick={() => handleRenameWorkoutDay(workoutName)} className="p-1 hover:text-blue-500"><Edit size={20}/></button>
+                                    <button onClick={() => handleDeleteWorkoutDay(workoutName)} className="p-1 hover:text-red-500"><XCircle size={20}/></button>
+                                </div>
+                            </div>
+                            
+                            <ul className="space-y-2 mb-3">
+                                {workoutDetails.exercises.map((ex, index) => (
+                                    <li key={`${workoutName}-${ex}-${index}`} className="flex justify-between items-center p-2 bg-gray-50 dark:bg-gray-700/50 rounded-md group">
+                                        <span className="text-gray-800 dark:text-gray-200">{ex}</span>
+                                        <div className="flex items-center gap-1 text-gray-500 dark:text-gray-400">
+                                            <button onClick={() => handleReorderExercise(workoutName, index, -1)} disabled={index === 0} className="disabled:opacity-20 p-1 hover:text-gray-900 dark:hover:text-white"><ArrowUp size={16} /></button>
+                                            <button onClick={() => handleReorderExercise(workoutName, index, 1)} disabled={index === workoutDetails.exercises.length - 1} className="disabled:opacity-20 p-1 hover:text-gray-900 dark:hover:text-white"><ArrowDown size={16} /></button>
+                                            <button onClick={() => handleEditExerciseDetails(ex)} className="p-1 hover:text-blue-600 dark:hover:text-blue-400"><Edit size={16} /></button>
+                                            <button onClick={() => handleDeleteExerciseFromWorkout(workoutName, index)} className="p-1 hover:text-red-600 dark:hover:text-red-400"><XCircle size={16} /></button>
+                                        </div>
+                                    </li>
+                                ))}
+                                {workoutDetails.exercises.length === 0 && <p className="text-center text-gray-500 dark:text-gray-400 py-2">No exercises yet.</p>}
+                            </ul>
+                            <button onClick={() => handleAddExerciseToWorkout(workoutName)} className="w-full flex items-center justify-center gap-2 text-sm p-2 rounded-md bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300 hover:bg-blue-200 dark:hover:bg-blue-800/50">
+                                <PlusCircle size={16}/> Add Exercise
+                            </button>
+                        </div>
+                    )
+                })}
+                 <button onClick={handleAddWorkoutDay} className="w-full flex items-center justify-center gap-2 p-3 rounded-xl bg-green-100 dark:bg-green-900/50 text-green-700 dark:text-green-300 hover:bg-green-200 dark:hover:bg-green-800/50 font-bold">
+                    <PlusCircle size={20}/> Add New Workout Day
+                </button>
             </div>
         </div>
     );
@@ -1001,7 +1235,7 @@ const EditExerciseModal = ({ exercise, exerciseName, onSave, onClose }) => {
         reps: exercise?.reps || '8-12',
         rir: exercise?.rir || '1-2',
         rest: exercise?.rest || '2-3 min',
-        lastSetTechnique: exercise?.lastSetTechnique || 'Failure',
+        lastSetTechnique: exercise?.lastSetTechnique || '',
         equipment: exercise?.equipment || 'barbell',
         muscles: {
             primary: exercise?.muscles?.primary || '',
@@ -1026,25 +1260,44 @@ const EditExerciseModal = ({ exercise, exerciseName, onSave, onClose }) => {
             return;
         }
         const { name, ...otherDetails } = details;
-        const finalDetails = isNew ? details : { ...otherDetails };
-        onSave(finalDetails, name);
+        onSave(otherDetails, name);
     };
 
     return (
         <div>
             <h2 className="text-xl font-bold mb-4">{isNew ? 'Create New Exercise' : `Editing ${exerciseName}`}</h2>
             <div className="space-y-4">
-                <input type="text" name="name" value={details.name} onChange={handleChange} placeholder="Exercise Name" className="w-full p-2 bg-white dark:bg-gray-700 rounded-md border-gray-300 dark:border-gray-600" />
-                <div className="grid grid-cols-3 gap-4">
-                    <input type="number" name="sets" value={details.sets} onChange={handleChange} placeholder="Sets" className="w-full p-2 bg-white dark:bg-gray-700 rounded-md border-gray-300 dark:border-gray-600" />
-                    <input type="text" name="reps" value={details.reps} onChange={handleChange} placeholder="Reps (e.g., 8-12)" className="w-full p-2 bg-white dark:bg-gray-700 rounded-md border-gray-300 dark:border-gray-600" />
-                    <input type="text" name="rir" value={details.rir} onChange={handleChange} placeholder="RIR (e.g., 1-2)" className="w-full p-2 bg-white dark:bg-gray-700 rounded-md border-gray-300 dark:border-gray-600" />
+                <div>
+                    <label htmlFor="name" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Exercise Name</label>
+                    <input id="name" type="text" name="name" value={details.name} onChange={handleChange} className="w-full p-2 bg-white dark:bg-gray-700 rounded-md border-gray-300 dark:border-gray-600" />
                 </div>
-                <input type="text" name="rest" value={details.rest} onChange={handleChange} placeholder="Rest (e.g., 2-3 min)" className="w-full p-2 bg-white dark:bg-gray-700 rounded-md border-gray-300 dark:border-gray-600" />
-                <input type="text" name="lastSetTechnique" value={details.lastSetTechnique} onChange={handleChange} placeholder="Last Set Technique" className="w-full p-2 bg-white dark:bg-gray-700 rounded-md border-gray-300 dark:border-gray-600" />
-                <div className="grid grid-cols-2 gap-4">
-                    <input type="text" name="primary" value={details.muscles.primary} onChange={handleChange} placeholder="Primary Muscle" className="w-full p-2 bg-white dark:bg-gray-700 rounded-md border-gray-300 dark:border-gray-600" />
-                    <input type="text" name="secondary" value={details.muscles.secondary} onChange={handleChange} placeholder="Secondary Muscle" className="w-full p-2 bg-white dark:bg-gray-700 rounded-md border-gray-300 dark:border-gray-600" />
+                <div className="grid grid-cols-3 gap-4">
+                    <div>
+                        <label htmlFor="sets" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Sets</label>
+                        <input id="sets" type="number" name="sets" value={details.sets} onChange={handleChange} className="w-full p-2 bg-white dark:bg-gray-700 rounded-md border-gray-300 dark:border-gray-600" />
+                    </div>
+                    <div>
+                        <label htmlFor="reps" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Reps</label>
+                        <input id="reps" type="text" name="reps" value={details.reps} onChange={handleChange} placeholder="e.g., 8-12" className="w-full p-2 bg-white dark:bg-gray-700 rounded-md border-gray-300 dark:border-gray-600" />
+                    </div>
+                    <div>
+                        <label htmlFor="rir" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">RIR</label>
+                        <input id="rir" type="text" name="rir" value={details.rir} onChange={handleChange} placeholder="e.g., 1-2" className="w-full p-2 bg-white dark:bg-gray-700 rounded-md border-gray-300 dark:border-gray-600" />
+                    </div>
+                </div>
+                <div>
+                    <label htmlFor="rest" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Rest</label>
+                    <input id="rest" type="text" name="rest" value={details.rest} onChange={handleChange} placeholder="e.g., 2-3 min" className="w-full p-2 bg-white dark:bg-gray-700 rounded-md border-gray-300 dark:border-gray-600" />
+                </div>
+                 <div className="grid grid-cols-2 gap-4">
+                     <div>
+                        <label htmlFor="primary" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Primary Muscle</label>
+                        <input id="primary" type="text" name="primary" value={details.muscles.primary} onChange={handleChange} className="w-full p-2 bg-white dark:bg-gray-700 rounded-md border-gray-300 dark:border-gray-600" />
+                    </div>
+                    <div>
+                        <label htmlFor="secondary" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Secondary Muscle</label>
+                        <input id="secondary" type="text" name="secondary" value={details.muscles.secondary} onChange={handleChange} className="w-full p-2 bg-white dark:bg-gray-700 rounded-md border-gray-300 dark:border-gray-600" />
+                    </div>
                 </div>
             </div>
             <div className="flex justify-end gap-2 mt-6">
@@ -1092,16 +1345,65 @@ const AddExerciseToWorkoutModal = ({ masterExerciseList, onAdd, onClose }) => {
     )
 }
 
+const LoadPresetModal = ({ onSelect, onClose }) => {
+    return (
+        <div>
+            <h2 className="text-xl font-bold mb-4">Load Program Preset</h2>
+            <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">Select a preset to load. This will replace your current program configuration.</p>
+            <div className="space-y-2">
+                {Object.entries(presets).map(([key, preset]) => (
+                    <button 
+                        key={key}
+                        onClick={() => onSelect(key)}
+                        className="w-full text-left p-3 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2"
+                    >
+                        <Dumbbell size={16} /> {preset.name}
+                    </button>
+                ))}
+            </div>
+            <div className="flex justify-end gap-2 mt-6">
+                <button onClick={onClose} className="px-4 py-2 bg-gray-200 dark:bg-gray-600 rounded-lg">Cancel</button>
+            </div>
+        </div>
+    );
+};
+
+const RenameWorkoutModal = ({ oldName, onSave, onClose }) => {
+    const [newName, setNewName] = useState(oldName);
+
+    const handleSave = () => {
+        onSave(newName);
+    };
+
+    return (
+        <div>
+            <h2 className="text-xl font-bold mb-4">Rename Workout</h2>
+            <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">Enter a new name for "{oldName}".</p>
+            <input 
+                type="text"
+                value={newName}
+                onChange={(e) => setNewName(e.target.value)}
+                className="w-full p-2 bg-white dark:bg-gray-700 rounded-md border-gray-300 dark:border-gray-600"
+                autoFocus
+            />
+            <div className="flex justify-end gap-2 mt-6">
+                <button onClick={onClose} className="px-4 py-2 bg-gray-200 dark:bg-gray-600 rounded-lg">Cancel</button>
+                <button onClick={handleSave} className="px-4 py-2 bg-blue-600 text-white rounded-lg">Save</button>
+            </div>
+        </div>
+    );
+};
+
 
 // --- App Structure & Routing ---
-const AppHeader = ({ onNavChange }) => {
-    const { isSidebarOpen, setSidebarOpen } = useContext(AppStateContext);
+const AppHeader = ({ programName }) => {
+    const { setSidebarOpen } = useContext(AppStateContext);
     return (
         <header className="bg-white dark:bg-gray-800/80 backdrop-blur-sm shadow-sm sticky top-0 z-40 p-4 flex justify-between items-center">
             <button onClick={() => setSidebarOpen(true)} className="p-2">
                 <Menu />
             </button>
-            <h1 className="text-xl font-bold text-blue-600 dark:text-blue-400">{programInfo.name}</h1>
+            <h1 className="text-xl font-bold text-blue-600 dark:text-blue-400">{programName}</h1>
             <div className="w-8"></div> {/* Placeholder for balance */}
         </header>
     );
@@ -1111,6 +1413,7 @@ const Sidebar = ({ onNavChange, currentPage }) => {
     const { isSidebarOpen, setSidebarOpen } = useContext(AppStateContext);
     const navItems = [
         { label: 'Program', view: 'main', icon: Dumbbell },
+        { label: 'Dashboard', view: 'dashboard', icon: LayoutDashboard },
         { label: 'Analytics', view: 'analytics', icon: BarChart2 },
         { label: 'Records', view: 'records', icon: Trophy },
         { label: 'Edit Program', view: 'editProgram', icon: Edit },
@@ -1171,20 +1474,16 @@ const AppCore = () => {
     const [pageState, setPageState] = useState({ view: 'main', data: {} });
     const [allLogs, setAllLogs] = useState({});
     const [skippedDays, setSkippedDays] = useState({});
-    const [programStructure, setProgramStructure] = useState(initialProgramStructure);
-    const [masterExerciseList, setMasterExerciseList] = useState(initialMasterExerciseList);
+    const [programData, setProgramData] = useState(presets['optimal-ppl-ul']);
+    const [weightUnit, setWeightUnit] = useState('lbs');
     const { user, db, isLoading, customId } = useContext(FirebaseContext);
     const { setTheme } = useContext(ThemeContext);
     const [isDataLoading, setIsDataLoading] = useState(true);
-    const { openModal, closeModal } = useContext(AppStateContext);
 
     // Data loading from Firestore
     useEffect(() => {
         if (!user || !db || !customId) {
-            setAllLogs({});
-            setSkippedDays({});
-            setProgramStructure(initialProgramStructure);
-            setMasterExerciseList(initialMasterExerciseList);
+            setProgramData(presets['optimal-ppl-ul']);
             if (!isLoading) setIsDataLoading(false);
             return;
         }
@@ -1196,15 +1495,27 @@ const AppCore = () => {
                 setAllLogs(data.logs || {});
                 setSkippedDays(data.skippedDays || {});
                 setTheme(data.theme || 'dark');
-                setProgramStructure(data.programStructure || initialProgramStructure);
-                setMasterExerciseList(data.masterExerciseList || initialMasterExerciseList);
-            } else { // First time user with this ID
+                setWeightUnit(data.weightUnit || 'lbs');
+                
+                const defaultProgram = presets['optimal-ppl-ul'];
+                const loadedProgram = {
+                    name: data.name || defaultProgram.name,
+                    info: data.info || defaultProgram.info,
+                    masterExerciseList: data.masterExerciseList || defaultProgram.masterExerciseList,
+                    programStructure: data.programStructure || defaultProgram.programStructure,
+                    weeklySchedule: data.weeklySchedule || defaultProgram.weeklySchedule,
+                    workoutOrder: data.workoutOrder || defaultProgram.workoutOrder,
+                };
+                setProgramData(loadedProgram);
+
+            } else { 
+                const defaultProgram = presets['optimal-ppl-ul'];
                 setDoc(userDocRef, { 
                     logs: {}, 
                     skippedDays: {}, 
                     theme: 'dark', 
-                    programStructure: initialProgramStructure,
-                    masterExerciseList: initialMasterExerciseList
+                    weightUnit: 'lbs',
+                    ...defaultProgram
                 });
             }
             setIsDataLoading(false);
@@ -1214,40 +1525,6 @@ const AppCore = () => {
         });
         return () => unsubscribe();
     }, [user, db, customId, setTheme, isLoading]);
-
-    // Missed day detection
-    useEffect(() => {
-        if (isDataLoading) return;
-
-        const lastLogDateStr = Object.values(allLogs).reduce((latest, log) => {
-            return log.date && log.date > latest ? log.date : latest;
-        }, null);
-
-        if (!lastLogDateStr) return;
-
-        const lastLogDate = new Date(lastLogDateStr);
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        lastLogDate.setHours(0, 0, 0, 0);
-
-        const diffTime = today - lastLogDate;
-        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-
-        if (diffDays > 1) {
-            openModal(
-                <div>
-                    <h3 className="text-lg font-bold">Welcome Back!</h3>
-                    <p>You missed {diffDays - 1} day(s). What would you like to do?</p>
-                    <div className="flex justify-end gap-2 mt-4">
-                        <button onClick={closeModal} className="px-4 py-2 bg-gray-200 dark:bg-gray-600 rounded-lg">Decide Later</button>
-                        <button onClick={() => {
-                            closeModal();
-                        }} className="px-4 py-2 bg-blue-600 text-white rounded-lg">Skip and Continue</button>
-                    </div>
-                </div>
-            );
-        }
-    }, [isDataLoading, allLogs, openModal, closeModal]);
 
     // Navigation logic
     const navigate = (view, data = {}) => {
@@ -1261,14 +1538,15 @@ const AppCore = () => {
         }
     };
     
-    const handleProgramUpdate = (newProgramStructure) => {
-        setProgramStructure(newProgramStructure);
-        handleUpdateAndSave({ programStructure: newProgramStructure });
+    const handleProgramDataChange = (newProgramData) => {
+        setProgramData(newProgramData);
+        const { name, info, masterExerciseList, programStructure, weeklySchedule, workoutOrder } = newProgramData;
+        handleUpdateAndSave({ name, info, masterExerciseList, programStructure, weeklySchedule, workoutOrder });
     };
-
-    const handleMasterListUpdate = (newMasterList) => {
-        setMasterExerciseList(newMasterList);
-        handleUpdateAndSave({ masterExerciseList: newMasterList });
+    
+    const handleWeightUnitChange = (newUnit) => {
+        setWeightUnit(newUnit);
+        handleUpdateAndSave({ weightUnit: newUnit });
     };
 
     const handleSkipDay = (week, dayKey) => {
@@ -1289,20 +1567,22 @@ const AppCore = () => {
 
     const completedDays = useMemo(() => {
         const status = new Map();
-        for (let week = 1; week <= programInfo.weeks; week++) {
-            weeklySchedule.forEach(day => {
+        if (!programData || !programData.info) return status;
+        const getWorkoutForDay = (w, d) => programData.weeklySchedule.find(s => s.day === d)?.workout;
+        for (let week = 1; week <= programData.info.weeks; week++) {
+            programData.weeklySchedule.forEach(day => {
                 const dayKey = `${week}-${day.day}`;
                 const workoutName = getWorkoutForDay(week, day.day);
-                const workout = programStructure[workoutName];
+                const workout = programData.programStructure[workoutName];
                 const isSkipped = !!skippedDays[dayKey];
                 
-                if (!workout) {
+                if (!workout || workoutName === 'Rest') {
                     status.set(dayKey, { isDayComplete: true, isSkipped: false });
                     return;
                 }
 
                 const isDayComplete = workout.exercises.every(exName => {
-                    const exDetails = getExerciseDetails(exName, masterExerciseList);
+                    const exDetails = getExerciseDetails(exName, programData.masterExerciseList);
                     if (!exDetails) return false;
                     return Array.from({ length: exDetails.sets }, (_, i) => i + 1).every(setNum => {
                         const log = allLogs[`${dayKey}-${exName}-${setNum}`];
@@ -1313,7 +1593,7 @@ const AppCore = () => {
             });
         }
         return status;
-    }, [allLogs, skippedDays, programStructure, masterExerciseList]);
+    }, [allLogs, skippedDays, programData]);
 
     if (isLoading || (customId && isDataLoading)) {
         return (
@@ -1328,15 +1608,16 @@ const AppCore = () => {
     
     const renderContent = () => {
         if (!customId) {
-            return <SettingsView onBack={() => {}} allLogs={{}} />;
+            return <SettingsView allLogs={{}} weightUnit={weightUnit} onWeightUnitChange={handleWeightUnitChange} onProgramUpdate={handleProgramDataChange} />;
         }
         switch(pageState.view) {
-            case 'lifting': return <LiftingSession {...pageState.data} onBack={() => navigate('main')} allLogs={allLogs} setAllLogs={setAllLogs} onSkipDay={handleSkipDay} programStructure={programStructure} masterExerciseList={masterExerciseList} />;
-            case 'analytics': return <AnalyticsView allLogs={allLogs} masterExerciseList={masterExerciseList} />;
+            case 'dashboard': return <DashboardView allLogs={allLogs} {...programData} />;
+            case 'lifting': return <LiftingSession {...pageState.data} onBack={() => navigate('main')} allLogs={allLogs} setAllLogs={setAllLogs} onSkipDay={handleSkipDay} {...programData} weightUnit={weightUnit} />;
+            case 'analytics': return <AnalyticsView allLogs={allLogs} masterExerciseList={programData.masterExerciseList} />;
             case 'records': return <RecordsView allLogs={allLogs} />;
-            case 'editProgram': return <EditProgramView programStructure={programStructure} onProgramUpdate={handleProgramUpdate} masterExerciseList={masterExerciseList} onMasterListUpdate={handleMasterListUpdate} />;
-            case 'settings': return <SettingsView onBack={() => navigate('main')} allLogs={allLogs} />;
-            default: return <MainView onSessionSelect={(week, day, type) => navigate(type, { week, dayKey: day })} onNavChange={navigate} completedDays={completedDays} onUnskipDay={handleUnskipDay} programStructure={programStructure} />;
+            case 'editProgram': return <EditProgramView programData={programData} onProgramDataChange={handleProgramDataChange} />;
+            case 'settings': return <SettingsView allLogs={allLogs} weightUnit={weightUnit} onWeightUnitChange={handleWeightUnitChange} onProgramUpdate={handleProgramDataChange} />;
+            default: return <MainView onSessionSelect={(week, day, type) => navigate(type, { week, dayKey: day })} completedDays={completedDays} onUnskipDay={handleUnskipDay} {...programData} />;
         }
     };
 
@@ -1344,7 +1625,7 @@ const AppCore = () => {
         <div className="bg-gray-100 dark:bg-gray-900 min-h-screen font-sans text-gray-900 dark:text-gray-100">
             <Sidebar onNavChange={navigate} currentPage={pageState.view} />
             <div className="flex flex-col min-h-screen">
-                <AppHeader onNavChange={navigate} />
+                <AppHeader programName={programData.info.name} />
                 <main className="flex-grow">
                     <div className="container mx-auto max-w-4xl">{renderContent()}</div>
                 </main>
