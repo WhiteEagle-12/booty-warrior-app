@@ -485,7 +485,7 @@ const LiftingSession = ({ week, dayKey, onBack, allLogs, setAllLogs, onSkipDay, 
                 <button onClick={onBack} className="flex items-center gap-2 text-sm font-medium text-blue-600 dark:text-blue-400 hover:underline"><ArrowLeft size={16}/> Back to Program</button>
                 <button onClick={() => onSkipDay(week, dayKey)} className="flex items-center gap-2 text-sm font-medium text-red-500 dark:text-red-400 bg-red-100 dark:bg-red-900/50 px-3 py-1.5 rounded-lg hover:bg-red-200 dark:hover:bg-red-800/50 transition-colors"><SkipForward size={16}/> Skip Day</button>
             </div>
-            <div className="mb-6">
+            <div className="mb-6 text-center">
                 <h2 className="text-3xl font-bold dark:text-white">Week {week}: {dayKey}</h2>
                 <p className="text-lg text-gray-600 dark:text-gray-400">{workoutName}</p>
             </div>
@@ -612,13 +612,11 @@ const MainView = ({ onSessionSelect, completedDays, onUnskipDay, programStructur
 
     return (
         <div className="p-4 md:p-6">
-            <div className="flex flex-col sm:flex-row justify-between items-start mb-6 gap-4">
-                <div className="flex items-center">
-                    <Dumbbell className="text-blue-500 dark:text-blue-400 mr-4" size={48} />
-                    <div>
-                        <h1 className="text-3xl font-bold dark:text-white">{info.name}</h1>
-                        <p className="text-lg text-gray-600 dark:text-gray-400">Your {info.weeks}-Week Plan</p>
-                    </div>
+            <div className="flex flex-col items-center text-center mb-6 gap-4">
+                <Dumbbell className="text-blue-500 dark:text-blue-400" size={48} />
+                <div>
+                    <h1 className="text-3xl font-bold dark:text-white">{info.name}</h1>
+                    <p className="text-lg text-gray-600 dark:text-gray-400">Your {info.weeks}-Week Plan</p>
                 </div>
             </div>
             
@@ -695,8 +693,8 @@ const DashboardView = ({ allLogs, programStructure, masterExerciseList, weeklySc
 
     return (
        <div className="p-4 md:p-6">
-            <div className="flex items-center mb-6">
-                <LayoutDashboard className="text-blue-500 dark:text-blue-400 mr-3" size={32} />
+            <div className="flex flex-col items-center text-center mb-6">
+                <LayoutDashboard className="text-blue-500 dark:text-blue-400 mb-2" size={32} />
                 <div>
                     <h1 className="text-3xl font-bold dark:text-white">Dashboard</h1>
                     <p className="text-lg text-gray-600 dark:text-gray-400">Your Program At a Glance</p>
@@ -844,7 +842,7 @@ const SettingsView = ({ allLogs, historicalLogs, weightUnit, onWeightUnitChange,
 
     return (
         <div className="p-4 md:p-6 pb-24">
-            <div className="flex items-center mb-6"><Settings className="text-blue-500 dark:text-blue-400 mr-3" size={32} /><div><h1 className="text-3xl font-bold dark:text-white">App Settings</h1></div></div>
+            <div className="flex flex-col items-center text-center mb-6"><Settings className="text-blue-500 dark:text-blue-400 mb-2" size={32} /><div><h1 className="text-3xl font-bold dark:text-white">App Settings</h1></div></div>
             <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-md space-y-6">
                 
                 {/* Sync & Data */}
@@ -1100,8 +1098,8 @@ const AnalyticsView = ({ allLogs, masterExerciseList }) => {
 
     return (
         <div className="p-4 md:p-6 pb-24">
-            <div className="flex items-center mb-6">
-                <BarChart2 className="text-blue-500 dark:text-blue-400 mr-3" size={32} />
+            <div className="flex flex-col items-center text-center mb-6">
+                <BarChart2 className="text-blue-500 dark:text-blue-400 mb-2" size={32} />
                 <div>
                     <h1 className="text-3xl font-bold dark:text-white">Analytics</h1>
                     <p className="text-lg text-gray-600 dark:text-gray-400">Your Performance Breakdown</p>
@@ -1206,8 +1204,8 @@ const RecordsView = ({ allLogs }) => {
 
     return (
         <div className="p-4 md:p-6 pb-24">
-            <div className="flex items-center mb-6">
-                <Trophy className="text-yellow-500 dark:text-yellow-400 mr-3" size={32} />
+            <div className="flex flex-col items-center text-center mb-6">
+                <Trophy className="text-yellow-500 dark:text-yellow-400 mb-2" size={32} />
                 <div>
                     <h1 className="text-3xl font-bold dark:text-white">Personal Records</h1>
                     <p className="text-lg text-gray-600 dark:text-gray-400">Your Best Lifts</p>
@@ -1453,18 +1451,20 @@ const EditProgramView = ({ programData, onProgramDataChange }) => {
     
     return (
         <div className="p-4 md:p-6 pb-24">
-            <div className="flex justify-between items-center mb-6">
-                <div className="flex items-center">
-                    <Edit className="text-blue-500 dark:text-blue-400 mr-3" size={32} />
-                    <div>
-                        <h1 className="text-3xl font-bold dark:text-white">Edit Program</h1>
-                        <p className="text-lg text-gray-600 dark:text-gray-400">Customize Your Workouts</p>
-                    </div>
+            <div className="flex flex-col items-center text-center mb-6">
+                <Edit className="text-blue-500 dark:text-blue-400 mb-2" size={32} />
+                <div>
+                    <h1 className="text-3xl font-bold dark:text-white">Edit Program</h1>
+                    <p className="text-lg text-gray-600 dark:text-gray-400">Customize Your Workouts</p>
                 </div>
-                <button onClick={handleCreateNewExercise} className="flex items-center gap-2 px-3 py-2 bg-blue-600 text-white text-sm rounded-lg shadow-md hover:bg-blue-700 transition-colors">
+            </div>
+
+            <div className="flex justify-end mb-6 -mt-16">
+                 <button onClick={handleCreateNewExercise} className="flex items-center gap-2 px-3 py-2 bg-blue-600 text-white text-sm rounded-lg shadow-md hover:bg-blue-700 transition-colors">
                     <PlusCircle size={16} /> Create Exercise
                 </button>
             </div>
+
 
             {/* Program Details Editor */}
             <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-4 mb-6">
@@ -1890,14 +1890,24 @@ const RestTimer = ({ initialTime, onClose }) => {
 
 
 // --- App Structure & Routing ---
-const AppHeader = ({ programName }) => {
+const EyeIcon = ({ className }) => (
+    <svg className={className} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M1 12C1 12 5 4 12 4C19 4 23 12 23 12C23 12 19 20 12 20C5 20 1 12 1 12Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+        <circle cx="12" cy="12" r="4" fill="#4ade80"/>
+    </svg>
+);
+
+const AppHeader = ({ programName, onNavChange }) => {
     const { setSidebarOpen } = useContext(AppStateContext);
     return (
         <header className="bg-white dark:bg-gray-800/80 backdrop-blur-sm shadow-sm sticky top-0 z-40 p-4 flex justify-between items-center">
             <button onClick={() => setSidebarOpen(true)} className="p-2">
                 <Menu />
             </button>
-            <h1 className="text-xl font-bold text-blue-600 dark:text-blue-400">{programName}</h1>
+            <button onClick={() => onNavChange('main')} className="flex items-center gap-2">
+                 <EyeIcon className="w-8 h-8 text-blue-600 dark:text-blue-400" />
+                 <h1 className="text-2xl font-bold text-blue-600 dark:text-blue-400">{programName}</h1>
+            </button>
             <div className="w-8"></div> {/* Placeholder for balance */}
         </header>
     );
@@ -2198,7 +2208,7 @@ const AppCore = () => {
         <div className="bg-gray-100 dark:bg-gray-900 min-h-screen font-sans text-gray-900 dark:text-gray-100">
             <Sidebar onNavChange={navigate} currentPage={pageState.view} />
             <div className="flex flex-col min-h-screen">
-                <AppHeader programName={programData.info.name} />
+                <AppHeader programName={programData.info.name} onNavChange={navigate} />
                 <main className="flex-grow">
                     <div className="container mx-auto max-w-4xl">{renderContent()}</div>
                 </main>
