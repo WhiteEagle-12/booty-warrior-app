@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useMemo, createContext, useContext, useCallback } from 'react';
-import { ChevronDown, ChevronUp, Dumbbell, CheckCircle, ArrowLeft, BarChart2, Settings, Flame, Repeat, StretchVertical, Lightbulb, Download, XCircle, SkipForward, Menu, X, Search, Trophy, BrainCircuit, PlusCircle, Edit, ArrowUp, ArrowDown, LayoutDashboard, Save } from 'lucide-react';
+import { ChevronDown, ChevronUp, Dumbbell, CheckCircle, ArrowLeft, BarChart2, Settings, Flame, Repeat, StretchVertical, Lightbulb, Download, XCircle, SkipForward, Menu, X, Search, Trophy, BrainCircuit, PlusCircle, Edit, ArrowUp, ArrowDown, LayoutDashboard, Save, AlertTriangle } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 
 // Firebase Imports - using modular v9+ syntax
 import { initializeApp } from "firebase/app";
-import { getFirestore, doc, onSnapshot, setDoc, updateDoc } from "firebase/firestore";
+import { getFirestore, doc, onSnapshot, setDoc, updateDoc, arrayUnion } from "firebase/firestore";
 import { getAuth, onAuthStateChanged, signInAnonymously } from "firebase/auth";
 
 
@@ -642,11 +642,73 @@ const DashboardView = ({ allLogs, programStructure, masterExerciseList, weeklySc
 };
 
 
-const SettingsView = ({ allLogs, weightUnit, onWeightUnitChange, onProgramUpdate }) => {
+const SettingsView = ({ allLogs, historicalLogs, weightUnit, onWeightUnitChange, onProgramUpdate, onResetMeso }) => {
     const { theme, toggleTheme } = useContext(ThemeContext);
     const { customId, handleSetCustomId } = useContext(FirebaseContext);
     const { openModal, closeModal } = useContext(AppStateContext);
     const [tempId, setTempId] = useState(customId);
+    const [exportSelection, setExportSelection] = useState('all');
+
+    const exportData = (logsToExport, filename) => {
+        if (Object.keys(logsToExport).length === 0) {
+            alert("No data available to export for this selection.");
+            return;
+        }
+        const dayOrder = { Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6, Sun: 7 };
+        const sortedLogs = Object.values(logsToExport).filter(log => log.exercise).sort((a, b) => ((a.week - 1) * 7 + dayOrder[a.dayKey]) - ((b.week - 1) * 7 + dayOrder[b.dayKey]) || a.set - b.set);
+        const headers = ['Week', 'Day', 'Session', 'Exercise', 'Set', 'Load (lbs)', 'Reps', 'RIR', 'e1RM'];
+        const csvContent = [headers.join(','), ...sortedLogs.map(log => [log.week, log.dayKey, `"${log.session}"`, `"${log.exercise}"`, log.set, log.load, log.reps, log.rir || '', calculateE1RM(log.load, log.reps, log.rir)].join(','))].join('\n');
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement("a");
+        link.href = URL.createObjectURL(blob);
+        link.download = filename;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    };
+    
+    const handleExport = () => {
+        if (exportSelection === 'all') { exportData(historicalLogs, 'project_overload_all_data.csv'); return; }
+        const [type, value] = exportSelection.split(':');
+        let logsToExport = {};
+        if (type === 'week') {
+            logsToExport = Object.fromEntries(Object.entries(historicalLogs).filter(([, log]) => log.week?.toString() === value));
+        } else if (type === 'workout') {
+            const [week, dayKey] = value.split('-');
+            logsToExport = Object.fromEntries(Object.entries(historicalLogs).filter(([, log]) => log.week?.toString() === week && log.dayKey === dayKey));
+        }
+        exportData(logsToExport, `project_overload_${type}_${value.replace('-', '_')}_data.csv`);
+    };
+
+    const hasLogs = Object.keys(historicalLogs).length > 0;
+    
+    const exportOptions = useMemo(() => {
+        if (!hasLogs) return { weeks: [], workouts: [] };
+        const logs = Object.values(historicalLogs).filter(log => log.exercise && log.week && log.dayKey);
+        const dayOrder = { Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6, Sun: 7 };
+        const loggedWeeks = [...new Set(logs.map(log => log.week))].sort((a, b) => a - b);
+        const loggedWorkouts = [...new Set(logs.map(log => `workout:${log.week}-${log.dayKey}`))].sort((a, b) => {
+            const [, weekA, dayA] = a.split(/-|:/);
+            const [, weekB, dayB] = b.split(/-|:/);
+            return ((parseInt(weekA) - 1) * 7 + dayOrder[dayA]) - ((parseInt(weekB) - 1) * 7 + dayOrder[dayB]);
+        });
+        return { weeks: loggedWeeks, workouts: loggedWorkouts };
+    }, [historicalLogs, hasLogs]);
+
+
+    const handleStartNewMeso = () => {
+        exportData(allLogs, `mesocycle_data_${new Date().toISOString().split('T')[0]}.csv`);
+        openModal(
+            <div>
+                <h2 className="text-xl font-bold mb-4">Confirm New Mesocycle</h2>
+                <p className="text-gray-600 dark:text-gray-400">Your data has been downloaded. Are you sure you want to archive all logs and start a new mesocycle? This action cannot be undone.</p>
+                <div className="flex justify-end gap-2 mt-6">
+                    <button onClick={closeModal} className="px-4 py-2 bg-gray-200 dark:bg-gray-600 rounded-lg">Cancel</button>
+                    <button onClick={() => { onResetMeso(); closeModal(); }} className="px-4 py-2 bg-red-600 text-white rounded-lg">Confirm & Reset</button>
+                </div>
+            </div>
+        );
+    };
 
     const handleLoadPreset = () => {
         openModal(
@@ -668,6 +730,20 @@ const SettingsView = ({ allLogs, weightUnit, onWeightUnitChange, onProgramUpdate
             <div className="flex items-center mb-6"><Settings className="text-blue-500 dark:text-blue-400 mr-3" size={32} /><div><h1 className="text-3xl font-bold dark:text-white">App Settings</h1></div></div>
             <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-md space-y-6">
                 
+                {/* Sync & Data */}
+                <div>
+                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">Sync & Data</h3>
+                    <div className="bg-gray-100 dark:bg-gray-900/50 p-4 rounded-lg space-y-3">
+                        <div>
+                            <label htmlFor="customIdInput" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Personal Sync ID</label>
+                            <input id="customIdInput" type="text" value={tempId} onChange={e => setTempId(e.target.value)} placeholder="Enter a memorable ID" className="w-full p-2 bg-white dark:bg-gray-700 rounded-md border-gray-300 dark:border-gray-600 shadow-sm" />
+                        </div>
+                        <button onClick={() => handleSetCustomId(tempId)} className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg shadow-md hover:bg-blue-700 transition-colors">Set & Sync</button>
+                    </div>
+                </div>
+
+                <div className="border-t border-gray-200 dark:border-gray-700"></div>
+
                 {/* Display & Units */}
                 <div>
                     <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">Display & Units</h3>
@@ -699,17 +775,52 @@ const SettingsView = ({ allLogs, weightUnit, onWeightUnitChange, onProgramUpdate
                     </div>
                 </div>
 
-                <div className="border-t border-gray-200 dark:border-gray-700"></div>
-                
-                {/* Sync & Data */}
+                 <div className="border-t border-gray-200 dark:border-gray-700"></div>
+
+                {/* Data Management */}
                 <div>
-                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">Sync & Data</h3>
+                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">Data Management</h3>
                     <div className="bg-gray-100 dark:bg-gray-900/50 p-4 rounded-lg space-y-3">
-                        <div>
-                            <label htmlFor="customIdInput" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Personal Sync ID</label>
-                            <input id="customIdInput" type="text" value={tempId} onChange={e => setTempId(e.target.value)} placeholder="Enter a memorable ID" className="w-full p-2 bg-white dark:bg-gray-700 rounded-md border-gray-300 dark:border-gray-600 shadow-sm" />
+                        <div className="flex flex-col sm:flex-row gap-4 items-center">
+                            <select value={exportSelection} onChange={(e) => setExportSelection(e.target.value)} className="w-full sm:w-auto flex-grow p-2 bg-white dark:bg-gray-700 rounded-md border-gray-300 dark:border-gray-600 shadow-sm" disabled={!hasLogs}>
+                                <option value="all">All Data</option>
+                                {exportOptions.weeks?.length > 0 && (
+                                    <optgroup label="By Week">
+                                        {exportOptions.weeks.map(w => <option key={`week-${w}`} value={`week:${w}`}>Week {w}</option>)}
+                                    </optgroup>
+                                )}
+                                {exportOptions.workouts?.length > 0 && (
+                                    <optgroup label="By Single Workout">
+                                        {exportOptions.workouts.map(w_key => { 
+                                            const [, week, day] = w_key.split(/-|:/); 
+                                            return (<option key={w_key} value={`workout:${week}-${day}`}>Week {week} - {day}</option>);
+                                        })}
+                                    </optgroup>
+                                )}
+                            </select>
+                            <button onClick={handleExport} disabled={!hasLogs} className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg shadow-md hover:bg-blue-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed">
+                                <Download size={16} /> Export CSV
+                            </button>
                         </div>
-                        <button onClick={() => handleSetCustomId(tempId)} className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg shadow-md hover:bg-blue-700 transition-colors">Set & Sync</button>
+                    </div>
+                </div>
+
+                <div className="border-t border-gray-200 dark:border-gray-700"></div>
+
+                {/* Program Reset */}
+                <div>
+                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">Program Reset</h3>
+                     <div className="bg-red-100 dark:bg-red-900/50 p-4 rounded-lg space-y-3">
+                        <div className="flex items-start gap-3">
+                            <AlertTriangle className="text-red-500 flex-shrink-0 mt-1" />
+                            <div>
+                                <h4 className="font-bold text-red-800 dark:text-red-200">Start New Mesocycle</h4>
+                                <p className="text-sm text-red-700 dark:text-red-300">This will download all your current logs as a CSV, then archive them and clear your progress to start fresh.</p>
+                            </div>
+                        </div>
+                        <button onClick={handleStartNewMeso} className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg shadow-md hover:bg-red-700 transition-colors">
+                            <Repeat size={16} /> Start New Mesocycle
+                        </button>
                     </div>
                 </div>
             </div>
@@ -983,6 +1094,17 @@ const EditProgramView = ({ programData, onProgramDataChange }) => {
         setTimeout(() => setNameFeedback(''), 2000);
     };
 
+    const handleInfoChange = (field, value) => {
+        const newProgramData = {
+            ...programData,
+            info: {
+                ...programData.info,
+                [field]: value
+            }
+        };
+        onProgramDataChange(newProgramData);
+    };
+
     // Generic update handler
     const updateProgramData = (field, value) => {
         onProgramDataChange({ ...programData, [field]: value });
@@ -1141,25 +1263,40 @@ const EditProgramView = ({ programData, onProgramDataChange }) => {
                 </button>
             </div>
 
-            {/* Program Name Editor */}
+            {/* Program Details Editor */}
             <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-4 mb-6">
-                 <h3 className="text-xl font-bold text-gray-800 dark:text-gray-200 mb-4">Program Name</h3>
-                 <div className="flex items-center gap-2">
-                     <input 
-                         type="text" 
-                         value={programName} 
-                         onChange={(e) => setProgramName(e.target.value)}
-                         className="w-full p-2 bg-gray-50 dark:bg-gray-700 rounded-md border-gray-300 dark:border-gray-600 shadow-sm text-lg"
-                     />
-                     <button 
-                         onClick={handleSaveProgramName}
-                         className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg shadow-md hover:bg-blue-700 transition-colors"
-                     >
-                         <Save size={16} />
-                         <span className="hidden sm:inline">Save</span>
-                     </button>
-                 </div>
-                 {nameFeedback && <p className="text-green-500 text-sm mt-2">{nameFeedback}</p>}
+                <h3 className="text-xl font-bold text-gray-800 dark:text-gray-200 mb-4">Program Details</h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <label htmlFor="programName" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Program Name</label>
+                        <div className="flex items-center gap-2">
+                             <input 
+                                 id="programName"
+                                 type="text" 
+                                 value={programName} 
+                                 onChange={(e) => setProgramName(e.target.value)}
+                                 className="w-full p-2 bg-gray-50 dark:bg-gray-700 rounded-md border-gray-300 dark:border-gray-600 shadow-sm"
+                             />
+                             <button 
+                                 onClick={handleSaveProgramName}
+                                 className="p-2 bg-blue-600 text-white rounded-lg shadow-md hover:bg-blue-700 transition-colors"
+                             >
+                                 <Save size={20} />
+                             </button>
+                        </div>
+                        {nameFeedback && <p className="text-green-500 text-xs mt-1">{nameFeedback}</p>}
+                    </div>
+                    <div>
+                        <label htmlFor="programWeeks" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Number of Weeks</label>
+                        <input 
+                            id="programWeeks"
+                            type="number"
+                            value={info.weeks}
+                            onChange={(e) => handleInfoChange('weeks', parseInt(e.target.value, 10) || 1)}
+                            className="w-full p-2 bg-gray-50 dark:bg-gray-700 rounded-md border-gray-300 dark:border-gray-600 shadow-sm"
+                        />
+                    </div>
+                </div>
             </div>
 
             {/* Weekly Schedule Editor */}
@@ -1473,6 +1610,7 @@ const Modal = () => {
 const AppCore = () => {
     const [pageState, setPageState] = useState({ view: 'main', data: {} });
     const [allLogs, setAllLogs] = useState({});
+    const [archivedLogs, setArchivedLogs] = useState([]);
     const [skippedDays, setSkippedDays] = useState({});
     const [programData, setProgramData] = useState(presets['optimal-ppl-ul']);
     const [weightUnit, setWeightUnit] = useState('lbs');
@@ -1493,6 +1631,7 @@ const AppCore = () => {
             if (doc.exists()) {
                 const data = doc.data();
                 setAllLogs(data.logs || {});
+                setArchivedLogs(data.archivedLogs || []);
                 setSkippedDays(data.skippedDays || {});
                 setTheme(data.theme || 'dark');
                 setWeightUnit(data.weightUnit || 'lbs');
@@ -1515,6 +1654,7 @@ const AppCore = () => {
                     skippedDays: {}, 
                     theme: 'dark', 
                     weightUnit: 'lbs',
+                    archivedLogs: [],
                     ...defaultProgram
                 });
             }
@@ -1525,6 +1665,14 @@ const AppCore = () => {
         });
         return () => unsubscribe();
     }, [user, db, customId, setTheme, isLoading]);
+
+    const historicalLogs = useMemo(() => {
+        const combined = { ...allLogs };
+        archivedLogs.forEach(archive => {
+            Object.assign(combined, archive);
+        });
+        return combined;
+    }, [allLogs, archivedLogs]);
 
     // Navigation logic
     const navigate = (view, data = {}) => {
@@ -1563,6 +1711,17 @@ const AppCore = () => {
         delete newSkippedDays[skipKey];
         setSkippedDays(newSkippedDays);
         handleUpdateAndSave({ skippedDays: newSkippedDays });
+    };
+
+    const handleResetMeso = () => {
+        if (db && customId) {
+            const userDocRef = doc(db, 'workoutLogs', customId);
+            updateDoc(userDocRef, {
+                archivedLogs: arrayUnion(allLogs),
+                logs: {},
+                skippedDays: {}
+            });
+        }
     };
 
     const completedDays = useMemo(() => {
@@ -1608,15 +1767,15 @@ const AppCore = () => {
     
     const renderContent = () => {
         if (!customId) {
-            return <SettingsView allLogs={{}} weightUnit={weightUnit} onWeightUnitChange={handleWeightUnitChange} onProgramUpdate={handleProgramDataChange} />;
+            return <SettingsView allLogs={{}} historicalLogs={{}} weightUnit={weightUnit} onWeightUnitChange={handleWeightUnitChange} onProgramUpdate={handleProgramDataChange} onResetMeso={handleResetMeso} />;
         }
         switch(pageState.view) {
             case 'dashboard': return <DashboardView allLogs={allLogs} {...programData} />;
             case 'lifting': return <LiftingSession {...pageState.data} onBack={() => navigate('main')} allLogs={allLogs} setAllLogs={setAllLogs} onSkipDay={handleSkipDay} {...programData} weightUnit={weightUnit} />;
-            case 'analytics': return <AnalyticsView allLogs={allLogs} masterExerciseList={programData.masterExerciseList} />;
-            case 'records': return <RecordsView allLogs={allLogs} />;
+            case 'analytics': return <AnalyticsView allLogs={historicalLogs} masterExerciseList={programData.masterExerciseList} />;
+            case 'records': return <RecordsView allLogs={historicalLogs} />;
             case 'editProgram': return <EditProgramView programData={programData} onProgramDataChange={handleProgramDataChange} />;
-            case 'settings': return <SettingsView allLogs={allLogs} weightUnit={weightUnit} onWeightUnitChange={handleWeightUnitChange} onProgramUpdate={handleProgramDataChange} />;
+            case 'settings': return <SettingsView allLogs={allLogs} historicalLogs={historicalLogs} weightUnit={weightUnit} onWeightUnitChange={handleWeightUnitChange} onProgramUpdate={handleProgramDataChange} onResetMeso={handleResetMeso} />;
             default: return <MainView onSessionSelect={(week, day, type) => navigate(type, { week, dayKey: day })} completedDays={completedDays} onUnskipDay={handleUnskipDay} {...programData} />;
         }
     };
