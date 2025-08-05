@@ -207,12 +207,12 @@ const AppStateProvider = ({ children }) => {
         setModalContent(null);
     }, []);
     
-    const addToast = useCallback((message) => {
+    const addToast = useCallback((message, level = 'success') => {
         const id = crypto.randomUUID();
-        setToasts(prev => [...prev, { id, message }]);
+        setToasts(prev => [...prev, { id, message, level }]);
         setTimeout(() => {
             setToasts(prev => prev.filter(t => t.id !== id));
-        }, 3000);
+        }, 4000);
     }, []);
 
     const value = {
@@ -1067,10 +1067,10 @@ const AnalyticsView = ({ allLogs, masterExerciseList }) => {
     }, [selectedExercise, filteredLogs]);
 
     const volumeData = useMemo(() => {
-        if (!selectedExercise || Object.keys(filteredLogs).length === 0) return [];
+        if (Object.keys(filteredLogs).length === 0) return [];
         const volumesByWeek = {};
         Object.values(filteredLogs).forEach(log => {
-            if (log.exercise === selectedExercise && log.load && log.reps && log.week) {
+            if (log.load && log.reps && log.week) {
                 const week = log.week;
                 if (!volumesByWeek[week]) {
                     volumesByWeek[week] = 0;
@@ -1082,7 +1082,7 @@ const AnalyticsView = ({ allLogs, masterExerciseList }) => {
             week: `Week ${week}`,
             totalVolume: Math.round(volume)
         })).sort((a, b) => parseInt(a.week.split(' ')[1]) - parseInt(b.week.split(' ')[1]));
-    }, [selectedExercise, filteredLogs]);
+    }, [filteredLogs]);
 
 
     const muscleGroupData = useMemo(() => {
@@ -1200,22 +1200,33 @@ const AnalyticsView = ({ allLogs, masterExerciseList }) => {
                                     <LineChart data={chartData}><CartesianGrid strokeDasharray="3 3" className="stroke-gray-200 dark:stroke-gray-700" /><XAxis dataKey="sessionLabel" tick={{ fill: '#9ca3af' }} /><YAxis yAxisId="left" stroke="#8884d8" label={{ value: 'Load', angle: -90, position: 'insideLeft', fill: '#8884d8' }} domain={[dataMin => Math.max(0, Math.floor(dataMin * 0.9)), 'auto']} tick={{ fill: '#8884d8' }} /><YAxis yAxisId="right" orientation="right" stroke="#82ca9d" label={{ value: 'Reps', angle: 90, position: 'insideRight', fill: '#82ca9d' }} domain={[dataMin => Math.max(0, Math.floor(dataMin * 0.8)), 'auto']} allowDecimals={false} tick={{ fill: '#82ca9d' }} /><Tooltip contentStyle={{ backgroundColor: 'var(--tooltip-bg)', border: '1px solid var(--tooltip-border)' }} /><Legend align="center" /><Line yAxisId="left" type="monotone" dataKey="load" name="Load" stroke="#8884d8" /><Line yAxisId="right" type="monotone" dataKey="reps" name="Reps" stroke="#82ca9d" /></LineChart>
                                 </ResponsiveContainer>
                             </div>
-                             <div className="w-full aspect-video">
-                                <h4 className="font-semibold text-sm dark:text-gray-300 mb-2">Total Weekly Volume</h4>
-                                <ResponsiveContainer>
-                                    <LineChart data={volumeData}>
-                                        <CartesianGrid strokeDasharray="3 3" className="stroke-gray-200 dark:stroke-gray-700" />
-                                        <XAxis dataKey="week" tick={{ fill: '#9ca3af' }} />
-                                        <YAxis domain={[0, 'auto']} tick={{ fill: '#9ca3af' }} />
-                                        <Tooltip contentStyle={{ backgroundColor: 'var(--tooltip-bg)', border: '1px solid var(--tooltip-border)' }} formatter={(value) => [`${value.toLocaleString()} lbs`, 'Total Volume']} />
-                                        <Legend align="center" />
-                                        <Line type="monotone" dataKey="totalVolume" name="Total Volume" stroke="#ffc658" strokeWidth={2} dot={{ r: 4 }} activeDot={{ r: 6 }} />
-                                    </LineChart>
-                                </ResponsiveContainer>
-                            </div>
                         </div>
                     ) : (
                         <div className="aspect-video flex flex-col justify-center items-center text-center"><BarChart2 size={48} className="text-gray-400 dark:text-gray-500 mb-4" /><h3 className="font-semibold text-xl dark:text-gray-200">No Data Yet</h3><p className="text-gray-500 dark:text-gray-400">{selectedExercise ? `Log some sets for ${selectedExercise} to see your progress.` : 'Select an exercise to view your charts.'}</p></div>
+                    )}
+                </div>
+
+                <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-4">
+                    <h3 className="font-semibold dark:text-gray-200 mb-2">Total Weekly Volume</h3>
+                     {volumeData.length > 1 ? (
+                        <div className="w-full aspect-video">
+                            <ResponsiveContainer>
+                                <LineChart data={volumeData}>
+                                    <CartesianGrid strokeDasharray="3 3" className="stroke-gray-200 dark:stroke-gray-700" />
+                                    <XAxis dataKey="week" tick={{ fill: '#9ca3af' }} />
+                                    <YAxis domain={[0, 'auto']} tick={{ fill: '#9ca3af' }} />
+                                    <Tooltip contentStyle={{ backgroundColor: 'var(--tooltip-bg)', border: '1px solid var(--tooltip-border)' }} formatter={(value) => [`${value.toLocaleString()} lbs`, 'Total Volume']} />
+                                    <Legend align="center" />
+                                    <Line type="monotone" dataKey="totalVolume" name="Total Volume" stroke="#ffc658" strokeWidth={2} dot={{ r: 4 }} activeDot={{ r: 6 }} />
+                                </LineChart>
+                            </ResponsiveContainer>
+                        </div>
+                    ) : (
+                        <div className="aspect-video flex flex-col justify-center items-center text-center">
+                            <BarChart2 size={48} className="text-gray-400 dark:text-gray-500 mb-4" />
+                            <h3 className="font-semibold text-xl dark:text-gray-200">Not Enough Data</h3>
+                            <p className="text-gray-500 dark:text-gray-400">Log at least two weeks of workouts to see your volume progression.</p>
+                        </div>
                     )}
                 </div>
 
@@ -1907,35 +1918,35 @@ const RenameWorkoutModal = ({ oldName, onSave, onClose }) => {
 const TutorialModal = ({ onClose }) => {
     return (
         <div>
-            <h2 className="text-2xl font-bold mb-4 flex items-center gap-2"><Lightbulb size={24} className="text-blue-500" /> App Tutorial</h2>
-            <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-2 text-gray-600 dark:text-gray-300">
+            <h2 className="text-2xl font-bold mb-4 flex items-center gap-2"><Lightbulb size={24} className="text-blue-500" /> Welcome to Project Overload!</h2>
+            <div className="space-y-4 max-h-[70vh] overflow-y-auto pr-2 text-gray-600 dark:text-gray-300">
                 <div className="p-3 bg-gray-100 dark:bg-gray-700/50 rounded-lg">
-                    <h3 className="font-bold text-lg text-gray-900 dark:text-white mb-1">📅 Program View</h3>
-                    <p>This is your main screen. It shows your entire program, week by week. Click on a workout day to start logging.</p>
+                    <h3 className="font-bold text-lg text-gray-900 dark:text-white mb-1 flex items-center gap-2"><Dumbbell size={18}/> The Program View</h3>
+                    <p>This is your home base. It lays out your entire mesocycle, week by week. Each day shows your scheduled workout. Just click a day to jump in and start lifting. Completed days get a checkmark, so you can always see your progress at a glance.</p>
                 </div>
                  <div className="p-3 bg-gray-100 dark:bg-gray-700/50 rounded-lg">
-                    <h3 className="font-bold text-lg text-gray-900 dark:text-white mb-1">✍️ Logging a Workout</h3>
-                    <p>Enter your weight, reps, and RIR (Reps in Reserve) for each set. The app provides suggestions based on your last performance. Completed exercises will collapse automatically.</p>
+                    <h3 className="font-bold text-lg text-gray-900 dark:text-white mb-1 flex items-center gap-2"><Edit size={18}/> Logging a Workout</h3>
+                    <p>Inside a workout, enter your <span className="font-semibold">Load</span>, <span className="font-semibold">Reps</span>, and <span className="font-semibold">RIR</span> (Reps In Reserve) for each set. The app gives you an AI-powered <span className="font-semibold text-blue-500">Suggestion</span> based on your last performance to guide your progressive overload. Exercises collapse automatically once all sets are logged.</p>
                 </div>
                 <div className="p-3 bg-gray-100 dark:bg-gray-700/50 rounded-lg">
-                    <h3 className="font-bold text-lg text-gray-900 dark:text-white mb-1">🏆 Achievements</h3>
-                    <p>Visit the 'Achievements' page to see milestones you've unlocked. This is a great way to track your long-term progress and stay motivated!</p>
+                    <h3 className="font-bold text-lg text-gray-900 dark:text-white mb-1 flex items-center gap-2"><LayoutDashboard size={18}/> Dashboard</h3>
+                    <p>Your mission control. See your overall program completion, track your current workout streak, and get AI-powered weekly summaries to find areas for improvement.</p>
                 </div>
                 <div className="p-3 bg-gray-100 dark:bg-gray-700/50 rounded-lg">
-                    <h3 className="font-bold text-lg text-gray-900 dark:text-white mb-1">📊 Analytics & Records</h3>
-                    <p>Check 'Analytics' to see graphs of your progress and muscle group distribution—now with time filters! 'Records' shows your all-time best lifts (e1RM).</p>
+                    <h3 className="font-bold text-lg text-gray-900 dark:text-white mb-1 flex items-center gap-2"><Award size={18}/> Achievements & Records</h3>
+                    <p>Visit 'Achievements' to see what milestones you've hit, from total volume lifted to new PRs. Tiered achievements show your progress to the next level! 'Records' keeps a list of your best estimated 1-Rep Max (e1RM) for every exercise.</p>
                 </div>
                  <div className="p-3 bg-gray-100 dark:bg-gray-700/50 rounded-lg">
-                    <h3 className="font-bold text-lg text-gray-900 dark:text-white mb-1">✏️ Editing Your Program</h3>
-                    <p>In 'Edit Program', you can change everything. When adding from the 'Exercise Bank', a personal, editable copy is made just for you.</p>
+                    <h3 className="font-bold text-lg text-gray-900 dark:text-white mb-1 flex items-center gap-2"><BarChart2 size={18}/> Analytics Deep Dive</h3>
+                    <p>Go beyond simple numbers. Track your e1RM, load, and rep progression on any exercise. See how your total volume changes over time, and analyze your training distribution with the muscle group pie chart. Use the time filters to zoom in on your recent performance.</p>
                 </div>
                  <div className="p-3 bg-gray-100 dark:bg-gray-700/50 rounded-lg">
-                    <h3 className="font-bold text-lg text-gray-900 dark:text-white mb-1">⚙️ Settings</h3>
-                    <p>Set up your Sync ID to keep your data across devices. You can also toggle dark mode, change weight units, export your data, and start a new mesocycle.</p>
+                    <h3 className="font-bold text-lg text-gray-900 dark:text-white mb-1 flex items-center gap-2"><Settings size={18}/> Full Customization</h3>
+                    <p>In 'Edit Program', you can change everything—add, remove, or reorder exercises and workout days. When you add from the 'Exercise Bank', a personal, editable copy is made just for you. In 'Settings', set up your Sync ID to keep data across devices, export your history, or start a fresh mesocycle.</p>
                 </div>
             </div>
             <div className="flex justify-end mt-6">
-                <button onClick={onClose} className="px-6 py-2 bg-blue-600 text-white rounded-lg">Got it!</button>
+                <button onClick={onClose} className="px-6 py-2 bg-blue-600 text-white rounded-lg">Let's Go!</button>
             </div>
         </div>
     );
@@ -2059,7 +2070,7 @@ const achievementsList = {
         getValue: (logs, program) => calculateStreak(logs, program),
     },
     bench_press_pr: {
-        name: "Bench Press e1RM",
+        name: "Bench Press Progress",
         description: "Achieve new personal records in any bench press variation.",
         icon: Trophy,
         type: 'tiered',
@@ -2073,7 +2084,7 @@ const achievementsList = {
         getValue: (logs) => Math.max(0, ...Object.values(logs).filter(l => l.exercise.toLowerCase().includes('bench')).map(l => calculateE1RM(l.load, l.reps, l.rir)))
     },
     squat_pr: {
-        name: "Squat e1RM",
+        name: "Squat Progress",
         description: "Achieve new personal records in any squat variation.",
         icon: Trophy,
         type: 'tiered',
@@ -2086,7 +2097,7 @@ const achievementsList = {
         getValue: (logs) => Math.max(0, ...Object.values(logs).filter(l => l.exercise.toLowerCase().includes('squat')).map(l => calculateE1RM(l.load, l.reps, l.rir)))
     },
     deadlift_pr: {
-        name: "Deadlift e1RM",
+        name: "Deadlift Progress",
         description: "Achieve new personal records in any deadlift variation.",
         icon: Trophy,
         type: 'tiered',
@@ -2169,12 +2180,13 @@ const achievementsList = {
     },
 };
 
-const AchievementCard = ({ achievementId, achievement, unlockedStatus, onClick }) => {
+const AchievementCard = ({ achievementId, achievement, unlockedStatus, currentValue, onClick }) => {
     const { icon: Icon } = achievement;
     let isUnlocked = false;
     let displayName = achievement.name;
-    let displayDescription = achievement.description;
     let tierName = null;
+    let nextTier = null;
+    let progressPercentage = 0;
 
     if (achievement.type === 'tiered') {
         const unlockedTierIndex = unlockedStatus;
@@ -2183,38 +2195,67 @@ const AchievementCard = ({ achievementId, achievement, unlockedStatus, onClick }
             const currentTier = achievement.tiers[unlockedTierIndex];
             tierName = currentTier.name;
             displayName = `${achievement.name} - ${tierName}`;
-            displayDescription = currentTier.description;
+            if (unlockedTierIndex < achievement.tiers.length - 1) {
+                nextTier = achievement.tiers[unlockedTierIndex + 1];
+                progressPercentage = Math.min(100, (currentValue / nextTier.value) * 100);
+            }
+        } else {
+            // Not unlocked yet, show progress towards the first tier
+            nextTier = achievement.tiers[0];
+            progressPercentage = Math.min(100, (currentValue / nextTier.value) * 100);
         }
     } else {
         isUnlocked = !!unlockedStatus;
     }
 
     const tierColors = {
-        bronze: { bg: 'bg-amber-100 dark:bg-amber-900/50', text: 'text-amber-600 dark:text-amber-400', border: 'border-amber-400' },
-        silver: { bg: 'bg-slate-100 dark:bg-slate-800/50', text: 'text-slate-600 dark:text-slate-400', border: 'border-slate-400' },
-        gold: { bg: 'bg-yellow-100 dark:bg-yellow-900/50', text: 'text-yellow-500 dark:text-yellow-400', border: 'border-yellow-500' },
-        platinum: { bg: 'bg-cyan-100 dark:bg-cyan-900/50', text: 'text-cyan-500 dark:text-cyan-400', border: 'border-cyan-400' },
-        diamond: { bg: 'bg-sky-100 dark:bg-sky-900/50', text: 'text-sky-500 dark:text-sky-400', border: 'border-sky-400' },
+        bronze: { bg: 'bg-amber-100 dark:bg-amber-900/50', text: 'text-amber-600 dark:text-amber-400', border: 'border-amber-400', progress: 'bg-amber-500' },
+        silver: { bg: 'bg-slate-100 dark:bg-slate-800/50', text: 'text-slate-600 dark:text-slate-400', border: 'border-slate-400', progress: 'bg-slate-500' },
+        gold: { bg: 'bg-yellow-100 dark:bg-yellow-900/50', text: 'text-yellow-500 dark:text-yellow-400', border: 'border-yellow-500', progress: 'bg-yellow-500' },
+        platinum: { bg: 'bg-cyan-100 dark:bg-cyan-900/50', text: 'text-cyan-500 dark:text-cyan-400', border: 'border-cyan-400', progress: 'bg-cyan-500' },
+        diamond: { bg: 'bg-sky-100 dark:bg-sky-900/50', text: 'text-sky-500 dark:text-sky-400', border: 'border-sky-400', progress: 'bg-sky-500' },
     };
 
     const colorKey = tierName ? tierName.toLowerCase() : 'default';
-    const colors = tierColors[colorKey] || { bg: 'bg-yellow-100 dark:bg-yellow-900/50', text: 'text-yellow-500', border: 'border-yellow-500' };
+    const colors = tierColors[colorKey] || { bg: 'bg-gray-100 dark:bg-gray-800', text: 'text-gray-500', border: 'border-transparent', progress: 'bg-blue-500' };
 
-    const cardClasses = `p-4 rounded-xl flex flex-col items-center justify-center text-center aspect-square transition-all duration-300 ${isUnlocked ? `${colors.bg} border-2 ${colors.border} shadow-lg` : 'bg-gray-100 dark:bg-gray-800 filter grayscale opacity-60'}`;
+    const cardClasses = `p-4 rounded-xl flex flex-col items-center justify-between text-center aspect-square transition-all duration-300 ${isUnlocked ? `${colors.bg} border-2 ${colors.border} shadow-lg` : 'bg-gray-100 dark:bg-gray-800 filter grayscale opacity-60'}`;
     const iconClasses = isUnlocked ? colors.text : 'text-gray-500';
     const textClasses = isUnlocked ? 'text-gray-800 dark:text-gray-200' : 'text-gray-600 dark:text-gray-400';
 
     return (
         <button onClick={(e) => onClick(e, achievementId)} className={cardClasses}>
-            <Icon size={36} className={iconClasses} />
-            <h3 className={`mt-2 font-bold text-sm ${textClasses}`}>{displayName}</h3>
+            <div className="flex flex-col items-center justify-center">
+                <Icon size={36} className={iconClasses} />
+                <h3 className={`mt-2 font-bold text-sm ${textClasses}`}>{displayName}</h3>
+            </div>
+            {nextTier && (
+                <div className="w-full mt-2">
+                    <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-1.5">
+                        <div className={`${isUnlocked ? colors.progress : 'bg-blue-500'} h-1.5 rounded-full`} style={{ width: `${progressPercentage}%` }}></div>
+                    </div>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                        {Math.floor(currentValue).toLocaleString()} / {nextTier.value.toLocaleString()}
+                    </p>
+                </div>
+            )}
         </button>
     );
 };
 
-const AchievementsView = ({ unlockedAchievements, programData }) => {
+const AchievementsView = ({ unlockedAchievements, historicalLogs, programData, bodyWeight }) => {
     const { openModal, closeModal } = useContext(AppStateContext);
 
+    if (Object.keys(historicalLogs).length === 0) {
+        return (
+            <div className="p-4 md:p-6 pb-24 text-center flex flex-col items-center justify-center h-full">
+                <Award className="text-gray-400 dark:text-gray-500 mb-4" size={48} />
+                <h1 className="text-2xl font-bold dark:text-white">Your Journey Starts Here</h1>
+                <p className="text-lg text-gray-600 dark:text-gray-400 mt-2">Log your first workout to start unlocking achievements and tracking your progress!</p>
+            </div>
+        );
+    }
+    
     const handleShowDescription = (e, id) => {
         e.preventDefault();
         const achievement = achievementsList[id];
@@ -2267,6 +2308,7 @@ const AchievementsView = ({ unlockedAchievements, programData }) => {
                         achievementId={id}
                         achievement={achievement}
                         unlockedStatus={unlockedAchievements[id]}
+                        currentValue={achievement.getValue ? achievement.getValue(historicalLogs, programData, bodyWeight) : 0}
                         onClick={handleShowDescription}
                     />
                 ))}
@@ -2366,18 +2408,33 @@ const Modal = () => {
     );
 };
 
+const Toast = ({ message, level }) => {
+    const levelStyles = {
+        success: 'bg-green-500 text-white',
+        bronze: 'bg-amber-600 text-white',
+        silver: 'bg-slate-500 text-white',
+        gold: 'bg-yellow-500 text-black',
+        platinum: 'bg-cyan-400 text-black',
+        diamond: 'bg-sky-400 text-white',
+    };
+    const style = levelStyles[level] || levelStyles.success;
+    return (
+        <div className={`px-4 py-2 rounded-lg shadow-lg animate-fade-in-up ${style}`}>
+            {message}
+        </div>
+    );
+};
+
 const ToastContainer = () => {
     const { toasts } = useContext(AppStateContext);
     return (
-        <div className="fixed bottom-4 right-4 z-50 space-y-2">
+        <div className="fixed bottom-4 right-4 z-[100] space-y-2">
             {toasts.map(toast => (
-                <div key={toast.id} className="bg-green-500 text-white px-4 py-2 rounded-lg shadow-lg animate-fade-in-up">
-                    {toast.message}
-                </div>
+                <Toast key={toast.id} message={toast.message} level={toast.level} />
             ))}
         </div>
     );
-}
+};
 
 
 const AppCore = () => {
@@ -2508,19 +2565,23 @@ const AppCore = () => {
         for (const id in newUnlockedStatus) {
             const oldStatus = unlockedAchievements[id];
             const newStatus = newUnlockedStatus[id];
+            const achievement = achievementsList[id];
+
             if (oldStatus === undefined && newStatus !== undefined) {
-                if (achievementsList[id].type === 'tiered') {
-                    newlyAchievedMessages.push(`New Achievement: ${achievementsList[id].name} - ${achievementsList[id].tiers[newStatus].name}`);
+                if (achievement.type === 'tiered') {
+                    const tier = achievement.tiers[newStatus];
+                    newlyAchievedMessages.push({ message: `New Achievement: ${achievement.name} - ${tier.name}`, level: tier.name.toLowerCase() });
                 } else {
-                    newlyAchievedMessages.push(`New Achievement: ${achievementsList[id].name}`);
+                    newlyAchievedMessages.push({ message: `New Achievement: ${achievement.name}`, level: 'gold' });
                 }
             } else if (typeof oldStatus === 'number' && typeof newStatus === 'number' && newStatus > oldStatus) {
-                newlyAchievedMessages.push(`New Tier: ${achievementsList[id].name} - ${achievementsList[id].tiers[newStatus].name}`);
+                const tier = achievement.tiers[newStatus];
+                newlyAchievedMessages.push({ message: `Tier Up: ${achievement.name} - ${tier.name}`, level: tier.name.toLowerCase() });
             }
         }
         
         if (newlyAchievedMessages.length > 0) {
-            newlyAchievedMessages.forEach(message => addToast(message));
+            newlyAchievedMessages.forEach(item => addToast(item.message, item.level));
             setUnlockedAchievements(newUnlockedStatus);
             if (db && customId) {
                 const userDocRef = doc(db, 'workoutLogs', customId);
@@ -2666,7 +2727,7 @@ const AppCore = () => {
             case 'lifting': return <LiftingSession {...pageState.data} onBack={() => navigate('main')} allLogs={allLogs} setAllLogs={setAllLogs} onSkipDay={handleSkipDay} programData={programData} weightUnit={weightUnit} onStartTimer={handleStartTimer} />;
             case 'analytics': return <AnalyticsView allLogs={historicalLogs} masterExerciseList={programData.masterExerciseList} />;
             case 'records': return <RecordsView allLogs={historicalLogs} />;
-            case 'achievements': return <AchievementsView unlockedAchievements={unlockedAchievements} programData={programData} />;
+            case 'achievements': return <AchievementsView unlockedAchievements={unlockedAchievements} historicalLogs={historicalLogs} programData={programData} bodyWeight={bodyWeight} />;
             case 'editProgram': return <EditProgramView programData={programData} onProgramDataChange={handleProgramDataChange} />;
             case 'settings': return <SettingsView allLogs={allLogs} historicalLogs={historicalLogs} weightUnit={weightUnit} onWeightUnitChange={handleWeightUnitChange} onProgramUpdate={handleProgramDataChange} onResetMeso={handleResetMeso} programData={programData} onProgramDataChange={handleProgramDataChange} onShowTutorial={showTutorial} bodyWeight={bodyWeight} onBodyWeightChange={handleBodyWeightChange} />;
             default: return <MainView onSessionSelect={(week, day, type) => navigate(type, { week, dayKey: day })} completedDays={completedDays} onUnskipDay={handleUnskipDay} {...programData} />;
