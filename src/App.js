@@ -1105,7 +1105,7 @@ const AnalyticsView = ({ allLogs, masterExerciseList }) => {
 
     const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#AF19FF', '#FF42A1', '#42A1FF'];
     const RADIAN = Math.PI / 180;
-    const renderCustomizedLabel = ({ cx, cy, midAngle, outerRadius, percent, name, volumePercentage }) => {
+    const renderCustomizedLabel = ({ cx, cy, midAngle, outerRadius, percent, name, setsPercentage }) => {
         const radius = outerRadius + 30;
         const x = cx + radius * Math.cos(-midAngle * RADIAN);
         const y = cy + radius * Math.sin(-midAngle * RADIAN);
@@ -1124,7 +1124,7 @@ const AnalyticsView = ({ allLogs, masterExerciseList }) => {
                 <path d={`M${sx},${sy}L${mx},${my}L${ex},${ey}`} stroke={"#9ca3af"} fill="none" />
                 <circle cx={ex} cy={ey} r={2} fill={"#9ca3af"} />
                 <text x={ex + (cos >= 0 ? 1 : -1) * 8} y={ey} textAnchor={textAnchor} fill="#9ca3af" dy={4} className="text-xs">
-                    {`${name} (${volumePercentage}%)`}
+                    {`${name} (${setsPercentage}%)`}
                 </text>
             </g>
         );
@@ -1187,12 +1187,12 @@ const AnalyticsView = ({ allLogs, masterExerciseList }) => {
                             <div className="w-full aspect-square">
                                <ResponsiveContainer>
                                     <PieChart margin={{ top: 40, right: 40, left: 40, bottom: 40 }}>
-                                        <Pie data={muscleGroupData} dataKey="volume" nameKey="name" cx="50%" cy="50%" outerRadius="70%" fill="#8884d8" labelLine={false} label={renderCustomizedLabel}>
+                                        <Pie data={muscleGroupData} dataKey="sets" nameKey="name" cx="50%" cy="50%" outerRadius="70%" fill="#8884d8" labelLine={false} label={renderCustomizedLabel}>
                                             {muscleGroupData.map((entry, index) => (
                                                 <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                                             ))}
                                         </Pie>
-                                        <Tooltip formatter={(value, name, props) => [`${props.payload.volumePercentage}%`, 'Volume']} />
+                                        <Tooltip formatter={(value, name, props) => [`${props.payload.setsPercentage}%`, 'Sets']} />
                                         <Legend />
                                     </PieChart>
                                 </ResponsiveContainer>
@@ -1495,16 +1495,15 @@ const EditProgramView = ({ programData, onProgramDataChange }) => {
     
     return (
         <div className="p-4 md:p-6 pb-24">
-            <div className="flex flex-col items-center text-center mb-6">
-                <Edit className="text-blue-500 dark:text-blue-400 mb-2" size={32} />
-                <div>
-                    <h1 className="text-3xl font-bold dark:text-white">Edit Program</h1>
-                    <p className="text-lg text-gray-600 dark:text-gray-400">Customize Your Workouts</p>
+            <div className="flex flex-col sm:flex-row justify-between items-center text-center sm:text-left mb-6">
+                <div className="flex items-center gap-3 mb-4 sm:mb-0">
+                    <Edit className="text-blue-500 dark:text-blue-400" size={32} />
+                    <div>
+                        <h1 className="text-3xl font-bold dark:text-white">Edit Program</h1>
+                        <p className="text-lg text-gray-600 dark:text-gray-400">Customize Your Workouts</p>
+                    </div>
                 </div>
-            </div>
-
-            <div className="flex justify-end mb-6 -mt-16">
-                 <button onClick={handleCreateNewExercise} className="flex items-center gap-2 px-3 py-2 bg-blue-600 text-white text-sm rounded-lg shadow-md hover:bg-blue-700 transition-colors">
+                 <button onClick={handleCreateNewExercise} className="flex-shrink-0 flex items-center gap-2 px-3 py-2 bg-blue-600 text-white text-sm rounded-lg shadow-md hover:bg-blue-700 transition-colors">
                     <PlusCircle size={16} /> Create Exercise
                 </button>
             </div>
@@ -2156,8 +2155,13 @@ const Modal = () => {
     const { modalContent, closeModal } = useContext(AppStateContext);
     if (!modalContent) return null;
 
+    const handleBackdropClick = (e) => {
+        e.preventDefault();
+        closeModal();
+    }
+
     return (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50 p-4" onClick={closeModal}>
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50 p-4" onClick={handleBackdropClick}>
             <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl p-6 w-full max-w-md" onClick={e => e.stopPropagation()}>
                 <div className="flex justify-end -mt-2 -mr-2">
                     <button onClick={closeModal} className="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700"><X size={20} /></button>
@@ -2221,6 +2225,7 @@ const AppCore = () => {
                 setTheme(data.theme || 'dark');
                 setWeightUnit(data.weightUnit || 'lbs');
                 setBodyWeight(data.bodyWeight || '');
+                setUnlockedAchievements(new Set(data.unlockedAchievements || []));
                 
                 const defaultProgram = presets['optimal-ppl-ul'];
                 const masterListFromDb = data.masterExerciseList || defaultProgram.masterExerciseList;
@@ -2260,6 +2265,7 @@ const AppCore = () => {
                     weightUnit: 'lbs',
                     bodyWeight: '',
                     archivedLogs: [],
+                    unlockedAchievements: [],
                     hasSeenTutorial: false 
                 };
                 setDoc(userDocRef, initialData).then(() => {
@@ -2297,9 +2303,14 @@ const AppCore = () => {
             newlyAchieved.forEach(id => {
                 addToast(`New Achievement: ${achievementsList[id].name}`);
             });
+            const updatedAchievements = [...newUnlocked];
+            setUnlockedAchievements(newUnlocked);
+            if (db && customId) {
+                const userDocRef = doc(db, 'workoutLogs', customId);
+                updateDoc(userDocRef, { unlockedAchievements: updatedAchievements });
+            }
         }
-        setUnlockedAchievements(newUnlocked);
-    }, [historicalLogs, programData, bodyWeight, addToast]);
+    }, [historicalLogs, programData, bodyWeight, addToast, unlockedAchievements, db, customId]);
 
 
     // Navigation logic
