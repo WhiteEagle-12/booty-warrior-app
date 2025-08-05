@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, createContext, useContext, useCallback } from 'react';
-import { ChevronDown, ChevronUp, Dumbbell, CheckCircle, ArrowLeft, BarChart2, Settings, Flame, Repeat, StretchVertical, Lightbulb, Download, XCircle, SkipForward, Menu, X, Search, Trophy, BrainCircuit, PlusCircle, Edit, ArrowUp, ArrowDown, LayoutDashboard, Save, AlertTriangle } from 'lucide-react';
+import { ChevronDown, ChevronUp, Dumbbell, CheckCircle, ArrowLeft, BarChart2, Settings, Flame, Repeat, StretchVertical, Lightbulb, Download, XCircle, SkipForward, Menu, X, Search, Trophy, BrainCircuit, PlusCircle, Edit, ArrowUp, ArrowDown, LayoutDashboard, Save, AlertTriangle, Bell } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 
 // Firebase Imports - using modular v9+ syntax
@@ -54,6 +54,12 @@ const presets = {
             'Upper (Strength Focus)',
             'Lower (Strength Focus)'
         ],
+        settings: {
+            restTimer: {
+                enabled: false,
+                duration: 120 // 2 minutes in seconds
+            }
+        }
     }
 };
 
@@ -284,7 +290,7 @@ const SetRow = ({ setNumber, logData, onLogChange, lastSetData, exerciseDetails,
 };
 
 
-const ExerciseCard = ({ exerciseName, week, dayKey, allLogs, onLogChange, masterExerciseList, weightUnit }) => {
+const ExerciseCard = ({ exerciseName, week, dayKey, allLogs, onLogChange, masterExerciseList, weightUnit, onLastSetBlur }) => {
     const exercise = getExerciseDetails(exerciseName, masterExerciseList);
     const sets = Array.from({ length: exercise?.sets || 0 }, (_, i) => i + 1);
     
@@ -311,6 +317,7 @@ const ExerciseCard = ({ exerciseName, week, dayKey, allLogs, onLogChange, master
         onLogChange(exerciseName, setNumber, field, value);
 
         if (isBlur && field === 'rir' && setNumber === exercise.sets) {
+            onLastSetBlur();
             setTimeout(() => {
                 const isNowCompleted = sets.every(sNum => {
                     const log = allLogs[`${week}-${dayKey}-${exerciseName}-${sNum}`];
@@ -372,8 +379,9 @@ const ExerciseCard = ({ exerciseName, week, dayKey, allLogs, onLogChange, master
     );
 };
 
-const LiftingSession = ({ week, dayKey, onBack, allLogs, setAllLogs, onSkipDay, programStructure, masterExerciseList, weeklySchedule, weightUnit }) => {
+const LiftingSession = ({ week, dayKey, onBack, allLogs, setAllLogs, onSkipDay, programData, weightUnit, onStartTimer }) => {
     const { db, customId } = useContext(FirebaseContext);
+    const { programStructure, masterExerciseList, weeklySchedule } = programData;
     const getWorkoutForDay = (w, d) => weeklySchedule.find(s => s.day === d)?.workout;
     const workoutName = getWorkoutForDay(week, dayKey);
     const workout = programStructure[workoutName];
@@ -422,7 +430,19 @@ const LiftingSession = ({ week, dayKey, onBack, allLogs, setAllLogs, onSkipDay, 
                 <p className="text-lg text-gray-600 dark:text-gray-400">{workoutName}</p>
             </div>
             <div className="space-y-4">
-                {workout.exercises.map(exName => <ExerciseCard key={exName} exerciseName={exName} week={week} dayKey={dayKey} allLogs={allLogs} onLogChange={handleLogChange} masterExerciseList={masterExerciseList} weightUnit={weightUnit} />)}
+                {workout.exercises.map(exName => 
+                    <ExerciseCard 
+                        key={exName} 
+                        exerciseName={exName} 
+                        week={week} 
+                        dayKey={dayKey} 
+                        allLogs={allLogs} 
+                        onLogChange={handleLogChange} 
+                        masterExerciseList={masterExerciseList} 
+                        weightUnit={weightUnit} 
+                        onLastSetBlur={onStartTimer}
+                    />
+                )}
             </div>
         </div>
     );
@@ -642,7 +662,7 @@ const DashboardView = ({ allLogs, programStructure, masterExerciseList, weeklySc
 };
 
 
-const SettingsView = ({ allLogs, historicalLogs, weightUnit, onWeightUnitChange, onProgramUpdate, onResetMeso }) => {
+const SettingsView = ({ allLogs, historicalLogs, weightUnit, onWeightUnitChange, onProgramUpdate, onResetMeso, programData, onProgramDataChange }) => {
     const { theme, toggleTheme } = useContext(ThemeContext);
     const { customId, handleSetCustomId } = useContext(FirebaseContext);
     const { openModal, closeModal } = useContext(AppStateContext);
@@ -725,6 +745,33 @@ const SettingsView = ({ allLogs, historicalLogs, weightUnit, onWeightUnitChange,
         );
     };
 
+    const handleTimerSettingsChange = (field, value) => {
+        const newSettings = {
+            ...programData.settings,
+            restTimer: {
+                ...programData.settings.restTimer,
+                [field]: value
+            }
+        };
+        onProgramDataChange({ ...programData, settings: newSettings });
+    };
+
+    const handleDurationChange = (part, value) => {
+        const currentDuration = programData.settings.restTimer.duration;
+        const minutes = Math.floor(currentDuration / 60);
+        const seconds = currentDuration % 60;
+        let newDuration;
+        if (part === 'minutes') {
+            newDuration = (parseInt(value, 10) || 0) * 60 + seconds;
+        } else {
+            newDuration = minutes * 60 + (parseInt(value, 10) || 0);
+        }
+        handleTimerSettingsChange('duration', newDuration);
+    };
+
+    const timerMinutes = Math.floor(programData.settings.restTimer.duration / 60);
+    const timerSeconds = programData.settings.restTimer.duration % 60;
+
     return (
         <div className="p-4 md:p-6 pb-24">
             <div className="flex items-center mb-6"><Settings className="text-blue-500 dark:text-blue-400 mr-3" size={32} /><div><h1 className="text-3xl font-bold dark:text-white">App Settings</h1></div></div>
@@ -757,6 +804,28 @@ const SettingsView = ({ allLogs, historicalLogs, weightUnit, onWeightUnitChange,
                             <div className="flex items-center gap-2 rounded-lg p-1 bg-gray-100 dark:bg-gray-700">
                                 <button onClick={() => onWeightUnitChange('lbs')} className={`px-3 py-1 text-sm rounded-md ${weightUnit === 'lbs' ? 'bg-white dark:bg-gray-900 shadow' : ''}`}>lbs</button>
                                 <button onClick={() => onWeightUnitChange('kg')} className={`px-3 py-1 text-sm rounded-md ${weightUnit === 'kg' ? 'bg-white dark:bg-gray-900 shadow' : ''}`}>kg</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="border-t border-gray-200 dark:border-gray-700"></div>
+
+                {/* Rest Timer Settings */}
+                <div>
+                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">Rest Timer</h3>
+                    <div className="bg-gray-100 dark:bg-gray-900/50 p-4 rounded-lg space-y-4">
+                        <div className="flex justify-between items-center">
+                            <span className="font-semibold dark:text-gray-200">Auto-start Timer After Last Set</span>
+                            <button onClick={() => handleTimerSettingsChange('enabled', !programData.settings.restTimer.enabled)} className={`relative inline-flex items-center h-6 rounded-full w-11 transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 ${programData.settings.restTimer.enabled ? 'bg-blue-600' : 'bg-gray-200'}`}><span className={`inline-block w-4 h-4 transform bg-white rounded-full transition-transform ${programData.settings.restTimer.enabled ? 'translate-x-6' : 'translate-x-1'}`} /></button>
+                        </div>
+                        <div className="flex justify-between items-center">
+                            <span className="font-semibold dark:text-gray-200">Timer Duration</span>
+                            <div className="flex items-center gap-2">
+                                <input type="number" value={timerMinutes} onChange={(e) => handleDurationChange('minutes', e.target.value)} className="w-16 p-1.5 text-sm bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm" />
+                                <span className="text-gray-500 dark:text-gray-400">min</span>
+                                <input type="number" value={timerSeconds} onChange={(e) => handleDurationChange('seconds', e.target.value)} className="w-16 p-1.5 text-sm bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm" />
+                                <span className="text-gray-500 dark:text-gray-400">sec</span>
                             </div>
                         </div>
                     </div>
@@ -1617,6 +1686,7 @@ const AppCore = () => {
     const { user, db, isLoading, customId } = useContext(FirebaseContext);
     const { setTheme } = useContext(ThemeContext);
     const [isDataLoading, setIsDataLoading] = useState(true);
+    const [activeTimer, setActiveTimer] = useState(null);
 
     // Data loading from Firestore
     useEffect(() => {
@@ -1644,6 +1714,7 @@ const AppCore = () => {
                     programStructure: data.programStructure || defaultProgram.programStructure,
                     weeklySchedule: data.weeklySchedule || defaultProgram.weeklySchedule,
                     workoutOrder: data.workoutOrder || defaultProgram.workoutOrder,
+                    settings: data.settings || defaultProgram.settings,
                 };
                 setProgramData(loadedProgram);
 
@@ -1676,8 +1747,26 @@ const AppCore = () => {
 
     // Navigation logic
     const navigate = (view, data = {}) => {
+        window.history.pushState({ view, data }, '', `#/${view}`);
         setPageState({ view, data });
     };
+
+    useEffect(() => {
+        const handlePopState = (event) => {
+            const hash = window.location.hash.replace('#/', '');
+            const view = hash || 'main';
+            setPageState({ view, data: event.state?.data || {} });
+        };
+
+        window.addEventListener('popstate', handlePopState);
+
+        // Handle initial load
+        handlePopState({state: window.history.state});
+
+        return () => {
+            window.removeEventListener('popstate', handlePopState);
+        };
+    }, []);
 
     const handleUpdateAndSave = (updates) => {
         if (db && customId) {
@@ -1688,8 +1777,8 @@ const AppCore = () => {
     
     const handleProgramDataChange = (newProgramData) => {
         setProgramData(newProgramData);
-        const { name, info, masterExerciseList, programStructure, weeklySchedule, workoutOrder } = newProgramData;
-        handleUpdateAndSave({ name, info, masterExerciseList, programStructure, weeklySchedule, workoutOrder });
+        const { name, info, masterExerciseList, programStructure, weeklySchedule, workoutOrder, settings } = newProgramData;
+        handleUpdateAndSave({ name, info, masterExerciseList, programStructure, weeklySchedule, workoutOrder, settings });
     };
     
     const handleWeightUnitChange = (newUnit) => {
@@ -1721,6 +1810,12 @@ const AppCore = () => {
                 logs: {},
                 skippedDays: {}
             });
+        }
+    };
+
+    const handleStartTimer = () => {
+        if (programData.settings.restTimer.enabled) {
+            setActiveTimer(programData.settings.restTimer.duration);
         }
     };
 
@@ -1767,15 +1862,15 @@ const AppCore = () => {
     
     const renderContent = () => {
         if (!customId) {
-            return <SettingsView allLogs={{}} historicalLogs={{}} weightUnit={weightUnit} onWeightUnitChange={handleWeightUnitChange} onProgramUpdate={handleProgramDataChange} onResetMeso={handleResetMeso} />;
+            return <SettingsView allLogs={{}} historicalLogs={{}} weightUnit={weightUnit} onWeightUnitChange={handleWeightUnitChange} onProgramUpdate={handleProgramDataChange} onResetMeso={handleResetMeso} programData={programData} onProgramDataChange={handleProgramDataChange} />;
         }
         switch(pageState.view) {
             case 'dashboard': return <DashboardView allLogs={allLogs} {...programData} />;
-            case 'lifting': return <LiftingSession {...pageState.data} onBack={() => navigate('main')} allLogs={allLogs} setAllLogs={setAllLogs} onSkipDay={handleSkipDay} {...programData} weightUnit={weightUnit} />;
+            case 'lifting': return <LiftingSession {...pageState.data} onBack={() => navigate('main')} allLogs={allLogs} setAllLogs={setAllLogs} onSkipDay={handleSkipDay} programData={programData} weightUnit={weightUnit} onStartTimer={handleStartTimer} />;
             case 'analytics': return <AnalyticsView allLogs={historicalLogs} masterExerciseList={programData.masterExerciseList} />;
             case 'records': return <RecordsView allLogs={historicalLogs} />;
             case 'editProgram': return <EditProgramView programData={programData} onProgramDataChange={handleProgramDataChange} />;
-            case 'settings': return <SettingsView allLogs={allLogs} historicalLogs={historicalLogs} weightUnit={weightUnit} onWeightUnitChange={handleWeightUnitChange} onProgramUpdate={handleProgramDataChange} onResetMeso={handleResetMeso} />;
+            case 'settings': return <SettingsView allLogs={allLogs} historicalLogs={historicalLogs} weightUnit={weightUnit} onWeightUnitChange={handleWeightUnitChange} onProgramUpdate={handleProgramDataChange} onResetMeso={handleResetMeso} programData={programData} onProgramDataChange={handleProgramDataChange} />;
             default: return <MainView onSessionSelect={(week, day, type) => navigate(type, { week, dayKey: day })} completedDays={completedDays} onUnskipDay={handleUnskipDay} {...programData} />;
         }
     };
