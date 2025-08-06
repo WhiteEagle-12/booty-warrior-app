@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, createContext, useContext, useCallback, useRef } from 'react';
 import { ChevronDown, ChevronUp, Dumbbell, CheckCircle, ArrowLeft, BarChart2, Settings, Flame, Repeat, StretchVertical, Lightbulb, Download, XCircle, SkipForward, Menu, X, Search, Trophy, BrainCircuit, PlusCircle, Edit, ArrowUp, ArrowDown, LayoutDashboard, Save, AlertTriangle, Bell, HelpCircle, BookOpen, Star, Award, TrendingUp, Target, Zap, CalendarDays, Shield, Infinity as InfinityIcon, Weight, Upload, Eye, Timer, Pencil } from 'lucide-react';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell, ReferenceLine } from 'recharts';
 
 // Firebase Imports - using modular v9+ syntax
 import { initializeApp } from "firebase/app";
@@ -197,7 +197,7 @@ const exerciseBank = {
 };
 
 // --- Helper Functions & Context ---
-const getExerciseDetails = (exerciseName, masterList) => masterList[exerciseName] || null;
+const getExerciseDetails = (exerciseName, masterList) => masterList?.[exerciseName] || null;
 
 const getWorkoutForWeek = (programData, week, workoutName) => {
     // Return the override if it exists, otherwise fall back to the master template
@@ -215,7 +215,7 @@ const calculateE1RM = (weight, reps, rir) => {
 
 const getSetVolume = (log, masterExerciseList) => {
     // Implement accurate dumbbell volume tracking
-    if (!log || log.skipped || !log.load || !log.reps) return 0;
+    if (!log || log.skipped || (log.load !== 0 && !log.load) || !log.reps) return 0;
     const volume = parseFloat(log.load) * parseInt(log.reps, 10);
     const details = getExerciseDetails(log.exercise, masterExerciseList);
     if (details?.equipment === 'dumbbell') {
@@ -232,7 +232,7 @@ const findLastPerformanceLogs = (exerciseName, currentWeek, currentDayKey, allLo
     let lastDayNum = -1;
     for (const logId in allLogs) {
         const log = allLogs[logId];
-        if (log.exercise === exerciseName && (log.load || log.load === 0) && log.reps && !log.skipped) {
+        if (log.exercise === exerciseName && (log.load === 0 || log.load) && log.reps && !log.skipped) {
             const logDayNum = (log.week - 1) * 7 + dayOrder[log.dayKey];
             if (logDayNum < currentDayNum && logDayNum > lastDayNum) {
                 lastDayNum = logDayNum;
@@ -501,6 +501,7 @@ const SetRow = ({ setNumber, logData, onLogChange, lastSetData, exerciseDetails,
 
 
 const ExerciseCard = ({ exerciseName, week, dayKey, allLogs, onLogChange, masterExerciseList, weightUnit, workoutDetails }) => {
+    const { openModal } = useContext(AppStateContext);
     const exercise = getExerciseDetails(exerciseName, masterExerciseList);
     const sets = Array.from({ length: exercise?.sets || 0 }, (_, i) => i + 1);
     
@@ -524,6 +525,10 @@ const ExerciseCard = ({ exerciseName, week, dayKey, allLogs, onLogChange, master
     useEffect(() => {
         setIsOpen(!isCompleted);
     }, [isCompleted]);
+    
+    const showHistory = () => {
+        openModal(<ExerciseHistoryModal exerciseName={exerciseName} allLogs={allLogs} />, 'lg');
+    };
 
     if (!exercise) return <div className="bg-red-100 dark:bg-red-900/50 p-4 rounded-lg text-red-700 dark:text-red-300">Exercise "{exerciseName}" not found in master list.</div>;
 
@@ -539,7 +544,10 @@ const ExerciseCard = ({ exerciseName, week, dayKey, allLogs, onLogChange, master
                     <p className="text-sm text-gray-500 dark:text-gray-400">{exercise.sets} sets &times; {exercise.reps}</p>
                 </div>
                 <div className="flex items-center space-x-3">
-                    {isCompleted && <CheckCircle className="text-green-500" />}
+                    <button onClick={(e) => { e.stopPropagation(); showHistory(); }} className="p-1.5 rounded-md hover:bg-gray-200 dark:hover:bg-gray-600">
+                        <BarChart2 size={18} className="text-gray-500" />
+                    </button>
+                    {isCompleted && <CheckCircle className="text-green-500 animate-pop-in" />}
                     {isOpen ? <ChevronUp className="text-gray-500 dark:text-gray-400" /> : <ChevronDown className="text-gray-500 dark:text-gray-400" />}
                 </div>
             </button>
@@ -706,7 +714,7 @@ const WeekView = ({ week, completedDays, onSessionSelect, firstIncompleteWeek, o
                         const dayKey = `${week}-${day.day}`;
                         const status = completedDays.get(dayKey);
                         const workoutName = getWorkoutForDay(week, day.day);
-                        const workoutDetails = programStructure[workoutName];
+                        const workoutDetails = getWorkoutForWeek(programData, week, workoutName);
                         const isRestDay = !workoutName || workoutName === 'Rest';
                         const isOverridden = !!programData.weeklyOverrides?.[week]?.[workoutName];
                         
@@ -906,8 +914,9 @@ const MainView = ({ onSessionSelect, completedDays, onUnskipDay, programData, on
     );
 };
 
-const DashboardView = ({ allLogs, programData }) => {
+const DashboardView = ({ allLogs, programData, bodyWeightHistory }) => {
     const { masterExerciseList, weeklySchedule, info } = programData;
+    
     const { totalSets, completedSets, streak } = useMemo(() => {
         let weeklySets = 0;
         weeklySchedule.forEach(day => {
@@ -929,7 +938,34 @@ const DashboardView = ({ allLogs, programData }) => {
         const currentStreak = calculateStreak(allLogs, programData);
 
         return { totalSets: total, completedSets: completed, streak: currentStreak };
-    }, [allLogs, programData]);
+    }, [allLogs, programData, masterExerciseList, weeklySchedule, info]);
+
+    const weeklyVolumeData = useMemo(() => {
+        const volumesByWeek = {};
+        Object.values(allLogs).forEach(log => {
+            if ((log.load === 0 || log.load) && log.reps && log.week) {
+                const week = log.week;
+                if (!volumesByWeek[week]) {
+                    volumesByWeek[week] = 0;
+                }
+                volumesByWeek[week] += getSetVolume(log, masterExerciseList);
+            }
+        });
+        return Object.entries(volumesByWeek).map(([week, volume]) => ({
+            week: `Week ${week}`,
+            totalVolume: Math.round(volume)
+        })).sort((a, b) => parseInt(a.week.split(' ')[1]) - parseInt(b.week.split(' ')[1]));
+    }, [allLogs, masterExerciseList]);
+    
+    const formattedBodyWeightHistory = useMemo(() => {
+        return bodyWeightHistory
+            .map(entry => ({...entry, date: new Date(entry.date) }))
+            .sort((a,b) => a.date - b.date)
+            .map(entry => ({
+                date: entry.date.toLocaleDateString(),
+                weight: entry.weight
+            }));
+    }, [bodyWeightHistory]);
 
     return (
        <div className="p-4 md:p-6">
@@ -947,6 +983,37 @@ const DashboardView = ({ allLogs, programData }) => {
                 </div>
                  <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-6 flex justify-center items-center">
                     <StreakCounter streak={streak} />
+                </div>
+            </div>
+            
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+                <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-6">
+                    <h3 className="font-semibold text-lg mb-4">Weekly Volume</h3>
+                    {weeklyVolumeData.length > 0 ? (
+                        <ResponsiveContainer width="100%" height={250}>
+                             <LineChart data={weeklyVolumeData}>
+                                <CartesianGrid strokeDasharray="3 3" className="stroke-gray-200 dark:stroke-gray-700" />
+                                <XAxis dataKey="week" tick={{ fill: '#9ca3af' }} />
+                                <YAxis domain={[0, 'auto']} tick={{ fill: '#9ca3af' }} />
+                                <Tooltip contentStyle={{ backgroundColor: 'var(--tooltip-bg)', border: '1px solid var(--tooltip-border)' }} formatter={(value) => [`${value.toLocaleString()} lbs`, 'Total Volume']} />
+                                <Line type="monotone" dataKey="totalVolume" name="Total Volume" stroke="#8884d8" strokeWidth={2} />
+                            </LineChart>
+                        </ResponsiveContainer>
+                    ) : <p>Log some workouts to see your volume data.</p>}
+                </div>
+                 <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-6">
+                    <h3 className="font-semibold text-lg mb-4">Bodyweight Trend</h3>
+                      {formattedBodyWeightHistory.length > 1 ? (
+                        <ResponsiveContainer width="100%" height={250}>
+                            <LineChart data={formattedBodyWeightHistory}>
+                                <CartesianGrid strokeDasharray="3 3" className="stroke-gray-200 dark:stroke-gray-700" />
+                                <XAxis dataKey="date" tick={{ fill: '#9ca3af' }} />
+                                <YAxis domain={['auto', 'auto']} tick={{ fill: '#9ca3af' }} />
+                                <Tooltip contentStyle={{ backgroundColor: 'var(--tooltip-bg)', border: '1px solid var(--tooltip-border)' }} />
+                                <Line type="monotone" dataKey="weight" stroke="#82ca9d" strokeWidth={2} dot={false} />
+                            </LineChart>
+                        </ResponsiveContainer>
+                    ) : <p>Log your bodyweight multiple times in Settings to see a trend.</p>}
                 </div>
             </div>
 
@@ -1115,9 +1182,9 @@ const SettingsView = ({ allLogs, historicalLogs, weightUnit, onWeightUnitChange,
                             <input id="bodyWeight" type="number" value={bodyWeight} onChange={(e) => onBodyWeightChange(e.target.value)} className="w-24 p-2 bg-white dark:bg-gray-700 rounded-md border-gray-300 dark:border-gray-600 shadow-sm" />
                         </div>
                         <div className="flex justify-between items-center">
-                            <div className="flex flex-col">
+                             <div className="flex items-center gap-2">
                                 <span className="font-semibold dark:text-gray-200">Use Weekly Schedule</span>
-                                <span className="text-xs text-gray-500 dark:text-gray-400">Off for sequential workouts.</span>
+                                <InfoTooltip content="When ON, workouts follow the calendar. When OFF, workouts are done sequentially, ignoring days of the week."/>
                             </div>
                             <button onClick={() => handleSettingsChange('useWeeklySchedule', !programData.settings.useWeeklySchedule)} className={`relative inline-flex items-center h-6 rounded-full w-11 transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 ${programData.settings.useWeeklySchedule ? 'bg-blue-600' : 'bg-gray-200'}`}><span className={`inline-block w-4 h-4 transform bg-white rounded-full transition-transform ${programData.settings.useWeeklySchedule ? 'translate-x-6' : 'translate-x-1'}`} /></button>
                         </div>
@@ -1221,19 +1288,18 @@ const AnalyticsView = ({ allLogs, masterExerciseList }) => {
     const filteredExercises = useMemo(() => uniqueExercises.filter(ex => ex.toLowerCase().includes(searchTerm.toLowerCase())), [uniqueExercises, searchTerm]);
 
     const filteredLogs = useMemo(() => {
-        const logs = Object.fromEntries(Object.entries(allLogs).filter(([, log]) => !log.skipped));
+        const logs = Object.values(allLogs).filter(log => !log.skipped);
         if (timeFilter === 'all') return logs;
+        
         const now = new Date();
         const filterDate = new Date();
         if (timeFilter === 'week') filterDate.setDate(now.getDate() - 7);
         if (timeFilter === 'month') filterDate.setDate(now.getDate() - 30);
         
-        return Object.fromEntries(
-            Object.entries(logs).filter(([, log]) => {
-                if (!log.date) return false;
-                return new Date(log.date) >= filterDate;
-            })
-        );
+        return logs.filter(log => {
+            if (!log.date) return false; // Exclude logs without a date for time-based filtering
+            return new Date(log.date) >= filterDate;
+        });
     }, [allLogs, timeFilter]);
 
     useEffect(() => {
@@ -1247,9 +1313,9 @@ const AnalyticsView = ({ allLogs, masterExerciseList }) => {
     }, [filteredExercises, selectedExercise]);
     
     const chartData = useMemo(() => {
-        if (!selectedExercise || Object.keys(filteredLogs).length === 0) return [];
+        if (!selectedExercise || filteredLogs.length === 0) return [];
         const dayOrder = { Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6, Sun: 7 };
-        const sessions = Object.values(filteredLogs).reduce((acc, log) => {
+        const sessions = filteredLogs.reduce((acc, log) => {
             if (log.exercise === selectedExercise && (log.load === 0 || log.load) && log.reps) {
                 const sessionKey = `${log.week}-${log.dayKey}`;
                 if (!acc[sessionKey]) acc[sessionKey] = { week: parseInt(log.week, 10), dayKey: log.dayKey, sets: [] };
@@ -1271,9 +1337,9 @@ const AnalyticsView = ({ allLogs, masterExerciseList }) => {
     }, [selectedExercise, filteredLogs]);
 
     const volumeData = useMemo(() => {
-        if (Object.keys(filteredLogs).length === 0) return [];
+        if (filteredLogs.length === 0) return [];
         const volumesByWeek = {};
-        Object.values(filteredLogs).forEach(log => {
+        filteredLogs.forEach(log => {
             if ((log.load === 0 || log.load) && log.reps && log.week) {
                 const week = log.week;
                 if (!volumesByWeek[week]) {
@@ -1298,7 +1364,7 @@ const AnalyticsView = ({ allLogs, masterExerciseList }) => {
             }
         };
 
-        Object.values(filteredLogs).forEach(log => {
+        filteredLogs.forEach(log => {
             if ((log.load === 0 || log.load) && log.reps && log.exercise) {
                 const exerciseDetails = getExerciseDetails(log.exercise, masterExerciseList);
                 if (exerciseDetails && exerciseDetails.muscles) {
@@ -1560,6 +1626,8 @@ const EditProgramView = ({ programData, onProgramDataChange }) => {
     const [programName, setProgramName] = useState(info.name);
     const [nameFeedback, setNameFeedback] = useState('');
     const [isScheduleOpen, setIsScheduleOpen] = useState(false);
+    const [editingWorkoutName, setEditingWorkoutName] = useState(null);
+    const [tempWorkoutName, setTempWorkoutName] = useState('');
 
     // Update local state if programData from props changes
     useEffect(() => {
@@ -1647,31 +1715,28 @@ const EditProgramView = ({ programData, onProgramDataChange }) => {
         );
     };
     
-    const handleRenameWorkoutDay = (oldName) => {
-        openModal(
-            <RenameWorkoutModal
-                oldName={oldName}
-                onClose={closeModal}
-                onSave={(newName) => {
-                    if (newName && newName.trim() && newName !== oldName) {
-                        const newProgramStructure = { ...programStructure };
-                        newProgramStructure[newName] = newProgramStructure[oldName];
-                        delete newProgramStructure[oldName];
+    const handleRenameWorkoutDay = (oldName, newName) => {
+        if (newName && newName.trim() && newName !== oldName) {
+            const newProgramStructure = { ...programStructure };
+            newProgramStructure[newName] = newProgramStructure[oldName];
+            delete newProgramStructure[oldName];
 
-                        const newWorkoutOrder = workoutOrder.map(name => name === oldName ? newName : name);
-                        const newWeeklySchedule = weeklySchedule.map(day => day.workout === oldName ? { ...day, workout: newName } : day);
+            const newWorkoutOrder = workoutOrder.map(name => name === oldName ? newName : name);
+            const newWeeklySchedule = weeklySchedule.map(day => day.workout === oldName ? { ...day, workout: newName } : day);
 
-                        onProgramDataChange({
-                            ...programData,
-                            programStructure: newProgramStructure,
-                            workoutOrder: newWorkoutOrder,
-                            weeklySchedule: newWeeklySchedule,
-                        });
-                    }
-                    closeModal();
-                }}
-            />
-        );
+            onProgramDataChange({
+                ...programData,
+                programStructure: newProgramStructure,
+                workoutOrder: newWorkoutOrder,
+                weeklySchedule: newWeeklySchedule,
+            });
+        }
+        setEditingWorkoutName(null);
+    };
+
+    const startEditingName = (name) => {
+        setEditingWorkoutName(name);
+        setTempWorkoutName(name);
     };
 
 
@@ -1738,6 +1803,30 @@ const EditProgramView = ({ programData, onProgramDataChange }) => {
                     closeModal();
                 }}
                 onClose={closeModal}
+                onDelete={(nameToDelete) => {
+                    const newMasterList = { ...masterExerciseList };
+                    delete newMasterList[nameToDelete];
+
+                    const newProgramStructure = { ...programData.programStructure };
+                    for (const workoutName in newProgramStructure) {
+                        newProgramStructure[workoutName].exercises = newProgramStructure[workoutName].exercises.filter(ex => ex !== nameToDelete);
+                    }
+                    
+                    const newWeeklyOverrides = { ...programData.weeklyOverrides };
+                    for (const week in newWeeklyOverrides) {
+                        for (const workoutName in newWeeklyOverrides[week]) {
+                            newWeeklyOverrides[week][workoutName].exercises = newWeeklyOverrides[week][workoutName].exercises.filter(ex => ex !== nameToDelete);
+                        }
+                    }
+
+                    onProgramDataChange({
+                        ...programData,
+                        masterExerciseList: newMasterList,
+                        programStructure: newProgramStructure,
+                        weeklyOverrides: newWeeklyOverrides
+                    });
+                    closeModal();
+                }}
             />
         );
     };
@@ -1832,14 +1921,31 @@ const EditProgramView = ({ programData, onProgramDataChange }) => {
                 {workoutOrder.map((workoutName, workoutIndex) => {
                     const workoutDetails = programStructure[workoutName];
                     if (!workoutDetails) return null;
+                     const isEditing = editingWorkoutName === workoutName;
                     return (
                         <div key={workoutName} className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-4">
                             <div className="flex justify-between items-center mb-3 border-b border-gray-200 dark:border-gray-700 pb-3">
-                                <h3 className="text-xl font-bold text-gray-800 dark:text-gray-200">{workoutName}</h3>
+                                {isEditing ? (
+                                    <input 
+                                        type="text"
+                                        value={tempWorkoutName}
+                                        onChange={(e) => setTempWorkoutName(e.target.value)}
+                                        onBlur={() => handleRenameWorkoutDay(workoutName, tempWorkoutName)}
+                                        onKeyDown={(e) => {
+                                            if (e.key === 'Enter') handleRenameWorkoutDay(workoutName, tempWorkoutName);
+                                            if (e.key === 'Escape') setEditingWorkoutName(null);
+                                        }}
+                                        className="text-xl font-bold bg-gray-100 dark:bg-gray-700 rounded p-1 -m-1"
+                                        autoFocus
+                                    />
+                                ) : (
+                                    <h3 onClick={() => startEditingName(workoutName)} className="text-xl font-bold text-gray-800 dark:text-gray-200 cursor-pointer">{workoutName}</h3>
+                                )}
+
                                 <div className="flex items-center gap-1">
                                     <button onClick={() => handleReorderWorkoutDay(workoutIndex, -1)} disabled={workoutIndex === 0} className="p-1 disabled:opacity-20"><ArrowUp size={20}/></button>
                                     <button onClick={() => handleReorderWorkoutDay(workoutIndex, 1)} disabled={workoutIndex === workoutOrder.length - 1} className="p-1 disabled:opacity-20"><ArrowDown size={20}/></button>
-                                    <button onClick={() => handleRenameWorkoutDay(workoutName)} className="p-1 hover:text-blue-500"><Edit size={20}/></button>
+                                    <button onClick={() => startEditingName(workoutName)} className="p-1 hover:text-blue-500"><Edit size={20}/></button>
                                     <button onClick={() => handleDeleteWorkoutDay(workoutName)} className="p-1 hover:text-red-500"><XCircle size={20}/></button>
                                 </div>
                             </div>
@@ -1872,7 +1978,7 @@ const EditProgramView = ({ programData, onProgramDataChange }) => {
     );
 };
 
-const EditExerciseModal = ({ exercise, exerciseName, onSave, onClose }) => {
+const EditExerciseModal = ({ exercise, exerciseName, onSave, onClose, onDelete }) => {
     const [details, setDetails] = useState({
         name: exerciseName || '',
         sets: exercise?.sets || 3,
@@ -1927,9 +2033,22 @@ const EditExerciseModal = ({ exercise, exerciseName, onSave, onClose }) => {
         onSave(otherDetails, name);
     };
 
+    const handleDelete = () => {
+        if(window.confirm(`Are you sure you want to delete "${exerciseName}"? This will remove it from the master list and all workouts.`)){
+            onDelete(exerciseName);
+        }
+    };
+
     return (
         <div>
-            <h2 className="text-xl font-bold mb-4">{isNew ? 'Create New Exercise' : `Editing ${exerciseName}`}</h2>
+             <div className="flex justify-between items-center mb-4">
+                <h2 className="text-xl font-bold">{isNew ? 'Create New Exercise' : `Editing ${exerciseName}`}</h2>
+                {!isNew && (
+                    <button onClick={handleDelete} className="text-red-500 hover:text-red-700 p-1">
+                        <XCircle size={20} />
+                    </button>
+                )}
+            </div>
             <div className="space-y-4 max-h-[70vh] overflow-y-auto pr-2">
                 <div>
                     <label htmlFor="name" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Exercise Name</label>
@@ -2150,16 +2269,23 @@ const ProgramManagerView = ({ onProgramUpdate, activeProgram }) => {
         reader.onload = (e) => {
             try {
                 const importedProgram = JSON.parse(e.target.result);
-                // Basic validation
-                if (importedProgram.name && importedProgram.info && importedProgram.masterExerciseList && importedProgram.programStructure) {
+                // Enhanced validation
+                if (
+                    importedProgram.name && typeof importedProgram.name === 'string' &&
+                    importedProgram.info && typeof importedProgram.info === 'object' &&
+                    importedProgram.masterExerciseList && typeof importedProgram.masterExerciseList === 'object' &&
+                    importedProgram.programStructure && typeof importedProgram.programStructure === 'object' &&
+                    importedProgram.weeklySchedule && Array.isArray(importedProgram.weeklySchedule) &&
+                    importedProgram.workoutOrder && Array.isArray(importedProgram.workoutOrder)
+                ) {
                     onProgramUpdate(importedProgram);
                     addToast(`Program "${importedProgram.name}" imported successfully!`, 'success');
                 } else {
-                    throw new Error("Invalid program file structure.");
+                    throw new Error("Invalid or incomplete program file structure.");
                 }
             } catch (error) {
                 console.error("Failed to import program:", error);
-                addToast('Failed to import: Invalid file format.', 'error');
+                addToast(`Failed to import: ${error.message}`, 'error');
             }
         };
         reader.readAsText(file);
@@ -2613,10 +2739,8 @@ const achievementsList = {
                     const existingPr = prs[key] || 0;
                     
                     if (currentReps > existingPr) {
-                        if(existingPr > 0) { // Only count it as a PR if a previous record existed
-                           prCount++;
-                        }
-                        prs[key] = currentReps;
+                       prCount++;
+                       prs[key] = currentReps;
                     }
                 }
             }
@@ -3157,6 +3281,7 @@ const AppCore = () => {
     const [programData, setProgramData] = useState(presets['optimal-ppl-ul']);
     const [weightUnit, setWeightUnit] = useState('lbs');
     const [bodyWeight, setBodyWeight] = useState('');
+    const [bodyWeightHistory, setBodyWeightHistory] = useState([]);
     const { user, db, isLoading, customId, handleSetCustomId } = useContext(FirebaseContext);
     const { setTheme } = useContext(ThemeContext);
     const { openModal, closeModal, addToast } = useContext(AppStateContext);
@@ -3191,8 +3316,11 @@ const AppCore = () => {
 
     const handleBodyWeightChange = useCallback((newWeight) => {
         setBodyWeight(newWeight);
-        handleUpdateAndSave({ bodyWeight: newWeight });
-    }, [handleUpdateAndSave]);
+        const newEntry = { weight: newWeight, date: new Date().toISOString() };
+        const newHistory = [...bodyWeightHistory, newEntry];
+        setBodyWeightHistory(newHistory);
+        handleUpdateAndSave({ bodyWeight: newWeight, bodyWeightHistory: newHistory });
+    }, [bodyWeightHistory, handleUpdateAndSave]);
     
     const showTutorial = useCallback(() => {
         openModal(
@@ -3229,6 +3357,7 @@ const AppCore = () => {
                 setTheme(data.theme || 'dark');
                 setWeightUnit(data.weightUnit || 'lbs');
                 setBodyWeight(data.bodyWeight || '');
+                setBodyWeightHistory(data.bodyWeightHistory || []);
                 setUnlockedAchievements(data.unlockedAchievements || {});
                 
                 const defaultProgram = presets['optimal-ppl-ul'];
@@ -3264,6 +3393,7 @@ const AppCore = () => {
                     theme: 'dark', 
                     weightUnit: 'lbs',
                     bodyWeight: '',
+                    bodyWeightHistory: [],
                     archivedLogs: [],
                     unlockedAchievements: {},
                     hasSeenTutorial: true 
@@ -3482,7 +3612,7 @@ const AppCore = () => {
              return <div/> // The tutorial modal will be forced open, so this view is temporary
         }
         switch(pageState.view) {
-            case 'dashboard': return <DashboardView allLogs={allLogs} programData={programData} />;
+            case 'dashboard': return <DashboardView allLogs={allLogs} programData={programData} bodyWeightHistory={bodyWeightHistory} />;
             case 'lifting': return <LiftingSession {...pageState.data} onBack={() => navigate('main')} allLogs={allLogs} setAllLogs={setAllLogs} onSkipDay={handleSkipDay} programData={programData} weightUnit={weightUnit} onStartTimer={handleStartTimer} />;
             case 'analytics': return <AnalyticsView allLogs={historicalLogs} masterExerciseList={programData.masterExerciseList} />;
             case 'records': return <RecordsView allLogs={historicalLogs} />;
@@ -3606,6 +3736,72 @@ const EditWeekView = ({ week, workoutName, programData, onProgramDataChange, onB
                 </button>
             </div>
          </div>
+    );
+};
+
+const InfoTooltip = ({ content }) => (
+    <div className="relative flex items-center group">
+        <HelpCircle size={14} className="text-gray-400 dark:text-gray-500" />
+        <div className="absolute bottom-full mb-2 w-48 p-2 text-xs text-white bg-gray-900 rounded-md shadow-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+            {content}
+        </div>
+    </div>
+);
+
+const ExerciseHistoryModal = ({ exerciseName, allLogs }) => {
+    const dayOrder = { Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6, Sun: 7 };
+
+    const history = useMemo(() => {
+        const sessions = {};
+        Object.values(allLogs)
+            .filter(log => log.exercise === exerciseName && !log.skipped && (log.load === 0 || log.load))
+            .forEach(log => {
+                const sessionKey = `${log.week}-${log.dayKey}`;
+                if (!sessions[sessionKey]) {
+                    sessions[sessionKey] = {
+                        week: log.week,
+                        dayKey: log.dayKey,
+                        date: log.date,
+                        sets: []
+                    };
+                }
+                sessions[sessionKey].sets.push(log);
+            });
+
+        return Object.values(sessions)
+            .sort((a, b) => new Date(b.date) - new Date(a.date))
+            .slice(0, 4)
+            .map(session => ({
+                ...session,
+                sets: session.sets.sort((a, b) => a.set - b.set)
+            }));
+    }, [allLogs, exerciseName]);
+
+    return (
+        <div>
+            <h2 className="text-xl font-bold mb-4">History for {exerciseName}</h2>
+            <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-2">
+                {history.length > 0 ? history.map(session => (
+                    <div key={`${session.week}-${session.dayKey}`} className="bg-gray-100 dark:bg-gray-700/50 p-3 rounded-lg">
+                        <h3 className="font-semibold text-gray-900 dark:text-white">Week {session.week}, {session.dayKey}</h3>
+                        <div className="grid grid-cols-3 gap-x-4 mt-1 text-sm text-gray-600 dark:text-gray-300">
+                           <span className="font-medium">Load</span>
+                           <span className="font-medium">Reps</span>
+                           <span className="font-medium">RIR</span>
+                        </div>
+                        {session.sets.map(log => (
+                           <div key={log.set} className="grid grid-cols-3 gap-x-4 text-sm">
+                               <span>{log.load} lbs</span>
+                               <span>{log.reps}</span>
+                               <span>{log.rir}</span>
+                           </div>
+                        ))}
+                    </div>
+                )) : (
+                    <p className="text-gray-500 dark:text-gray-400">No history found for this exercise yet. Keep logging!</p>
+                )}
+            </div>
+        </div>
     );
 };
 
