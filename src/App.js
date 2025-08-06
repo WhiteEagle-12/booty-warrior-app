@@ -224,6 +224,15 @@ const getSetVolume = (log, masterExerciseList) => {
     return volume;
 };
 
+// FIX: Centralized, robust helper function for checking set completion.
+const isSetLogComplete = (log) => {
+    if (!log) return false;
+    if (log.skipped) return true;
+    const isLoadValid = log.load === 0 || (log.load && !isNaN(parseFloat(log.load)));
+    const areRepsValid = log.reps && !isNaN(parseInt(log.reps, 10)) && log.reps !== '';
+    const isRirValid = log.rir !== undefined && log.rir !== null && log.rir !== '' && !isNaN(parseInt(log.rir, 10));
+    return isLoadValid && areRepsValid && isRirValid;
+}
 
 const findLastPerformanceLogs = (exerciseName, currentWeek, currentDayKey, allLogs) => {
     const dayOrder = { Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6, Sun: 7 };
@@ -504,19 +513,12 @@ const ExerciseCard = ({ exerciseName, week, dayKey, allLogs, onLogChange, master
     const { openModal } = useContext(AppStateContext);
     const exercise = getExerciseDetails(exerciseName, masterExerciseList);
     const sets = Array.from({ length: exercise?.sets || 0 }, (_, i) => i + 1);
-    
-    const isSetComplete = (log) => {
-        // A set is "complete" for UI purposes if it's skipped
-        const isLoadValid = (log?.load === 0 || log?.load);
-        const areRepsValid = !!log?.reps;
-        const isRirValid = (log?.rir !== undefined && log?.rir !== null && log?.rir !== '');
-        return log?.skipped || (isLoadValid && areRepsValid && isRirValid);
-    }
 
     const isCompleted = useMemo(() => {
         return sets.every(setNumber => {
             const log = allLogs[`${week}-${dayKey}-${exerciseName}-${setNumber}`];
-            return isSetComplete(log);
+            // FIX: Use centralized helper function
+            return isSetLogComplete(log);
         });
     }, [allLogs, week, dayKey, exerciseName, sets]);
 
@@ -608,13 +610,8 @@ const LiftingSession = ({ week, dayKey, onBack, allLogs, setAllLogs, onSkipDay, 
         const logId = `${week}-${dayKey}-${exerciseName}-${setNumber}`;
         const currentLog = allLogs[logId] || { week, dayKey, session: workoutName, exercise: exerciseName, set: setNumber, date: new Date().toISOString() };
         
-        const wasSetComplete = (log) => {
-             const isLoadValid = (log?.load === 0 || log?.load);
-             const areRepsValid = !!log?.reps;
-             const isRirValid = (log?.rir !== undefined && log?.rir !== null && log?.rir !== '');
-             return log?.skipped || (isLoadValid && areRepsValid && isRirValid);
-        }
-        const wasCompleteBefore = wasSetComplete(currentLog);
+        // FIX: Use centralized helper function
+        const wasCompleteBefore = isSetLogComplete(currentLog);
 
         let newLogEntry = { ...currentLog };
 
@@ -634,7 +631,8 @@ const LiftingSession = ({ week, dayKey, onBack, allLogs, setAllLogs, onSkipDay, 
             newLogEntry[field] = value;
         }
 
-        const isCompleteNow = wasSetComplete(newLogEntry);
+        // FIX: Use centralized helper function
+        const isCompleteNow = isSetLogComplete(newLogEntry);
 
         setAllLogs(prev => ({ ...prev, [logId]: newLogEntry }));
 
@@ -774,7 +772,8 @@ const SequentialView = ({ onSessionSelect, allLogs, programData }) => {
                 if (!exDetails) return false;
                 return Array.from({ length: exDetails.sets }, (_, setIdx) => setIdx + 1).every(setNum => {
                     const log = allLogs[`${week}-${dayKey}-${exName}-${setNum}`];
-                    return log?.skipped || ((log?.load === 0 || log?.load) && log?.reps && (log.rir !== undefined && log.rir !== null && log.rir !== ''));
+                    // FIX: Use centralized helper function
+                    return isSetLogComplete(log);
                 });
             });
 
@@ -799,7 +798,8 @@ const SequentialView = ({ onSessionSelect, allLogs, programData }) => {
                     if (!exDetails) return false;
                     return Array.from({ length: exDetails.sets }, (_, setIdx) => setIdx + 1).every(setNum => {
                         const log = allLogs[`${week}-${dayKey}-${exName}-${setNum}`];
-                        return log?.skipped || ((log?.load === 0 || log?.load) && log?.reps && (log.rir !== undefined && log.rir !== null && log.rir !== ''));
+                        // FIX: Use centralized helper function
+                        return isSetLogComplete(log);
                     });
                 });
 
@@ -2556,7 +2556,8 @@ const calculateStreak = (allLogs, programData) => {
             if (!exDetails) return false;
             return Array.from({ length: exDetails.sets }, (_, i) => i + 1).every(setNum => {
                 const log = allLogs[`${week}-${dayKey}-${exName}-${setNum}`];
-                return log?.skipped || ((log?.load === 0 || log?.load) && log?.reps && (log.rir !== undefined && log.rir !== null && log.rir !== ''));
+                // FIX: Use centralized helper function
+                return isSetLogComplete(log);
             });
         });
     }
@@ -3067,7 +3068,22 @@ const AchievementCard = ({ achievementId, achievement, unlockedStatus, currentVa
 const AchievementsView = ({ unlockedAchievements, historicalLogs, programData, bodyWeight }) => {
     const { openModal, closeModal } = useContext(AppStateContext);
 
-    if (Object.keys(historicalLogs).length === 0) {
+    // FIX: Memoize all achievement calculations to prevent re-computation on every render.
+    const processedAchievements = useMemo(() => {
+        if (!historicalLogs || Object.keys(historicalLogs).length === 0) return [];
+        
+        return Object.entries(achievementsList).map(([id, achievement]) => {
+            const currentValue = achievement.getValue 
+                ? achievement.getValue(historicalLogs, programData, bodyWeight) 
+                : (achievement.criteria ? (achievement.criteria(historicalLogs, programData, bodyWeight) ? 1 : 0) : 0);
+            
+            const unlockedStatus = unlockedAchievements[id];
+            
+            return { id, achievement, currentValue, unlockedStatus };
+        });
+    }, [historicalLogs, programData, bodyWeight, unlockedAchievements]);
+
+    if (processedAchievements.length === 0) {
         return (
             <div className="p-4 md:p-6 pb-24 text-center flex flex-col items-center justify-center h-full">
                 <Award className="text-gray-400 dark:text-gray-500 mb-4" size={48} />
@@ -3124,13 +3140,13 @@ const AchievementsView = ({ unlockedAchievements, historicalLogs, programData, b
                 </div>
             </div>
              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                {Object.entries(achievementsList).map(([id, achievement]) => (
+                {processedAchievements.map(({ id, achievement, currentValue, unlockedStatus }) => (
                     <AchievementCard 
                         key={id}
                         achievementId={id}
                         achievement={achievement}
-                        unlockedStatus={unlockedAchievements[id]}
-                        currentValue={achievement.getValue ? achievement.getValue(historicalLogs, programData, bodyWeight) : (achievement.criteria ? (achievement.criteria(historicalLogs, programData, bodyWeight) ? 1 : 0) : 0)}
+                        unlockedStatus={unlockedStatus}
+                        currentValue={currentValue}
                         onClick={handleShowDescription}
                     />
                 ))}
@@ -3406,7 +3422,8 @@ const AppCore = () => {
             setIsDataLoading(false);
         });
         return () => unsubscribe();
-    }, [user, db, customId, setTheme, isLoading, showTutorial]);
+    // FIX: Removed `showTutorial` from the dependency array to break the infinite loading cycle.
+    }, [user, db, customId, setTheme, isLoading]);
 
     const historicalLogs = useMemo(() => {
         const combined = { ...allLogs };
@@ -3576,7 +3593,8 @@ const AppCore = () => {
                     if (!exDetails) return false;
                     return Array.from({ length: exDetails.sets }, (_, i) => i + 1).every(setNum => {
                         const log = allLogs[`${dayKey}-${exName}-${setNum}`];
-                        return log?.skipped || ((log?.load === 0 || log?.load) && log?.reps && (log.rir !== undefined && log.rir !== null && log.rir !== ''));
+                        // FIX: Use centralized helper function
+                        return isSetLogComplete(log);
                     });
                 });
                 status.set(dayKey, { isDayComplete, isSkipped });
