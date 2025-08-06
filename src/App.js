@@ -205,7 +205,7 @@ const getWorkoutForWeek = (programData, week, workoutName) => {
 };
 
 const calculateE1RM = (weight, reps, rir) => {
-    // FIX: Correctly use RIR in e1RM calculation
+    // Correctly use RIR in e1RM calculation
     if (weight === null || weight === undefined || !reps || reps < 1) return 0;
     const effectiveReps = parseFloat(reps) + (parseFloat(rir) || 0);
     if (effectiveReps <= 1) return parseFloat(weight);
@@ -214,7 +214,7 @@ const calculateE1RM = (weight, reps, rir) => {
 };
 
 const getSetVolume = (log, masterExerciseList) => {
-    // FIX: Implement accurate dumbbell volume tracking
+    // Implement accurate dumbbell volume tracking
     if (!log || log.skipped || !log.load || !log.reps) return 0;
     const volume = parseFloat(log.load) * parseInt(log.reps, 10);
     const details = getExerciseDetails(log.exercise, masterExerciseList);
@@ -377,14 +377,14 @@ const FirebaseProvider = ({ children }) => {
         return () => unsubscribe();
     }, []);
 
-    const handleSetCustomId = (id) => {
+    const handleSetCustomId = useCallback((id) => {
         const sanitizedId = id.trim().replace(/[^a-zA-Z0-9-_]/g, '');
         if (sanitizedId) {
             localStorage.setItem('projectOverloadSyncId', sanitizedId);
             setCustomId(sanitizedId);
         }
         return sanitizedId;
-    };
+    }, []);
 
     const value = { 
         ...firebaseServices, 
@@ -505,11 +505,10 @@ const ExerciseCard = ({ exerciseName, week, dayKey, allLogs, onLogChange, master
     const sets = Array.from({ length: exercise?.sets || 0 }, (_, i) => i + 1);
     
     const isSetComplete = (log) => {
-        // FIX: Allow load of 0 to be valid for bodyweight exercises
-        const isLoadValid = (log?.load !== undefined && log?.load !== null && log.load !== '');
+        // A set is "complete" for UI purposes if it's skipped
+        const isLoadValid = (log?.load === 0 || log?.load);
         const areRepsValid = !!log?.reps;
         const isRirValid = (log?.rir !== undefined && log?.rir !== null && log?.rir !== '');
-        // FIX: A set is also "complete" for UI purposes if it's skipped
         return log?.skipped || (isLoadValid && areRepsValid && isRirValid);
     }
 
@@ -636,7 +635,7 @@ const LiftingSession = ({ week, dayKey, onBack, allLogs, setAllLogs, onSkipDay, 
             updateDoc(userDocRef, { [`logs.${logId}`]: newLogEntry });
         }
         
-        // FIX: Start timer when set becomes complete
+        // Start timer when set becomes complete
         if (!wasCompleteBefore && isCompleteNow && !newLogEntry.skipped) {
             onStartTimer();
         }
@@ -1900,7 +1899,7 @@ const EditExerciseModal = ({ exercise, exerciseName, onSave, onClose }) => {
                 rir: Array.from({ length: numSets }, (_, i) => prev.rir[i] || '0')
             }));
         }
-    }, [details.sets]);
+    }, [details.sets, details.rir.length]);
 
     const isNew = !exerciseName;
 
@@ -2109,7 +2108,7 @@ const ProgramManagerView = ({ onProgramUpdate, activeProgram }) => {
 
     const handleShareProgram = () => {
         try {
-            // FIX: Ensure only the active program structure is exported, without logs or other user data.
+            // Ensure only the active program structure is exported, without logs or other user data.
             const programToExport = {
                 name: activeProgram.name,
                 info: activeProgram.info,
@@ -3169,31 +3168,31 @@ const AppCore = () => {
         document.title = "Project Overload | Fitness Tracker";
     }, []);
 
-    const handleUpdateAndSave = (updates) => {
+    const handleUpdateAndSave = useCallback((updates) => {
         if (db && customId) {
             const userDocRef = doc(db, 'workoutLogs', customId);
             updateDoc(userDocRef, updates);
         }
-    };
+    }, [db, customId]);
 
-    const handleProgramDataChange = (newProgramData) => {
+    const handleProgramDataChange = useCallback((newProgramData) => {
         setProgramData(newProgramData);
         // Only save serializable fields to Firestore
         const { name, info, masterExerciseList, programStructure, weeklySchedule, workoutOrder, settings, weeklyOverrides } = newProgramData;
         handleUpdateAndSave({ name, info, masterExerciseList, programStructure, weeklySchedule, workoutOrder, settings, weeklyOverrides });
-    };
+    }, [handleUpdateAndSave]);
 
     const handleProgramUpdate = useCallback((newProgramData) => {
         // When loading a new program, reset overrides
         const programWithResetOverrides = { ...newProgramData, weeklyOverrides: {} };
         handleProgramDataChange(programWithResetOverrides);
         addToast("Program updated successfully!", "success");
-    }, [addToast]);
+    }, [addToast, handleProgramDataChange]);
 
-     const handleBodyWeightChange = (newWeight) => {
+    const handleBodyWeightChange = useCallback((newWeight) => {
         setBodyWeight(newWeight);
         handleUpdateAndSave({ bodyWeight: newWeight });
-    };
+    }, [handleUpdateAndSave]);
     
     const showTutorial = useCallback(() => {
         openModal(
