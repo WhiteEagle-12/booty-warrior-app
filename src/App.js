@@ -1461,9 +1461,6 @@ const MainView = ({ onSessionSelect, onEditProgram, completedDays, onUnskipDay, 
                         <p className="text-lg text-gray-600 dark:text-gray-400">Your {info.weeks}-Week Plan</p>
                     </div>
                 </div>
-                <button onClick={onEditProgram} className="p-2 rounded-md hover:bg-gray-200 dark:hover:bg-gray-600">
-                    <Pencil size={20} className="text-gray-500" />
-                </button>
             </div>
             
             <div className="space-y-4 pb-24">
@@ -1895,12 +1892,59 @@ const SettingsView = ({ allLogs, historicalLogs, weightUnit, onWeightUnitChange,
     );
 };
 
+const MuscleGroupDetailModal = ({ muscleName, programData, onClose }) => {
+    const contributingExercises = useMemo(() => {
+        const exercises = {};
+        const { programStructure, masterExerciseList } = programData;
+
+        if (!programStructure || !masterExerciseList) return [];
+
+        Object.values(programStructure).forEach(workout => {
+            if (!workout.exercises) return;
+            workout.exercises.forEach(exName => {
+                const details = getExerciseDetails(exName, masterExerciseList);
+                if (details?.muscles?.primary === muscleName ||
+                    details?.muscles?.secondary === muscleName ||
+                    details?.muscles?.tertiary === muscleName) {
+
+                    if (!exercises[exName]) {
+                        exercises[exName] = { sets: 0 };
+                    }
+                    exercises[exName].sets += Number(details.sets) || 0;
+                }
+            });
+        });
+        return Object.entries(exercises).sort(([,a],[,b]) => b.sets - a.sets);
+    }, [muscleName, programData]);
+
+    return (
+        <div>
+            <h2 className="text-xl font-bold mb-4">Set Breakdown for {muscleName}</h2>
+            <div className="max-h-60 overflow-y-auto pr-2">
+                <ul className="space-y-2">
+                    {contributingExercises.map(([name, data]) => (
+                        <li key={name} className="flex justify-between items-center p-2 bg-gray-100 dark:bg-gray-700/50 rounded-md">
+                            <span className="font-semibold">{name}</span>
+                            <span>{data.sets} sets</span>
+                        </li>
+                    ))}
+                </ul>
+            </div>
+            <div className="flex justify-end mt-6">
+                <button onClick={onClose} className="px-4 py-2 bg-blue-600 text-white rounded-lg">Close</button>
+            </div>
+        </div>
+    );
+};
+
 const AnalyticsView = ({ allLogs, programData, onBack }) => {
     const { masterExerciseList } = programData;
+    const { openModal, closeModal } = useContext(AppStateContext);
     const [selectedExercise, setSelectedExercise] = useState('');
     const [searchTerm, setSearchTerm] = useState('');
+    const [muscleSearchTerm, setMuscleSearchTerm] = useState('');
 
-    const uniqueExercises = useMemo(() => Object.keys(masterExerciseList).sort(), [masterExerciseList]);
+    const uniqueExercises = useMemo(() => Object.keys(masterExerciseList || {}).sort(), [masterExerciseList]);
     const filteredExercises = useMemo(() => uniqueExercises.filter(ex => ex.toLowerCase().includes(searchTerm.toLowerCase())), [uniqueExercises, searchTerm]);
 
     useEffect(() => {
@@ -1972,6 +2016,8 @@ const AnalyticsView = ({ allLogs, programData, onBack }) => {
         const dataByMuscle = {};
         const { programStructure, masterExerciseList } = programData;
 
+        if (!programStructure || !masterExerciseList) return [];
+
         const ensureMuscle = (muscle) => {
             if (muscle && !dataByMuscle[muscle]) {
                 dataByMuscle[muscle] = { sets: 0 };
@@ -1979,6 +2025,7 @@ const AnalyticsView = ({ allLogs, programData, onBack }) => {
         };
 
         Object.values(programStructure).forEach(workout => {
+            if (!workout.exercises) return;
             workout.exercises.forEach(exerciseName => {
                 const exerciseDetails = getExerciseDetails(exerciseName, masterExerciseList);
                 if (exerciseDetails && exerciseDetails.muscles) {
@@ -2120,11 +2167,22 @@ const AnalyticsView = ({ allLogs, programData, onBack }) => {
                             </div>
                             <div className="text-sm">
                                 <h4 className="font-bold text-lg mb-2">Sets Per Muscle Group</h4>
-                                <ul className="space-y-2">
-                                    {muscleGroupData.map(d => (
-                                        <li key={d.name} className="flex justify-between items-center bg-gray-50 dark:bg-gray-700/50 p-2 rounded-md">
-                                            <span className="font-semibold">{d.name}</span>
-                                            <span>{d.sets} sets ({d.setsPercentage}%)</span>
+                                <input
+                                    type="text"
+                                    placeholder="Search muscle groups..."
+                                    value={muscleSearchTerm}
+                                    onChange={e => setMuscleSearchTerm(e.target.value)}
+                                    className="w-full p-2 mb-3 bg-white dark:bg-gray-700 rounded-md border border-gray-300 dark:border-gray-600"
+                                />
+                                <ul className="space-y-2 max-h-48 overflow-y-auto pr-2">
+                                    {muscleGroupData
+                                        .filter(d => d.name.toLowerCase().includes(muscleSearchTerm.toLowerCase()))
+                                        .map(d => (
+                                        <li key={d.name}>
+                                            <button onClick={() => openModal(<MuscleGroupDetailModal muscleName={d.name} programData={programData} onClose={closeModal}/>)} className="w-full flex justify-between items-center bg-gray-50 dark:bg-gray-700/50 p-2 rounded-md hover:bg-gray-200 dark:hover:bg-gray-600 text-left">
+                                                <span className="font-semibold">{d.name}</span>
+                                                <span>{d.sets} sets ({d.setsPercentage}%)</span>
+                                            </button>
                                         </li>
                                     ))}
                                 </ul>
@@ -2832,6 +2890,101 @@ const ProgramPreviewModal = ({ program, onClose, onLoad }) => {
     );
 };
 
+const RestoreProgramModal = ({ csvData, onRestore, onClose }) => {
+    const [error, setError] = useState('');
+
+    const handleRestore = () => {
+        try {
+            const lines = csvData.split('\n').filter(line => line.trim() !== '');
+            if (lines.length < 2) throw new Error("CSV file must have a header and at least one data row.");
+
+            const headers = lines[0].split(',').map(h => h.trim());
+            const requiredHeaders = ['Exercise', 'Sets', 'Reps', 'RIR', 'Rest', 'Muscles Primary', 'Workout Day', 'Day of Week'];
+            for(const header of requiredHeaders) {
+                if(!headers.includes(header)) throw new Error(`Missing required CSV header: ${header}`);
+            }
+
+            const programName = "Restored Program";
+            const masterExerciseList = {};
+            const programStructure = {};
+            const weeklySchedule = [
+                { day: 'Mon', workout: 'Rest' }, { day: 'Tue', workout: 'Rest' },
+                { day: 'Wed', workout: 'Rest' }, { day: 'Thu', workout: 'Rest' },
+                { day: 'Fri', workout: 'Rest' }, { day: 'Sat', workout: 'Rest' },
+                { day: 'Sun', workout: 'Rest' },
+            ];
+
+            lines.slice(1).forEach(line => {
+                const values = line.split(',');
+                const exerciseData = headers.reduce((obj, header, index) => {
+                    obj[header] = values[index]?.trim() || '';
+                    return obj;
+                }, {});
+
+                const exName = exerciseData['Exercise'];
+                if (!masterExerciseList[exName]) {
+                    masterExerciseList[exName] = {
+                        sets: exerciseData['Sets'],
+                        reps: exerciseData['Reps'],
+                        rir: exerciseData['RIR'].split(';'),
+                        rest: exerciseData['Rest'],
+                        muscles: {
+                            primary: exerciseData['Muscles Primary'],
+                            secondary: exerciseData['Muscles Secondary'],
+                            tertiary: exerciseData['Muscles Tertiary'],
+                        }
+                    };
+                }
+
+                const workoutDay = exerciseData['Workout Day'];
+                if (!programStructure[workoutDay]) {
+                    programStructure[workoutDay] = { exercises: [], label: workoutDay.charAt(0).toUpperCase() };
+                }
+                if (!programStructure[workoutDay].exercises.includes(exName)) {
+                    programStructure[workoutDay].exercises.push(exName);
+                }
+
+                const dayOfWeek = exerciseData['Day of Week'];
+                const scheduleEntry = weeklySchedule.find(d => d.day === dayOfWeek);
+                if (scheduleEntry) {
+                    scheduleEntry.workout = workoutDay;
+                }
+            });
+
+            const restoredProgram = {
+                name: programName,
+                info: { name: programName, weeks: 8, split: "Custom" },
+                masterExerciseList,
+                programStructure,
+                weeklySchedule,
+                workoutOrder: Object.keys(programStructure),
+                settings: presets['optimal-ppl-ul'].settings, // Default settings
+                weeklyOverrides: {},
+            };
+
+            onRestore(restoredProgram);
+            onClose();
+
+        } catch (err) {
+            setError(`Error parsing CSV: ${err.message}`);
+        }
+    };
+
+    return (
+        <div>
+            <h2 className="text-xl font-bold mb-4">Restore Program</h2>
+            <p className="text-gray-600 dark:text-gray-400 mb-4">
+                You've uploaded a CSV file. Review the detected data and click "Restore" to import it as a new program.
+            </p>
+            {error && <p className="text-red-500 bg-red-100 dark:bg-red-900/50 p-3 rounded-md">{error}</p>}
+            <div className="flex justify-end gap-2 mt-6">
+                <button onClick={onClose} className="px-4 py-2 bg-gray-200 dark:bg-gray-600 rounded-lg">Cancel</button>
+                <button onClick={handleRestore} className="px-4 py-2 bg-blue-600 text-white rounded-lg">Restore</button>
+            </div>
+        </div>
+    );
+};
+
 const ProgramManagerView = ({ onProgramUpdate, activeProgram, programInstances, onInstanceSwitch, onBack }) => {
     const { openModal, closeModal, addToast } = useContext(AppStateContext);
     const fileInputRef = useRef(null);
@@ -2865,10 +3018,10 @@ const ProgramManagerView = ({ onProgramUpdate, activeProgram, programInstances, 
             link.click();
             document.body.removeChild(link);
             URL.revokeObjectURL(url);
-            addToast('Program shared successfully!', 'success');
+            addToast('Program exported successfully!', 'success');
         } catch (error) {
-            console.error("Failed to share program:", error);
-            addToast('Error sharing program.', 'error');
+            console.error("Failed to export program:", error);
+            addToast('Error exporting program.', 'error');
         }
     };
     
@@ -2883,19 +3036,23 @@ const ProgramManagerView = ({ onProgramUpdate, activeProgram, programInstances, 
         const reader = new FileReader();
         reader.onload = (e) => {
             try {
-                const importedProgram = JSON.parse(e.target.result);
-                if (
-                    importedProgram.name && typeof importedProgram.name === 'string' &&
-                    importedProgram.info && typeof importedProgram.info === 'object' &&
-                    importedProgram.masterExerciseList && typeof importedProgram.masterExerciseList === 'object' &&
-                    importedProgram.programStructure && typeof importedProgram.programStructure === 'object' &&
-                    importedProgram.weeklySchedule && Array.isArray(importedProgram.weeklySchedule) &&
-                    importedProgram.workoutOrder && Array.isArray(importedProgram.workoutOrder)
-                ) {
-                    onProgramUpdate(importedProgram); // This will create a new instance
-                    addToast(`Program "${importedProgram.name}" imported successfully!`, 'success');
+                if (file.name.endsWith('.csv')) {
+                    openModal(<RestoreProgramModal csvData={e.target.result} onRestore={onProgramUpdate} onClose={closeModal} />);
                 } else {
-                    throw new Error("Invalid or incomplete program file structure.");
+                    const importedProgram = JSON.parse(e.target.result);
+                    if (
+                        importedProgram.name && typeof importedProgram.name === 'string' &&
+                        importedProgram.info && typeof importedProgram.info === 'object' &&
+                        importedProgram.masterExerciseList && typeof importedProgram.masterExerciseList === 'object' &&
+                        importedProgram.programStructure && typeof importedProgram.programStructure === 'object' &&
+                        importedProgram.weeklySchedule && Array.isArray(importedProgram.weeklySchedule) &&
+                        importedProgram.workoutOrder && Array.isArray(importedProgram.workoutOrder)
+                    ) {
+                        onProgramUpdate(importedProgram); // This will create a new instance
+                        addToast(`Program "${importedProgram.name}" imported successfully!`, 'success');
+                    } else {
+                        throw new Error("Invalid or incomplete program file structure.");
+                    }
                 }
             } catch (error) {
                 console.error("Failed to import program:", error);
@@ -2930,12 +3087,12 @@ const ProgramManagerView = ({ onProgramUpdate, activeProgram, programInstances, 
                  <h3 className="text-xl font-bold text-gray-800 dark:text-gray-200 mb-4">Manage Your Program</h3>
                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                      <button onClick={handleShareProgram} className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-blue-600 text-white rounded-lg shadow-md hover:bg-blue-700 transition-colors">
-                        <Download size={16}/> Share Active Program
+                        <Download size={16}/> Export Program
                     </button>
                     <button onClick={handleImportClick} className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-green-600 text-white rounded-lg shadow-md hover:bg-green-700 transition-colors">
-                        <Upload size={16}/> Import Program from File
+                        <Upload size={16}/> Import Program
                     </button>
-                    <input type="file" ref={fileInputRef} onChange={handleFileImport} accept=".json" style={{ display: 'none' }} />
+                    <input type="file" ref={fileInputRef} onChange={handleFileImport} accept=".json,.csv" style={{ display: 'none' }} />
                  </div>
             </div>
 
