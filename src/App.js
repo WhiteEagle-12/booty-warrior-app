@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, createContext, useContext, useCallback, useRef } from 'react';
-import { ChevronDown, ChevronUp, Dumbbell, CheckCircle, ArrowLeft, BarChart2, Settings, Flame, Repeat, StretchVertical, Lightbulb, Download, XCircle, SkipForward, Menu, X, Search, Trophy, BrainCircuit, PlusCircle, Edit, ArrowUp, ArrowDown, LayoutDashboard, Save, AlertTriangle, Bell, HelpCircle, BookOpen, Star, Award, TrendingUp, Target, Zap, CalendarDays, Shield, Infinity as InfinityIcon, Weight, Upload, Eye, Timer } from 'lucide-react';
+import { ChevronDown, ChevronUp, Dumbbell, CheckCircle, ArrowLeft, BarChart2, Settings, Flame, Repeat, StretchVertical, Lightbulb, Download, XCircle, SkipForward, Menu, X, Search, Trophy, BrainCircuit, PlusCircle, Edit, ArrowUp, ArrowDown, LayoutDashboard, Save, AlertTriangle, Bell, HelpCircle, BookOpen, Star, Award, TrendingUp, Target, Zap, CalendarDays, Shield, Infinity as InfinityIcon, Weight, Upload, Eye, Timer, Pencil } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 
 // Firebase Imports - using modular v9+ syntax
@@ -60,7 +60,8 @@ const presets = {
                 enabled: true,
                 duration: 120 // 2 minutes in seconds
             }
-        }
+        },
+        weeklyOverrides: {},
     },
     "beginner-3day-fullbody": {
         name: "Beginner 3-Day Full Body",
@@ -88,7 +89,8 @@ const presets = {
             { day: 'Sun', workout: 'Rest' },
         ],
         workoutOrder: ['Workout A', 'Workout B'],
-        settings: { useWeeklySchedule: true, restTimer: { enabled: true, duration: 120 } }
+        settings: { useWeeklySchedule: true, restTimer: { enabled: true, duration: 120 } },
+        weeklyOverrides: {},
     },
     "upper-lower-4day": {
         name: "4-Day Upper/Lower Split",
@@ -121,7 +123,8 @@ const presets = {
             { day: 'Sun', workout: 'Rest' },
         ],
         workoutOrder: ['Upper Strength', 'Lower Strength', 'Upper Hypertrophy', 'Lower Hypertrophy'],
-        settings: { useWeeklySchedule: true, restTimer: { enabled: true, duration: 150 } }
+        settings: { useWeeklySchedule: true, restTimer: { enabled: true, duration: 150 } },
+        weeklyOverrides: {},
     },
     "strength-5x5": {
         name: "Strength Focused 5x5",
@@ -146,7 +149,8 @@ const presets = {
             { day: 'Sun', workout: 'Rest' },
         ],
         workoutOrder: ['Workout A', 'Workout B'],
-        settings: { useWeeklySchedule: true, restTimer: { enabled: true, duration: 240 } }
+        settings: { useWeeklySchedule: true, restTimer: { enabled: true, duration: 240 } },
+        weeklyOverrides: {},
     },
 };
 
@@ -194,6 +198,11 @@ const exerciseBank = {
 
 // --- Helper Functions & Context ---
 const getExerciseDetails = (exerciseName, masterList) => masterList[exerciseName] || null;
+
+const getWorkoutForWeek = (programData, week, workoutName) => {
+    // Return the override if it exists, otherwise fall back to the master template
+    return programData?.weeklyOverrides?.[week]?.[workoutName] || programData?.programStructure?.[workoutName] || null;
+};
 
 const calculateE1RM = (weight, reps, rir) => {
     // FIX: Correctly use RIR in e1RM calculation
@@ -374,6 +383,7 @@ const FirebaseProvider = ({ children }) => {
             localStorage.setItem('projectOverloadSyncId', sanitizedId);
             setCustomId(sanitizedId);
         }
+        return sanitizedId;
     };
 
     const value = { 
@@ -490,7 +500,7 @@ const SetRow = ({ setNumber, logData, onLogChange, lastSetData, exerciseDetails,
 };
 
 
-const ExerciseCard = ({ exerciseName, week, dayKey, allLogs, onLogChange, masterExerciseList, weightUnit }) => {
+const ExerciseCard = ({ exerciseName, week, dayKey, allLogs, onLogChange, masterExerciseList, weightUnit, workoutDetails }) => {
     const exercise = getExerciseDetails(exerciseName, masterExerciseList);
     const sets = Array.from({ length: exercise?.sets || 0 }, (_, i) => i + 1);
     
@@ -573,19 +583,26 @@ const ExerciseCard = ({ exerciseName, week, dayKey, allLogs, onLogChange, master
     );
 };
 
-const LiftingSession = ({ week, dayKey, onBack, allLogs, setAllLogs, onSkipDay, programData, weightUnit, onStartTimer }) => {
+const LiftingSession = ({ week, dayKey, onBack, allLogs, setAllLogs, onSkipDay, programData, weightUnit, onStartTimer, sequentialWorkoutIndex }) => {
     const { db, customId } = useContext(FirebaseContext);
-    const { programStructure, masterExerciseList, weeklySchedule } = programData;
-    const getWorkoutForDay = (w, d) => weeklySchedule.find(s => s.day === d)?.workout;
-    const workoutName = getWorkoutForDay(week, dayKey);
-    const workout = programStructure[workoutName];
+    const { masterExerciseList } = programData;
+
+    const workoutName = useMemo(() => {
+        if (programData.settings.useWeeklySchedule) {
+            return programData.weeklySchedule.find(s => s.day === dayKey)?.workout;
+        } else {
+            return programData.workoutOrder[sequentialWorkoutIndex % programData.workoutOrder.length];
+        }
+    }, [programData, dayKey, sequentialWorkoutIndex]);
+
+    const workout = getWorkoutForWeek(programData, week, workoutName);
 
     const handleLogChange = (exerciseName, setNumber, field, value) => {
         const logId = `${week}-${dayKey}-${exerciseName}-${setNumber}`;
         const currentLog = allLogs[logId] || { week, dayKey, session: workoutName, exercise: exerciseName, set: setNumber, date: new Date().toISOString() };
         
         const wasSetComplete = (log) => {
-             const isLoadValid = (log?.load !== undefined && log?.load !== null && log.load !== '');
+             const isLoadValid = (log?.load === 0 || log?.load);
              const areRepsValid = !!log?.reps;
              const isRirValid = (log?.rir !== undefined && log?.rir !== null && log?.rir !== '');
              return log?.skipped || (isLoadValid && areRepsValid && isRirValid);
@@ -596,6 +613,9 @@ const LiftingSession = ({ week, dayKey, onBack, allLogs, setAllLogs, onSkipDay, 
 
         if (field === 'skip') {
             newLogEntry.skipped = true;
+            newLogEntry.load = '';
+            newLogEntry.reps = '';
+            newLogEntry.rir = '';
         } else if (field === 'load') {
             newLogEntry.displayLoad = value;
             if (weightUnit === 'kg') {
@@ -629,6 +649,8 @@ const LiftingSession = ({ week, dayKey, onBack, allLogs, setAllLogs, onSkipDay, 
             <p className="text-gray-600 dark:text-gray-400">Enjoy your recovery!</p>
         </div>
     );
+    
+    const pageTitle = programData.settings.useWeeklySchedule ? `Week ${week}: ${dayKey}` : `Workout #${sequentialWorkoutIndex + 1}`;
 
     return (
         <div className="p-4 md:p-6 pb-24">
@@ -640,7 +662,7 @@ const LiftingSession = ({ week, dayKey, onBack, allLogs, setAllLogs, onSkipDay, 
                 </div>
             </div>
             <div className="mb-6 text-center">
-                <h2 className="text-3xl font-bold dark:text-white">Week {week}: {dayKey}</h2>
+                <h2 className="text-3xl font-bold dark:text-white">{pageTitle}</h2>
                 <p className="text-lg text-gray-600 dark:text-gray-400">{workoutName}</p>
             </div>
             <div className="space-y-4">
@@ -654,6 +676,7 @@ const LiftingSession = ({ week, dayKey, onBack, allLogs, setAllLogs, onSkipDay, 
                         onLogChange={handleLogChange} 
                         masterExerciseList={masterExerciseList} 
                         weightUnit={weightUnit}
+                        workoutDetails={workout}
                     />
                 )}
             </div>
@@ -661,7 +684,8 @@ const LiftingSession = ({ week, dayKey, onBack, allLogs, setAllLogs, onSkipDay, 
     );
 };
 
-const WeekView = ({ week, completedDays, onSessionSelect, firstIncompleteWeek, onUnskipDay, programStructure, weeklySchedule }) => {
+const WeekView = ({ week, completedDays, onSessionSelect, firstIncompleteWeek, onUnskipDay, programData, onEditWorkout }) => {
+    const { programStructure, weeklySchedule } = programData;
     const isWeekComplete = useMemo(() => weeklySchedule.every(day => day.workout === 'Rest' || completedDays.get(`${week}-${day.day}`)?.isDayComplete), [week, completedDays, weeklySchedule]);
     const [isOpen, setIsOpen] = useState(week === firstIncompleteWeek);
     
@@ -685,6 +709,7 @@ const WeekView = ({ week, completedDays, onSessionSelect, firstIncompleteWeek, o
                         const workoutName = getWorkoutForDay(week, day.day);
                         const workoutDetails = programStructure[workoutName];
                         const isRestDay = !workoutName || workoutName === 'Rest';
+                        const isOverridden = !!programData.weeklyOverrides?.[week]?.[workoutName];
                         
                         let dayClass = 'bg-gray-100 dark:bg-gray-700/50';
                         if (isRestDay) dayClass = 'bg-indigo-100 dark:bg-indigo-900/50';
@@ -702,10 +727,15 @@ const WeekView = ({ week, completedDays, onSessionSelect, firstIncompleteWeek, o
                                             <XCircle size={14} /> Skipped
                                         </button>
                                     ) : (
-                                        <button onClick={() => onSessionSelect(week, day.day, 'lifting')} className="w-full flex items-center justify-between text-xs p-1.5 rounded bg-white dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 shadow-sm transition-colors">
-                                            <div className="flex items-center gap-1 font-semibold">{workoutDetails?.label || workoutName}</div>
-                                            {status?.isDayComplete ? <CheckCircle size={14} className="text-green-500"/> : <Dumbbell size={14} className="text-blue-500"/>}
-                                        </button>
+                                        <div className="flex items-center gap-1">
+                                            <button onClick={() => onSessionSelect(week, day.day, 'lifting')} className="w-full flex items-center justify-between text-xs p-1.5 rounded bg-white dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 shadow-sm transition-colors">
+                                                <div className="flex items-center gap-1 font-semibold">{workoutDetails?.label || workoutName}</div>
+                                                {status?.isDayComplete ? <CheckCircle size={14} className="text-green-500"/> : <Dumbbell size={14} className="text-blue-500"/>}
+                                            </button>
+                                            <button onClick={() => onEditWorkout(week, workoutName)} className="p-1.5 rounded bg-white dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 shadow-sm">
+                                                <Pencil size={14} className={isOverridden ? 'text-blue-500' : 'text-gray-500'}/>
+                                            </button>
+                                        </div>
                                     )}
                                 </div>
                             </div>
@@ -716,6 +746,81 @@ const WeekView = ({ week, completedDays, onSessionSelect, firstIncompleteWeek, o
         </div>
     );
 };
+
+const SequentialView = ({ onSessionSelect, allLogs, programData }) => {
+    const { info, workoutOrder, programStructure, masterExerciseList } = programData;
+    const totalWorkoutsInCycle = workoutOrder.length;
+    const totalSessions = info.weeks * totalWorkoutsInCycle;
+
+    // Find the index of the first incomplete workout
+    const firstIncompleteIndex = useMemo(() => {
+        for (let i = 0; i < totalSessions; i++) {
+            const week = Math.floor(i / totalWorkoutsInCycle) + 1;
+            const workoutName = workoutOrder[i % totalWorkoutsInCycle];
+            const workout = getWorkoutForWeek(programData, week, workoutName);
+            const dayKey = workoutName; // Use workout name as the key for sequential
+            
+            if (!workout) continue;
+
+            const isComplete = workout.exercises.every(exName => {
+                const exDetails = getExerciseDetails(exName, masterExerciseList);
+                if (!exDetails) return false;
+                return Array.from({ length: exDetails.sets }, (_, setIdx) => setIdx + 1).every(setNum => {
+                    const log = allLogs[`${week}-${dayKey}-${exName}-${setNum}`];
+                    return log?.skipped || ((log?.load === 0 || log?.load) && log?.reps && (log.rir !== undefined && log.rir !== null && log.rir !== ''));
+                });
+            });
+
+            if (!isComplete) {
+                return i;
+            }
+        }
+        return totalSessions; // All completed
+    }, [allLogs, programData, totalSessions, totalWorkoutsInCycle, workoutOrder, masterExerciseList]);
+
+    return (
+        <div className="space-y-3">
+            {Array.from({ length: totalSessions }, (_, i) => {
+                const week = Math.floor(i / totalWorkoutsInCycle) + 1;
+                const workoutName = workoutOrder[i % totalWorkoutsInCycle];
+                const workout = getWorkoutForWeek(programData, week, workoutName);
+                if (!workout) return null;
+                const dayKey = workoutName;
+
+                 const isComplete = workout.exercises.every(exName => {
+                    const exDetails = getExerciseDetails(exName, masterExerciseList);
+                    if (!exDetails) return false;
+                    return Array.from({ length: exDetails.sets }, (_, setIdx) => setIdx + 1).every(setNum => {
+                        const log = allLogs[`${week}-${dayKey}-${exName}-${setNum}`];
+                        return log?.skipped || ((log?.load === 0 || log?.load) && log?.reps && (log.rir !== undefined && log.rir !== null && log.rir !== ''));
+                    });
+                });
+
+                const isNext = i === firstIncompleteIndex;
+                const cardClass = isComplete
+                    ? 'bg-green-100 dark:bg-green-800/50 border-l-4 border-green-500'
+                    : isNext
+                    ? 'bg-blue-100 dark:bg-blue-900/50 border-l-4 border-blue-500'
+                    : 'bg-gray-100 dark:bg-gray-700/50';
+
+                return (
+                    <button 
+                        key={i} 
+                        onClick={() => onSessionSelect(week, dayKey, 'lifting', i)}
+                        className={`w-full text-left p-4 rounded-lg shadow-sm flex justify-between items-center transition-all ${cardClass}`}
+                    >
+                        <div>
+                            <p className="text-xs text-gray-500 dark:text-gray-400">Workout #{i + 1}</p>
+                            <h3 className="font-bold text-lg">{workoutName}</h3>
+                        </div>
+                        {isComplete ? <CheckCircle size={24} className="text-green-500" /> : <Dumbbell size={24} className="text-gray-500" />}
+                    </button>
+                )
+            })}
+        </div>
+    );
+};
+
 
 const ProgressBar = ({ completed, total }) => {
     const percentage = total > 0 ? Math.round((completed / total) * 100) : 0;
@@ -754,15 +859,17 @@ const StreakCounter = ({ streak }) => {
 };
 
 
-const MainView = ({ onSessionSelect, completedDays, onUnskipDay, programStructure, weeklySchedule, info }) => {
+const MainView = ({ onSessionSelect, completedDays, onUnskipDay, programData, onEditWorkout, allLogs }) => {
+    const { info, weeklySchedule, workoutOrder } = programData;
     const weeks = Array.from({ length: info.weeks }, (_, i) => i + 1);
     
     const firstIncompleteWeek = useMemo(() => {
+        if (!programData.settings.useWeeklySchedule) return 1;
         for (let w = 1; w <= info.weeks; w++) {
             if (!weeklySchedule.every(d => d.workout === 'Rest' || completedDays.get(`${w}-${d.day}`)?.isDayComplete)) return w;
         }
         return info.weeks + 1;
-    }, [completedDays, weeklySchedule, info.weeks]);
+    }, [completedDays, weeklySchedule, info.weeks, programData.settings.useWeeklySchedule]);
 
     return (
         <div className="p-4 md:p-6">
@@ -775,20 +882,38 @@ const MainView = ({ onSessionSelect, completedDays, onUnskipDay, programStructur
             </div>
             
             <div className="space-y-4 pb-24">
-                {weeks.map(week => (
-                    <WeekView key={week} week={week} completedDays={completedDays} onSessionSelect={onSessionSelect} firstIncompleteWeek={firstIncompleteWeek} onUnskipDay={onUnskipDay} programStructure={programStructure} weeklySchedule={weeklySchedule} />
-                ))}
+                {programData.settings.useWeeklySchedule ? (
+                     weeks.map(week => (
+                        <WeekView 
+                            key={week} 
+                            week={week} 
+                            completedDays={completedDays} 
+                            onSessionSelect={onSessionSelect} 
+                            firstIncompleteWeek={firstIncompleteWeek} 
+                            onUnskipDay={onUnskipDay} 
+                            programData={programData}
+                            onEditWorkout={onEditWorkout}
+                        />
+                    ))
+                ) : (
+                    <SequentialView 
+                        onSessionSelect={onSessionSelect}
+                        allLogs={allLogs}
+                        programData={programData}
+                    />
+                )}
             </div>
         </div>
     );
 };
 
-const DashboardView = ({ allLogs, programStructure, masterExerciseList, weeklySchedule, info }) => {
+const DashboardView = ({ allLogs, programData }) => {
+    const { masterExerciseList, weeklySchedule, info } = programData;
     const { totalSets, completedSets, streak } = useMemo(() => {
         let weeklySets = 0;
         weeklySchedule.forEach(day => {
             if (day.workout !== 'Rest') {
-                const workout = programStructure[day.workout];
+                const workout = getWorkoutForWeek(programData, 1, day.workout);
                 if (workout) {
                     workout.exercises.forEach(exName => {
                         const details = getExerciseDetails(exName, masterExerciseList);
@@ -802,52 +927,10 @@ const DashboardView = ({ allLogs, programStructure, masterExerciseList, weeklySc
         const total = weeklySets * info.weeks;
         const completed = Object.values(allLogs).filter(log => !log.skipped && (log.load === 0 || log.load) && log.reps).length;
 
-        let currentStreak = 0;
-        let streakBroken = false;
-        
-        const sortedDays = [];
-        for (let week = 1; week <= info.weeks; week++) {
-            for (const day of weeklySchedule) {
-                if (day.workout !== 'Rest') {
-                    sortedDays.push({ week, day: day.day });
-                }
-            }
-        }
-        
-        const isDayComplete = (week, day) => {
-            const workoutName = weeklySchedule.find(d => d.day === day)?.workout;
-            const workout = programStructure[workoutName];
-            if (!workout) return false;
-
-            return workout.exercises.every(exName => {
-                const exDetails = getExerciseDetails(exName, masterExerciseList);
-                if (!exDetails) return false;
-                return Array.from({ length: exDetails.sets }, (_, i) => i + 1).every(setNum => {
-                    const log = allLogs[`${week}-${day}-${exName}-${setNum}`];
-                    // A set is complete if it has valid log data OR it was skipped
-                    return log?.skipped || ((log?.load === 0 || log?.load) && log?.reps && (log?.rir !== undefined && log?.rir !== null && log?.rir !== ''));
-                });
-            });
-        }
-
-
-        for (const {week, day} of sortedDays) {
-            if (isDayComplete(week, day)) {
-                if (!streakBroken) {
-                    currentStreak++;
-                }
-            } else {
-                const hasAnyLogInDay = workout.exercises.some(exName => {
-                     const exDetails = getExerciseDetails(exName, masterExerciseList);
-                     if (!exDetails) return false;
-                     return Array.from({ length: exDetails.sets }, (_, i) => i + 1).some(setNum => !!allLogs[`${week}-${day}-${exName}-${setNum}`]);
-                });
-                if(hasAnyLogInDay) streakBroken = true;
-            }
-        }
+        const currentStreak = calculateStreak(allLogs, programData);
 
         return { totalSets: total, completedSets: completed, streak: currentStreak };
-    }, [allLogs, programStructure, masterExerciseList, weeklySchedule, info.weeks]);
+    }, [allLogs, programData]);
 
     return (
        <div className="p-4 md:p-6">
@@ -957,6 +1040,14 @@ const SettingsView = ({ allLogs, historicalLogs, weightUnit, onWeightUnitChange,
         );
     };
 
+    const handleSettingsChange = (field, value) => {
+        const newSettings = {
+            ...programData.settings,
+            [field]: value,
+        };
+        onProgramDataChange({ ...programData, settings: newSettings });
+    };
+
     const handleTimerSettingsChange = (field, value) => {
         const newSettings = {
             ...programData.settings,
@@ -995,9 +1086,11 @@ const SettingsView = ({ allLogs, historicalLogs, weightUnit, onWeightUnitChange,
                     <div className="bg-gray-100 dark:bg-gray-900/50 p-4 rounded-lg space-y-3">
                         <div>
                             <label htmlFor="customIdInput" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Personal Sync ID</label>
-                            <input id="customIdInput" type="text" value={tempId} onChange={e => setTempId(e.target.value)} placeholder="Enter a memorable ID" className="w-full p-2 bg-white dark:bg-gray-700 rounded-md border-gray-300 dark:border-gray-600 shadow-sm" />
+                            <div className="flex gap-2">
+                                <input id="customIdInput" type="text" value={tempId} onChange={e => setTempId(e.target.value)} placeholder="Enter a memorable ID" className="w-full p-2 bg-white dark:bg-gray-700 rounded-md border-gray-300 dark:border-gray-600 shadow-sm" />
+                                <button onClick={() => handleSetCustomId(tempId)} className="px-4 py-2 bg-blue-600 text-white rounded-lg shadow-md hover:bg-blue-700 transition-colors">Set</button>
+                            </div>
                         </div>
-                        <button onClick={() => handleSetCustomId(tempId)} className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg shadow-md hover:bg-blue-700 transition-colors">Set & Sync</button>
                     </div>
                 </div>
 
@@ -1005,7 +1098,7 @@ const SettingsView = ({ allLogs, historicalLogs, weightUnit, onWeightUnitChange,
 
                 {/* Display & Units */}
                 <div>
-                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">Display & Units</h3>
+                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">Display & Program</h3>
                     <div className="space-y-4">
                          <div className="flex justify-between items-center">
                             <span className="font-semibold dark:text-gray-200">Dark Mode</span>
@@ -1021,6 +1114,13 @@ const SettingsView = ({ allLogs, historicalLogs, weightUnit, onWeightUnitChange,
                         <div className="flex justify-between items-center">
                             <label htmlFor="bodyWeight" className="font-semibold dark:text-gray-200">Body Weight ({weightUnit})</label>
                             <input id="bodyWeight" type="number" value={bodyWeight} onChange={(e) => onBodyWeightChange(e.target.value)} className="w-24 p-2 bg-white dark:bg-gray-700 rounded-md border-gray-300 dark:border-gray-600 shadow-sm" />
+                        </div>
+                        <div className="flex justify-between items-center">
+                            <div className="flex flex-col">
+                                <span className="font-semibold dark:text-gray-200">Use Weekly Schedule</span>
+                                <span className="text-xs text-gray-500 dark:text-gray-400">Off for sequential workouts.</span>
+                            </div>
+                            <button onClick={() => handleSettingsChange('useWeeklySchedule', !programData.settings.useWeeklySchedule)} className={`relative inline-flex items-center h-6 rounded-full w-11 transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 ${programData.settings.useWeeklySchedule ? 'bg-blue-600' : 'bg-gray-200'}`}><span className={`inline-block w-4 h-4 transform bg-white rounded-full transition-transform ${programData.settings.useWeeklySchedule ? 'translate-x-6' : 'translate-x-1'}`} /></button>
                         </div>
                     </div>
                 </div>
@@ -2018,6 +2118,7 @@ const ProgramManagerView = ({ onProgramUpdate, activeProgram }) => {
                 weeklySchedule: activeProgram.weeklySchedule,
                 workoutOrder: activeProgram.workoutOrder,
                 settings: activeProgram.settings,
+                weeklyOverrides: activeProgram.weeklyOverrides || {},
             };
 
             const programJson = JSON.stringify(programToExport, null, 2);
@@ -2150,16 +2251,26 @@ const RenameWorkoutModal = ({ oldName, onSave, onClose }) => {
     );
 };
 
-const TutorialModal = ({ onProgramSelect, onClose, onBodyWeightSet }) => {
+const TutorialModal = ({ onProgramSelect, onClose, onBodyWeightSet, onSetSyncId }) => {
     const [step, setStep] = useState(1);
     const [localBodyWeight, setLocalBodyWeight] = useState('');
-    const totalSteps = 5;
+    const [tempId, setTempId] = useState('');
+    const totalSteps = 6;
 
     const handleSelectProgram = (presetKey) => {
         const presetData = presets[presetKey];
         onProgramSelect(presetData);
         nextStep();
     };
+
+    const handleSetId = () => {
+        if(tempId.trim()){
+            onSetSyncId(tempId);
+            nextStep();
+        } else {
+            alert("Please enter a Sync ID.");
+        }
+    }
 
     const handleFinish = () => {
         if(localBodyWeight) {
@@ -2175,29 +2286,41 @@ const TutorialModal = ({ onProgramSelect, onClose, onBodyWeightSet }) => {
         <div>
             <h2 className="text-2xl font-bold mb-4 flex items-center gap-2"><Lightbulb size={24} className="text-blue-500" /> Welcome to Project Overload!</h2>
             
-            {/* Step Content */}
             <div className="space-y-4 min-h-[300px] text-gray-600 dark:text-gray-300">
                 {step === 1 && (
                      <div className="p-3 bg-gray-100 dark:bg-gray-700/50 rounded-lg">
-                        <h3 className="font-bold text-lg text-gray-900 dark:text-white mb-1 flex items-center gap-2"><Dumbbell size={18}/> The Program View</h3>
-                        <p>This is your home base. It lays out your entire program, week by week. Just click a day to jump in and start lifting. Completed days get a checkmark, so you can always see your progress at a glance.</p>
+                        <h3 className="font-bold text-lg text-gray-900 dark:text-white mb-1">Step 1: Your Home Base</h3>
+                        <p>The <span className="font-semibold">Program</span> screen is your command center. It lays out your entire mesocycle, week by week. Just click a day to jump in and start lifting.</p>
                     </div>
                 )}
                 {step === 2 && (
                     <div className="p-3 bg-gray-100 dark:bg-gray-700/50 rounded-lg">
-                        <h3 className="font-bold text-lg text-gray-900 dark:text-white mb-1 flex items-center gap-2"><Edit size={18}/> Logging a Workout</h3>
+                        <h3 className="font-bold text-lg text-gray-900 dark:text-white mb-1">Step 2: Logging a Workout</h3>
                         <p>Inside a workout, enter your <span className="font-semibold">Load</span>, <span className="font-semibold">Reps</span>, and <span className="font-semibold">RIR</span> (Reps In Reserve). The app gives you an AI-powered <span className="font-semibold text-blue-500">Suggestion</span> based on your last performance to guide your progressive overload.</p>
                     </div>
                 )}
                  {step === 3 && (
                     <div className="p-3 bg-gray-100 dark:bg-gray-700/50 rounded-lg">
-                        <h3 className="font-bold text-lg text-gray-900 dark:text-white mb-1 flex items-center gap-2"><BookOpen size={18}/> Program Hub & Customization</h3>
-                        <p>Use the 'Program Hub' to discover new presets, or even share and import programs with friends. The 'Edit Program' view gives you full control to build your perfect routine from scratch.</p>
+                        <h3 className="font-bold text-lg text-gray-900 dark:text-white mb-1">Step 3: Customization</h3>
+                        <p>Use the <span className="font-semibold">Program Hub</span> to discover new presets, or even share and import programs. The <span className="font-semibold">Edit Program</span> view gives you full control to build your perfect routine from scratch.</p>
                     </div>
                 )}
                 {step === 4 && (
+                     <div>
+                        <h3 className="font-bold text-lg text-gray-900 dark:text-white mb-2">Step 4: Create a Sync ID</h3>
+                        <p className="text-sm mb-4">Create a unique ID to sync your data across devices and browsers. Make it memorable!</p>
+                        <input 
+                            type="text"
+                            value={tempId}
+                            onChange={(e) => setTempId(e.target.value)}
+                            className="w-full p-2 bg-white dark:bg-gray-700 rounded-md border-gray-300 dark:border-gray-600"
+                            placeholder="e.g., john-doe-lifts"
+                        />
+                    </div>
+                )}
+                {step === 5 && (
                     <div>
-                        <h3 className="font-bold text-lg text-gray-900 dark:text-white mb-2">Select Your Starting Program</h3>
+                        <h3 className="font-bold text-lg text-gray-900 dark:text-white mb-2">Step 5: Select Your Starting Program</h3>
                         <p className="text-sm mb-4">Choose a preset to begin. You can always change or customize it later in the Program Hub.</p>
                         <div className="space-y-2 max-h-60 overflow-y-auto pr-2">
                              {Object.entries(presets).map(([key, preset]) => (
@@ -2213,9 +2336,9 @@ const TutorialModal = ({ onProgramSelect, onClose, onBodyWeightSet }) => {
                         </div>
                     </div>
                 )}
-                 {step === 5 && (
+                 {step === 6 && (
                     <div>
-                        <h3 className="font-bold text-lg text-gray-900 dark:text-white mb-2 flex items-center gap-2"><Weight size={18}/> Enter Your Bodyweight</h3>
+                        <h3 className="font-bold text-lg text-gray-900 dark:text-white mb-2">Step 6: Enter Your Bodyweight</h3>
                         <p className="text-sm mb-4">Please enter your current bodyweight. This helps with tracking certain achievements and progress metrics. You can change this later in settings.</p>
                         <input 
                             type="number"
@@ -2232,14 +2355,16 @@ const TutorialModal = ({ onProgramSelect, onClose, onBodyWeightSet }) => {
             <div className="flex justify-between items-center mt-6">
                 <span className="text-sm text-gray-500">{step} / {totalSteps}</span>
                 <div className="flex gap-2">
-                     {step > 1 && step <= 4 && (
+                     {step > 1 && step < 5 && (
                         <button onClick={prevStep} className="px-4 py-2 bg-gray-200 dark:bg-gray-600 rounded-lg">Back</button>
                      )}
                      {step < 4 ? (
                         <button onClick={nextStep} className="px-4 py-2 bg-blue-600 text-white rounded-lg">Next</button>
-                     ) : step === 5 ? (
+                     ) : step === 4 ? (
+                        <button onClick={handleSetId} className="px-4 py-2 bg-blue-600 text-white rounded-lg">Set ID & Continue</button>
+                     ): step === 6 ? (
                          <button onClick={handleFinish} className="px-4 py-2 bg-green-600 text-white rounded-lg">Finish Setup</button>
-                     ) : (
+                     ) : step === 5 ? null : ( // Hide buttons on step 5
                          <button onClick={onClose} className="px-4 py-2 bg-gray-200 dark:bg-gray-600 rounded-lg">Close</button>
                      )
                      }
@@ -2293,40 +2418,66 @@ const RestTimer = ({ initialTime, onClose, onTimerEnd }) => {
 // --- Achievements Data & Logic ---
 const calculateStreak = (allLogs, programData) => {
     if (!programData) return 0;
-    const { weeklySchedule, programStructure, masterExerciseList, info } = programData;
+    const { weeklySchedule, programStructure, masterExerciseList, info, workoutOrder, settings } = programData;
     let currentStreak = 0;
     let streakBroken = false;
-    const sortedDays = [];
-    for (let week = 1; week <= info.weeks; week++) {
-        for (const day of weeklySchedule) {
-            if (day.workout !== 'Rest') {
-                sortedDays.push({ week, day: day.day });
-            }
-        }
-    }
-    for (const { week, day } of sortedDays) {
-        const workoutName = weeklySchedule.find(d => d.day === day)?.workout;
-        const workout = programStructure[workoutName];
-        if (!workout) continue;
-        const isDayComplete = workout.exercises.every(exName => {
+    
+    const isDayComplete = (week, dayKey, workoutName) => {
+        const workout = getWorkoutForWeek(programData, week, workoutName);
+        if (!workout) return false;
+
+        return workout.exercises.every(exName => {
             const exDetails = getExerciseDetails(exName, masterExerciseList);
             if (!exDetails) return false;
             return Array.from({ length: exDetails.sets }, (_, i) => i + 1).every(setNum => {
-                const log = allLogs[`${week}-${day}-${exName}-${setNum}`];
+                const log = allLogs[`${week}-${dayKey}-${exName}-${setNum}`];
                 return log?.skipped || ((log?.load === 0 || log?.load) && log?.reps && (log.rir !== undefined && log.rir !== null && log.rir !== ''));
             });
         });
-        if (isDayComplete) {
-            if (!streakBroken) currentStreak++;
-        } else {
-            const hasAnyLogInDay = workout.exercises.some(exName => {
-                const exDetails = getExerciseDetails(exName, masterExerciseList);
-                if (!exDetails) return false;
-                return Array.from({ length: exDetails.sets }, (_, i) => i + 1).some(setNum => !!allLogs[`${week}-${day}-${exName}-${setNum}`]);
-            });
-            if (hasAnyLogInDay) streakBroken = true;
+    }
+
+    const hasAnyLogInDay = (week, dayKey, workoutName) => {
+        const workout = getWorkoutForWeek(programData, week, workoutName);
+        if (!workout) return false;
+         return workout.exercises.some(exName => {
+             const exDetails = getExerciseDetails(exName, masterExerciseList);
+             if (!exDetails) return false;
+             return Array.from({ length: exDetails.sets }, (_, i) => i + 1).some(setNum => !!allLogs[`${week}-${dayKey}-${exName}-${setNum}`]);
+        });
+    }
+    
+    if (settings.useWeeklySchedule) {
+        const sortedDays = [];
+        for (let week = 1; week <= info.weeks; week++) {
+            for (const day of weeklySchedule) {
+                if (day.workout !== 'Rest') {
+                    sortedDays.push({ week, day: day.day });
+                }
+            }
+        }
+        for (const { week, day } of sortedDays) {
+            const workoutName = weeklySchedule.find(d => d.day === day)?.workout;
+            if (isDayComplete(week, day, workoutName)) {
+                if (!streakBroken) currentStreak++;
+            } else {
+                if (hasAnyLogInDay(week, day, workoutName)) streakBroken = true;
+            }
+        }
+    } else { // Sequential Mode
+        const totalSessions = info.weeks * workoutOrder.length;
+        for (let i = 0; i < totalSessions; i++) {
+            const week = Math.floor(i / workoutOrder.length) + 1;
+            const workoutName = workoutOrder[i % workoutOrder.length];
+            const dayKey = workoutName;
+
+            if (isDayComplete(week, dayKey, workoutName)) {
+                if (!streakBroken) currentStreak++;
+            } else {
+                 if (hasAnyLogInDay(week, dayKey, workoutName)) streakBroken = true;
+            }
         }
     }
+
     return currentStreak;
 };
 
@@ -2613,6 +2764,7 @@ const achievementsList = {
         icon: Award,
         type: 'tiered',
         tiers: [
+            { name: "Initiate", value: 5, description: "Completed 5 strict pull-ups." },
             { name: "Pro", value: 10, description: "Completed 10 strict pull-ups." },
             { name: "Elite", value: 15, description: "Completed 15 strict pull-ups." },
             { name: "Master", value: 20, description: "Completed 20 strict pull-ups." },
@@ -2719,7 +2871,8 @@ const AchievementCard = ({ achievementId, achievement, unlockedStatus, currentVa
             displayName = `${achievement.name} - ${tierName}`;
             if (unlockedTierIndex < achievement.tiers.length - 1) {
                 nextTier = achievement.tiers[unlockedTierIndex + 1];
-                progressPercentage = Math.min(100, (currentValue / nextTier.value) * 100);
+                const prevTierValue = unlockedTierIndex > 0 ? achievement.tiers[unlockedTierIndex - 1].value : 0;
+                progressPercentage = Math.min(100, ((currentValue - prevTierValue) / (nextTier.value - prevTierValue)) * 100);
             } else {
                 // Max tier reached
                 progressPercentage = 100;
@@ -2753,7 +2906,7 @@ const AchievementCard = ({ achievementId, achievement, unlockedStatus, currentVa
         'five wheels': { bg: 'bg-pink-100 dark:bg-pink-900/50', text: 'text-pink-600 dark:text-pink-400', border: 'border-pink-400', progress: 'bg-pink-500' },
         'press prince': { bg: 'bg-indigo-100 dark:bg-indigo-900/50', text: 'text-indigo-600 dark:text-indigo-400', border: 'border-indigo-400', progress: 'bg-indigo-500' },
         'overlord': { bg: 'bg-violet-100 dark:bg-violet-900/50', text: 'text-violet-600 dark:text-violet-400', border: 'border-violet-400', progress: 'bg-violet-500' },
-        initiate: { bg: 'bg-green-100 dark:bg-green-900/50', text: 'text-green-600 dark:text-green-400', border: 'border-green-400', progress: 'bg-green-500' },
+        'initiate': { bg: 'bg-green-100 dark:bg-green-900/50', text: 'text-green-600 dark:text-green-400', border: 'border-green-400', progress: 'bg-green-500' },
         pro: { bg: 'bg-teal-100 dark:bg-teal-900/50', text: 'text-teal-600 dark:text-teal-400', border: 'border-teal-400', progress: 'bg-teal-500' },
         elite: { bg: 'bg-emerald-100 dark:bg-emerald-900/50', text: 'text-emerald-600 dark:text-emerald-400', border: 'border-emerald-400', progress: 'bg-emerald-500' },
         master: { bg: 'bg-lime-100 dark:bg-lime-900/50', text: 'text-lime-600 dark:text-lime-400', border: 'border-lime-400', progress: 'bg-lime-500' },
@@ -2997,7 +3150,6 @@ const ToastContainer = () => {
     );
 };
 
-
 const AppCore = () => {
     const [pageState, setPageState] = useState({ view: 'main', data: {} });
     const [allLogs, setAllLogs] = useState({});
@@ -3006,7 +3158,7 @@ const AppCore = () => {
     const [programData, setProgramData] = useState(presets['optimal-ppl-ul']);
     const [weightUnit, setWeightUnit] = useState('lbs');
     const [bodyWeight, setBodyWeight] = useState('');
-    const { user, db, isLoading, customId } = useContext(FirebaseContext);
+    const { user, db, isLoading, customId, handleSetCustomId } = useContext(FirebaseContext);
     const { setTheme } = useContext(ThemeContext);
     const { openModal, closeModal, addToast } = useContext(AppStateContext);
     const [isDataLoading, setIsDataLoading] = useState(true);
@@ -3017,15 +3169,26 @@ const AppCore = () => {
         document.title = "Project Overload | Fitness Tracker";
     }, []);
 
-    const handleProgramUpdate = useCallback((newProgramData) => {
-        setProgramData(newProgramData);
-        if(db && customId) {
-            const { name, info, masterExerciseList, programStructure, weeklySchedule, workoutOrder, settings } = newProgramData;
+    const handleUpdateAndSave = (updates) => {
+        if (db && customId) {
             const userDocRef = doc(db, 'workoutLogs', customId);
-            updateDoc(userDocRef, { name, info, masterExerciseList, programStructure, weeklySchedule, workoutOrder, settings });
-            addToast("Program updated successfully!", "success");
+            updateDoc(userDocRef, updates);
         }
-    }, [db, customId, addToast]);
+    };
+
+    const handleProgramDataChange = (newProgramData) => {
+        setProgramData(newProgramData);
+        // Only save serializable fields to Firestore
+        const { name, info, masterExerciseList, programStructure, weeklySchedule, workoutOrder, settings, weeklyOverrides } = newProgramData;
+        handleUpdateAndSave({ name, info, masterExerciseList, programStructure, weeklySchedule, workoutOrder, settings, weeklyOverrides });
+    };
+
+    const handleProgramUpdate = useCallback((newProgramData) => {
+        // When loading a new program, reset overrides
+        const programWithResetOverrides = { ...newProgramData, weeklyOverrides: {} };
+        handleProgramDataChange(programWithResetOverrides);
+        addToast("Program updated successfully!", "success");
+    }, [addToast]);
 
      const handleBodyWeightChange = (newWeight) => {
         setBodyWeight(newWeight);
@@ -3038,18 +3201,24 @@ const AppCore = () => {
                 onClose={closeModal} 
                 onProgramSelect={handleProgramUpdate}
                 onBodyWeightSet={handleBodyWeightChange}
+                onSetSyncId={handleSetCustomId}
             />, 
             'lg'
         );
-    }, [openModal, closeModal, handleProgramUpdate, handleBodyWeightChange]);
+    }, [openModal, closeModal, handleProgramUpdate, handleBodyWeightChange, handleSetCustomId]);
 
     // Data loading from Firestore
     useEffect(() => {
-        if (!user || !db || !customId) {
-            setProgramData(presets['optimal-ppl-ul']);
+        if (!user || !db) {
             if (!isLoading) setIsDataLoading(false);
             return;
         }
+        if (!customId) {
+            setIsDataLoading(false);
+            showTutorial();
+            return;
+        }
+
         setIsDataLoading(true);
         const userDocRef = doc(db, 'workoutLogs', customId);
         const unsubscribe = onSnapshot(userDocRef, (docSnap) => {
@@ -3083,13 +3252,9 @@ const AppCore = () => {
                     weeklySchedule: data.weeklySchedule || defaultProgram.weeklySchedule,
                     workoutOrder: data.workoutOrder || defaultProgram.workoutOrder,
                     settings: { ...defaultProgram.settings, ...data.settings },
+                    weeklyOverrides: data.weeklyOverrides || {},
                 };
                 setProgramData(loadedProgram);
-
-                if (!data.hasSeenTutorial) {
-                    showTutorial();
-                    updateDoc(userDocRef, { hasSeenTutorial: true });
-                }
 
             } else { 
                 const defaultProgram = presets['optimal-ppl-ul'];
@@ -3102,11 +3267,9 @@ const AppCore = () => {
                     bodyWeight: '',
                     archivedLogs: [],
                     unlockedAchievements: {},
-                    hasSeenTutorial: true // set to true after showing tutorial
+                    hasSeenTutorial: true 
                 };
-                setDoc(userDocRef, initialData).then(() => {
-                    showTutorial();
-                });
+                setDoc(userDocRef, initialData);
             }
             setIsDataLoading(false);
         }, (error) => {
@@ -3126,6 +3289,7 @@ const AppCore = () => {
 
     // Achievement checking
     useEffect(() => {
+        if (isDataLoading) return;
         const newUnlockedStatus = {};
         for (const id in achievementsList) {
             const achievement = achievementsList[id];
@@ -3176,7 +3340,7 @@ const AppCore = () => {
         } else if (Object.keys(newUnlockedStatus).length !== Object.keys(unlockedAchievements).length) {
             setUnlockedAchievements(newUnlockedStatus);
         }
-    }, [historicalLogs, programData, bodyWeight, addToast, unlockedAchievements, db, customId]);
+    }, [historicalLogs, programData, bodyWeight, addToast, unlockedAchievements, db, customId, isDataLoading]);
 
 
     // Navigation logic
@@ -3201,19 +3365,6 @@ const AppCore = () => {
             window.removeEventListener('popstate', handlePopState);
         };
     }, []);
-
-    const handleUpdateAndSave = (updates) => {
-        if (db && customId) {
-            const userDocRef = doc(db, 'workoutLogs', customId);
-            updateDoc(userDocRef, updates);
-        }
-    };
-    
-    const handleProgramDataChange = (newProgramData) => {
-        setProgramData(newProgramData);
-        const { name, info, masterExerciseList, programStructure, weeklySchedule, workoutOrder, settings } = newProgramData;
-        handleUpdateAndSave({ name, info, masterExerciseList, programStructure, weeklySchedule, workoutOrder, settings });
-    };
     
     const handleWeightUnitChange = (newUnit) => {
         setWeightUnit(newUnit);
@@ -3242,14 +3393,16 @@ const AppCore = () => {
             updateDoc(userDocRef, {
                 archivedLogs: arrayUnion(allLogs),
                 logs: {},
-                skippedDays: {}
+                skippedDays: {},
+                weeklyOverrides: {},
             });
         } else if (db && customId) {
             // Handle case where there are no logs to archive.
             const userDocRef = doc(db, 'workoutLogs', customId);
             updateDoc(userDocRef, {
                 logs: {},
-                skippedDays: {}
+                skippedDays: {},
+                weeklyOverrides: {},
             });
         }
     };
@@ -3281,7 +3434,7 @@ const AppCore = () => {
             programData.weeklySchedule.forEach(day => {
                 const dayKey = `${week}-${day.day}`;
                 const workoutName = getWorkoutForDay(week, day.day);
-                const workout = programData.programStructure[workoutName];
+                const workout = getWorkoutForWeek(programData, week, workoutName);
                 const isSkipped = !!skippedDays[dayKey];
                 
                 if (!workout || workoutName === 'Rest') {
@@ -3303,7 +3456,18 @@ const AppCore = () => {
         return status;
     }, [allLogs, skippedDays, programData]);
 
-    if (isLoading || (customId && isDataLoading)) {
+    const handleEditWorkout = (week, workoutName) => {
+        openModal(<EditChoiceModal onChoice={(type) => {
+            closeModal();
+            if (type === 'master') {
+                navigate('editProgram');
+            } else {
+                navigate('editWeek', { week, workoutName });
+            }
+        }}/>);
+    }
+
+    if (isLoading || isDataLoading) {
         return (
             <div className="bg-gray-100 dark:bg-gray-900 min-h-screen flex justify-center items-center">
                 <div className="flex flex-col items-center">
@@ -3316,18 +3480,19 @@ const AppCore = () => {
     
     const renderContent = () => {
         if (!customId) {
-            return <SettingsView allLogs={{}} historicalLogs={{}} weightUnit={weightUnit} onWeightUnitChange={handleWeightUnitChange} onResetMeso={handleResetMeso} programData={programData} onProgramDataChange={handleProgramDataChange} onShowTutorial={showTutorial} bodyWeight={bodyWeight} onBodyWeightChange={handleBodyWeightChange} />;
+             return <div/> // The tutorial modal will be forced open, so this view is temporary
         }
         switch(pageState.view) {
-            case 'dashboard': return <DashboardView allLogs={allLogs} {...programData} />;
+            case 'dashboard': return <DashboardView allLogs={allLogs} programData={programData} />;
             case 'lifting': return <LiftingSession {...pageState.data} onBack={() => navigate('main')} allLogs={allLogs} setAllLogs={setAllLogs} onSkipDay={handleSkipDay} programData={programData} weightUnit={weightUnit} onStartTimer={handleStartTimer} />;
             case 'analytics': return <AnalyticsView allLogs={historicalLogs} masterExerciseList={programData.masterExerciseList} />;
             case 'records': return <RecordsView allLogs={historicalLogs} />;
             case 'achievements': return <AchievementsView unlockedAchievements={unlockedAchievements} historicalLogs={historicalLogs} programData={programData} bodyWeight={bodyWeight} />;
             case 'programHub': return <ProgramManagerView onProgramUpdate={handleProgramUpdate} activeProgram={programData} />;
             case 'editProgram': return <EditProgramView programData={programData} onProgramDataChange={handleProgramDataChange} />;
+            case 'editWeek': return <EditWeekView {...pageState.data} programData={programData} onProgramDataChange={handleProgramDataChange} onBack={() => navigate('main')} />;
             case 'settings': return <SettingsView allLogs={allLogs} historicalLogs={historicalLogs} weightUnit={weightUnit} onWeightUnitChange={handleWeightUnitChange} onResetMeso={handleResetMeso} programData={programData} onProgramDataChange={handleProgramDataChange} onShowTutorial={showTutorial} bodyWeight={bodyWeight} onBodyWeightChange={handleBodyWeightChange} />;
-            default: return <MainView onSessionSelect={(week, day, type) => navigate(type, { week, dayKey: day })} completedDays={completedDays} onUnskipDay={handleUnskipDay} {...programData} />;
+            default: return <MainView onSessionSelect={(week, day, type, seqIndex) => navigate(type, { week, dayKey: day, sequentialWorkoutIndex: seqIndex })} completedDays={completedDays} onUnskipDay={handleUnskipDay} programData={programData} allLogs={allLogs} onEditWorkout={handleEditWorkout} />;
         }
     };
 
@@ -3346,6 +3511,105 @@ const AppCore = () => {
         </div>
     );
 }
+
+const EditChoiceModal = ({ onChoice }) => {
+    return (
+        <div>
+            <h2 className="text-xl font-bold mb-4">How do you want to edit?</h2>
+            <p className="text-gray-600 dark:text-gray-400 mb-6">You can either change this single workout for this week, or edit the master template for all weeks.</p>
+            <div className="space-y-3">
+                 <button onClick={() => onChoice('week')} className="w-full text-left p-4 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 border border-gray-200 dark:border-gray-600">
+                    <h3 className="font-bold text-blue-600 dark:text-blue-400">Edit This Week Only</h3>
+                    <p className="text-sm">Make a one-time change to this workout session.</p>
+                </button>
+                 <button onClick={() => onChoice('master')} className="w-full text-left p-4 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 border border-gray-200 dark:border-gray-600">
+                    <h3 className="font-bold">Edit Master Template</h3>
+                    <p className="text-sm">Permanently change this workout for all current and future weeks.</p>
+                </button>
+            </div>
+        </div>
+    );
+}
+
+const EditWeekView = ({ week, workoutName, programData, onProgramDataChange, onBack }) => {
+    const { openModal, closeModal } = useContext(AppStateContext);
+    const { masterExerciseList } = programData;
+
+    const baseWorkout = getWorkoutForWeek(programData, week, workoutName);
+    const [exercises, setExercises] = useState(baseWorkout.exercises);
+
+    const handleReorderExercise = (index, direction) => {
+        const newExercises = [...exercises];
+        const newIndex = index + direction;
+        if (newIndex < 0 || newIndex >= newExercises.length) return;
+        [newExercises[index], newExercises[newIndex]] = [newExercises[newIndex], newExercises[index]];
+        setExercises(newExercises);
+    };
+
+    const handleDeleteExercise = (exerciseIndex) => {
+        const newExercises = [...exercises];
+        newExercises.splice(exerciseIndex, 1);
+        setExercises(newExercises);
+    };
+
+    const handleAddExercise = () => {
+         openModal(
+            <AddExerciseToWorkoutModal 
+                masterExerciseList={masterExerciseList}
+                onAdd={(exerciseName) => {
+                    setExercises(prev => [...prev, exerciseName]);
+                    closeModal();
+                }}
+                onClose={closeModal}
+            />
+        )
+    };
+
+    const handleSaveChanges = () => {
+        const newOverrides = JSON.parse(JSON.stringify(programData.weeklyOverrides || {}));
+        if(!newOverrides[week]) {
+            newOverrides[week] = {};
+        }
+        newOverrides[week][workoutName] = { ...baseWorkout, exercises };
+        onProgramDataChange({ ...programData, weeklyOverrides: newOverrides });
+        onBack();
+    };
+
+
+    return (
+         <div className="p-4 md:p-6 pb-24">
+            <div className="flex justify-between items-center mb-6">
+                <button onClick={onBack} className="flex items-center gap-2 text-sm font-medium text-blue-600 dark:text-blue-400 hover:underline"><ArrowLeft size={16}/> Back to Program</button>
+                 <button onClick={handleSaveChanges} className="px-4 py-2 bg-blue-600 text-white rounded-lg shadow-md hover:bg-blue-700 transition-colors flex items-center gap-2">
+                    <Save size={16} /> Save Changes
+                </button>
+            </div>
+            <div className="text-center mb-6">
+                 <h1 className="text-3xl font-bold dark:text-white">Editing Workout</h1>
+                 <p className="text-lg text-gray-600 dark:text-gray-400">Week {week} - {workoutName}</p>
+            </div>
+            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-4">
+                 <ul className="space-y-2 mb-3">
+                    {exercises.map((ex, index) => (
+                        <li key={`${ex}-${index}`} className="flex justify-between items-center p-2 bg-gray-50 dark:bg-gray-700/50 rounded-md group">
+                            <span className="text-gray-800 dark:text-gray-200">{ex}</span>
+                            <div className="flex items-center gap-1 text-gray-500 dark:text-gray-400">
+                                <button onClick={() => handleReorderExercise(index, -1)} disabled={index === 0} className="disabled:opacity-20 p-1 hover:text-gray-900 dark:hover:text-white"><ArrowUp size={16} /></button>
+                                <button onClick={() => handleReorderExercise(index, 1)} disabled={index === exercises.length - 1} className="disabled:opacity-20 p-1 hover:text-gray-900 dark:hover:text-white"><ArrowDown size={16} /></button>
+                                <button onClick={() => handleDeleteExercise(index)} className="p-1 hover:text-red-600 dark:hover:text-red-400"><XCircle size={16} /></button>
+                            </div>
+                        </li>
+                    ))}
+                    {exercises.length === 0 && <p className="text-center text-gray-500 dark:text-gray-400 py-2">No exercises yet.</p>}
+                </ul>
+                 <button onClick={handleAddExercise} className="w-full flex items-center justify-center gap-2 text-sm p-2 rounded-md bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300 hover:bg-blue-200 dark:hover:bg-blue-800/50">
+                    <PlusCircle size={16}/> Add Exercise
+                </button>
+            </div>
+         </div>
+    );
+};
+
 
 export default function App() {
     return (
