@@ -3237,4 +3237,3 @@ export default function App() {
         </FirebaseProvider>
     );
 }
-```
