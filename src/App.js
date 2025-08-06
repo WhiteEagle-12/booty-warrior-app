@@ -353,7 +353,8 @@ const getProgressionSuggestion = (exerciseName, lastPerformanceData, currentPerf
     if (lastReps >= maxReps && lastRir <= (parseInt(exerciseDetails.rir[0], 10) + 1)) {
         let increment = 5; // Default for barbell/machine
         if (['dumbbell', 'kettlebell'].includes(exerciseDetails.equipment)) increment = 5; 
-        if (['isolation', 'accessory'].includes(exerciseDetails.type)) increment = 2.5;
+        // The following line was removed as 'type' property does not exist in the data structure
+        // if (['isolation', 'accessory'].includes(exerciseDetails.type)) increment = 2.5;
         if (exerciseDetails.equipment === 'bodyweight') return `Add weight or aim for ${lastReps + 1} reps. You're getting stronger!`;
         
         const newWeight = lastWeight + increment;
@@ -789,7 +790,7 @@ const LiftingSession = ({ week, dayKey, onBack, allLogs, setAllLogs, onSkipDay, 
     );
 };
 
-const WeekView = ({ week, completedDays, onSessionSelect, firstIncompleteWeek, onUnskipDay, programData }) => {
+const WeekView = ({ week, completedDays, onSessionSelect, onEditWeekWorkout, firstIncompleteWeek, onUnskipDay, programData }) => {
     const { programStructure, weeklySchedule } = programData;
     const isWeekComplete = useMemo(() => weeklySchedule.every(day => day.workout === 'Rest' || completedDays.get(`${week}-${day.day}`)?.isDayComplete), [week, completedDays, weeklySchedule]);
     const [isOpen, setIsOpen] = useState(week === firstIncompleteWeek);
@@ -835,6 +836,9 @@ const WeekView = ({ week, completedDays, onSessionSelect, firstIncompleteWeek, o
                                             <button onClick={() => onSessionSelect(week, day.day, 'lifting')} className="w-full flex items-center justify-between text-xs p-1.5 rounded bg-white dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 shadow-sm transition-colors">
                                                 <div className="flex items-center gap-1 font-semibold">{workoutDetails?.label || workoutName}</div>
                                                 {status?.isDayComplete ? <CheckCircle size={14} className="text-green-500"/> : <Dumbbell size={14} className="text-blue-500"/>}
+                                            </button>
+                                            <button onClick={() => onEditWeekWorkout(week, day.day)} className="p-1 rounded bg-white dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 shadow-sm">
+                                                <Pencil size={14} className="text-gray-500"/>
                                             </button>
                                         </div>
                                     )}
@@ -960,7 +964,7 @@ const StreakCounter = ({ streak }) => {
 };
 
 
-const MainView = ({ onSessionSelect, completedDays, onUnskipDay, programData, onEditWorkout, allLogs }) => {
+const MainView = ({ onSessionSelect, onEditWeekWorkout, onEditProgram, completedDays, onUnskipDay, programData, allLogs }) => {
     const { info, weeklySchedule, workoutOrder } = programData;
     const weeks = Array.from({ length: info.weeks }, (_, i) => i + 1);
     
@@ -982,7 +986,7 @@ const MainView = ({ onSessionSelect, completedDays, onUnskipDay, programData, on
                         <p className="text-lg text-gray-600 dark:text-gray-400">Your {info.weeks}-Week Plan</p>
                     </div>
                 </div>
-                <button onClick={onEditWorkout} className="p-2 rounded-md hover:bg-gray-200 dark:hover:bg-gray-600">
+                <button onClick={onEditProgram} className="p-2 rounded-md hover:bg-gray-200 dark:hover:bg-gray-600">
                     <Pencil size={20} className="text-gray-500" />
                 </button>
             </div>
@@ -994,7 +998,8 @@ const MainView = ({ onSessionSelect, completedDays, onUnskipDay, programData, on
                             key={week} 
                             week={week} 
                             completedDays={completedDays} 
-                            onSessionSelect={onSessionSelect} 
+                            onSessionSelect={onSessionSelect}
+                            onEditWeekWorkout={onEditWeekWorkout} 
                             firstIncompleteWeek={firstIncompleteWeek} 
                             onUnskipDay={onUnskipDay} 
                             programData={programData}
@@ -1428,8 +1433,7 @@ const AnalyticsView = ({ allLogs, masterExerciseList }) => {
     }, [filteredExercises, selectedExercise]);
     
     const chartData = useMemo(() => {
-        if (!selectedExercise || allLogs.length === 0) return [];
-        const dayOrder = { Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6, Sun: 7 };
+        if (!selectedExercise || Object.keys(allLogs).length === 0) return [];
         const sessions = Object.values(allLogs).reduce((acc, log) => {
             if (log.exercise === selectedExercise && (log.load === 0 || log.load) && log.reps) {
                 const sessionKey = `${log.week}-${log.dayKey}`;
@@ -1444,17 +1448,28 @@ const AnalyticsView = ({ allLogs, masterExerciseList }) => {
             if (!topSet || isNaN(topSet.load) || isNaN(topSet.reps)) return null;
             return { sessionLabel: `W${session.week} ${session.dayKey}`, e1RM: calculateE1RM(topSet.load, topSet.reps, topSet.rir), load: topSet.load, reps: topSet.reps };
         }).filter(Boolean);
+        
+        const dayOrder = { Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6, Sun: 7 };
         return processedData.sort((a, b) => { 
-            const [wA, dA] = a.sessionLabel.substring(1).split(' '); 
-            const [wB, dB] = b.sessionLabel.substring(1).split(' '); 
-            const dayNumA = dayOrder[dA] || 8; // Handle sequential keys
-            const dayNumB = dayOrder[dB] || 8;
-            return (parseInt(wA) - parseInt(wB)) || (dayNumA - dayNumB); 
+            const [weekLabelA, dayLabelA] = a.sessionLabel.substring(1).split(' ');
+            const [weekLabelB, dayLabelB] = b.sessionLabel.substring(1).split(' ');
+            const weekA = parseInt(weekLabelA, 10);
+            const weekB = parseInt(weekLabelB, 10);
+
+            if (weekA !== weekB) {
+                return weekA - weekB;
+            }
+
+            // Handle both day keys (e.g., "Mon") and sequential keys (e.g., "workout-5")
+            const dayNumA = dayOrder[dayLabelA] || parseInt(dayLabelA.split('-')[1], 10) || 0;
+            const dayNumB = dayOrder[dayLabelB] || parseInt(dayLabelB.split('-')[1], 10) || 0;
+            
+            return dayNumA - dayNumB;
         });
     }, [selectedExercise, allLogs]);
 
     const volumeData = useMemo(() => {
-        if (allLogs.length === 0) return [];
+        if (Object.keys(allLogs).length === 0) return [];
         const volumesByWeek = {};
         Object.values(allLogs).forEach(log => {
             if ((log.load === 0 || log.load) && log.reps && log.week) {
@@ -1732,113 +1747,196 @@ const RecordsView = ({ allLogs }) => {
 
 const EditProgramView = ({ programData, onProgramDataChange }) => {
     const { openModal, closeModal } = useContext(AppStateContext);
-    const { programStructure, masterExerciseList, weeklySchedule, workoutOrder, info } = programData;
-    const [programName, setProgramName] = useState(info.name);
-    const [nameFeedback, setNameFeedback] = useState('');
-    const [isScheduleOpen, setIsScheduleOpen] = useState(false);
-    const [editingWorkoutName, setEditingWorkoutName] = useState(null);
-    const [tempWorkoutName, setTempWorkoutName] = useState('');
-    const [isDragEnabled, setIsDragEnabled] = useState(false);
+    const [program, setProgram] = useState(programData);
 
     useEffect(() => {
-        setProgramName(info.name);
-    }, [info.name]);
+        setProgram(programData);
+    }, [programData]);
 
-    const handleSaveProgramName = () => {
-        const newProgramData = { ...programData, info: { ...programData.info, name: programName } };
-        onProgramDataChange(newProgramData);
-        setNameFeedback('Saved!');
-        setTimeout(() => setNameFeedback(''), 2000);
+    const updateProgram = (updates) => {
+        const newProgram = { ...program, ...updates };
+        setProgram(newProgram);
+        onProgramDataChange(newProgram);
     };
 
     const handleInfoChange = (field, value) => {
-        const newProgramData = { ...programData, info: { ...programData.info, [field]: value } };
-        onProgramDataChange(newProgramData);
-    };
-
-    const updateProgramData = (field, value) => {
-        onProgramDataChange({ ...programData, [field]: value });
+        updateProgram({ info: { ...program.info, [field]: value } });
     };
 
     const handleScheduleChange = (day, newWorkoutName) => {
-        const newSchedule = weeklySchedule.map(d => d.day === day ? { ...d, workout: newWorkoutName } : d);
-        updateProgramData('weeklySchedule', newSchedule);
+        const newSchedule = program.weeklySchedule.map(d => d.day === day ? { ...d, workout: newWorkoutName } : d);
+        updateProgram({ weeklySchedule: newSchedule });
     };
 
     const handleAddWorkoutDay = () => {
-        const newWorkoutName = `New Workout ${Object.keys(programStructure).length + 1}`;
-        const newProgramStructure = { ...programStructure, [newWorkoutName]: { exercises: [], label: 'New' } };
-        const newWorkoutOrder = [...workoutOrder, newWorkoutName];
-        onProgramDataChange({ ...programData, programStructure: newProgramStructure, workoutOrder: newWorkoutOrder });
+        const newWorkoutName = `New Workout ${Object.keys(program.programStructure).length + 1}`;
+        const newProgramStructure = { ...program.programStructure, [newWorkoutName]: { exercises: [], label: 'New' } };
+        const newWorkoutOrder = [...program.workoutOrder, newWorkoutName];
+        updateProgram({ programStructure: newProgramStructure, workoutOrder: newWorkoutOrder });
     };
     
     const handleDeleteWorkoutDay = (workoutNameToDelete) => {
-        openModal(<div>...</div>); // Modal logic remains same
+        openModal(
+            <div>
+                <h2 className="text-xl font-bold mb-4">Confirm Deletion</h2>
+                <p className="text-gray-600 dark:text-gray-400">Are you sure you want to delete "{workoutNameToDelete}"? It will be removed from the program and replaced with a 'Rest' day in the weekly schedule.</p>
+                <div className="flex justify-end gap-2 mt-6">
+                    <button onClick={closeModal} className="px-4 py-2 bg-gray-200 dark:bg-gray-600 rounded-lg">Cancel</button>
+                    <button onClick={() => {
+                        const newProgramStructure = { ...program.programStructure };
+                        delete newProgramStructure[workoutNameToDelete];
+                        
+                        const newWorkoutOrder = program.workoutOrder.filter(name => name !== workoutNameToDelete);
+
+                        const newSchedule = program.weeklySchedule.map(d => d.workout === workoutNameToDelete ? { ...d, workout: 'Rest' } : d);
+
+                        updateProgram({
+                            programStructure: newProgramStructure,
+                            workoutOrder: newWorkoutOrder,
+                            weeklySchedule: newSchedule,
+                        });
+                        closeModal();
+                    }} className="px-4 py-2 bg-red-600 text-white rounded-lg">Delete</button>
+                </div>
+            </div>
+        );
     };
-    
+
     const handleRenameWorkoutDay = (oldName, newName) => {
-        // Logic remains same
+        if (!newName || newName === oldName || program.programStructure[newName]) {
+            closeModal();
+            return;
+        }
+
+        const newProgramStructure = { ...program.programStructure };
+        newProgramStructure[newName] = { ...newProgramStructure[oldName] };
+        delete newProgramStructure[oldName];
+
+        const newWorkoutOrder = program.workoutOrder.map(name => name === oldName ? newName : name);
+        const newSchedule = program.weeklySchedule.map(d => d.workout === oldName ? { ...d, workout: newName } : d);
+
+        updateProgram({
+            programStructure: newProgramStructure,
+            workoutOrder: newWorkoutOrder,
+            weeklySchedule: newSchedule,
+        });
+        closeModal();
     };
 
     const startEditingName = (name) => {
-        setEditingWorkoutName(name);
-        setTempWorkoutName(name);
+        openModal(<RenameWorkoutModal oldName={name} onSave={(newName) => handleRenameWorkoutDay(name, newName)} onClose={closeModal} />)
+    };
+    
+    const handleReorderWorkoutDay = (workoutIndex, direction) => {
+        const newOrder = [...program.workoutOrder];
+        const [movedItem] = newOrder.splice(workoutIndex, 1);
+        newOrder.splice(workoutIndex + direction, 0, movedItem);
+        updateProgram({ workoutOrder: newOrder });
     };
 
     const handleAddExerciseToWorkout = (workoutName) => {
-        const activeExercises = new Set(Object.values(programStructure).flatMap(w => w.exercises));
-        const myExercises = Object.fromEntries(
-            Object.entries(masterExerciseList).filter(([name]) => activeExercises.has(name))
-        );
+        const myExercises = program.masterExerciseList;
 
         openModal(
             <AddExerciseToWorkoutModal 
                 masterExerciseList={myExercises}
                 onAdd={(exerciseName, exerciseDetails) => {
-                    const newProgramStructure = JSON.parse(JSON.stringify(programStructure));
+                    const newProgramStructure = JSON.parse(JSON.stringify(program.programStructure));
                     newProgramStructure[workoutName].exercises.push(exerciseName);
                     
-                    let newMasterList = { ...masterExerciseList };
+                    let newMasterList = { ...program.masterExerciseList };
                     if (exerciseDetails && !newMasterList[exerciseName]) {
                         newMasterList[exerciseName] = exerciseDetails;
                     }
 
-                    onProgramDataChange({ 
-                        ...programData, 
+                    updateProgram({ 
                         programStructure: newProgramStructure,
                         masterExerciseList: newMasterList
                     });
                     closeModal();
                 }}
                 onClose={closeModal}
-            />
+            />, 'lg'
         )
     };
-    
+
     const handleEditExerciseDetails = (exerciseName) => {
-        // Modal logic remains same
+        const exerciseDetails = program.masterExerciseList[exerciseName];
+        openModal(
+            <EditExerciseModal
+                exerciseName={exerciseName}
+                exercise={exerciseDetails}
+                onSave={(newDetails, newName) => {
+                    const newMasterList = { ...program.masterExerciseList };
+                    if(exerciseName !== newName) {
+                        delete newMasterList[exerciseName];
+                    }
+                    newMasterList[newName] = newDetails;
+
+                    // Update all workout structures
+                    const newProgramStructure = JSON.parse(JSON.stringify(program.programStructure));
+                    Object.keys(newProgramStructure).forEach(workoutKey => {
+                        newProgramStructure[workoutKey].exercises = newProgramStructure[workoutKey].exercises.map(ex => ex === exerciseName ? newName : ex);
+                    });
+
+                    updateProgram({ masterExerciseList: newMasterList, programStructure: newProgramStructure });
+                    closeModal();
+                }}
+                onDelete={(nameToDelete) => {
+                    const newMasterList = { ...program.masterExerciseList };
+                    delete newMasterList[nameToDelete];
+
+                    const newProgramStructure = JSON.parse(JSON.stringify(program.programStructure));
+                    Object.keys(newProgramStructure).forEach(workoutKey => {
+                        newProgramStructure[workoutKey].exercises = newProgramStructure[workoutKey].exercises.filter(ex => ex !== nameToDelete);
+                    });
+
+                    updateProgram({ masterExerciseList: newMasterList, programStructure: newProgramStructure });
+                    closeModal();
+                }}
+                onClose={closeModal}
+            />,
+            'lg'
+        );
+    };
+    
+    const handleCreateNewExercise = () => {
+        openModal(
+            <EditExerciseModal
+                isNew={true}
+                onSave={(newDetails, newName) => {
+                    const newMasterList = { ...program.masterExerciseList, [newName]: newDetails };
+                    updateProgram({ masterExerciseList: newMasterList });
+                    closeModal();
+                }}
+                onClose={closeModal}
+            />,
+            'lg'
+        )
     };
 
-    const handleCreateNewExercise = () => {
-        // Modal logic remains same
+    const handleRemoveExerciseFromWorkout = (workoutName, exerciseIndex) => {
+        const newProgramStructure = JSON.parse(JSON.stringify(program.programStructure));
+        newProgramStructure[workoutName].exercises.splice(exerciseIndex, 1);
+        updateProgram({ programStructure: newProgramStructure });
     };
+
+    const handleReorderExerciseInWorkout = (workoutName, sourceIndex, destIndex) => {
+        const newProgramStructure = JSON.parse(JSON.stringify(program.programStructure));
+        const [movedItem] = newProgramStructure[workoutName].exercises.splice(sourceIndex, 1);
+        newProgramStructure[workoutName].exercises.splice(destIndex, 0, movedItem);
+        updateProgram({ programStructure: newProgramStructure });
+    }
 
     const onDragEnd = (result) => {
         if (!result.destination) return;
         const { source, destination, type } = result;
 
         if (type === 'workoutDay') {
-            const newOrder = Array.from(workoutOrder);
-            const [reorderedItem] = newOrder.splice(source.index, 1);
-            newOrder.splice(destination.index, 0, reorderedItem);
-            updateProgramData('workoutOrder', newOrder);
+            handleReorderWorkoutDay(source.index, destination.index - source.index);
         } else if (type === 'exercise') {
-            const workoutName = result.source.droppableId;
-            const newProgramStructure = JSON.parse(JSON.stringify(programStructure));
-            const exercises = newProgramStructure[workoutName].exercises;
-            const [reorderedItem] = exercises.splice(source.index, 1);
-            exercises.splice(destination.index, 0, reorderedItem);
-            updateProgramData('programStructure', newProgramStructure);
+            const workoutName = source.droppableId;
+            handleReorderExerciseInWorkout(workoutName, source.index, destination.index);
         }
     };
     
@@ -1854,9 +1952,6 @@ const EditProgramView = ({ programData, onProgramDataChange }) => {
                         </div>
                     </div>
                     <div className="flex items-center gap-2">
-                        <button onClick={() => setIsDragEnabled(!isDragEnabled)} className={`p-2 rounded-lg shadow-md transition-colors ${isDragEnabled ? 'bg-blue-600 text-white' : 'bg-gray-200 dark:bg-gray-600'}`}>
-                            <Move size={16} />
-                        </button>
                         <button onClick={handleCreateNewExercise} className="flex-shrink-0 flex items-center gap-2 px-3 py-2 bg-blue-600 text-white text-sm rounded-lg shadow-md hover:bg-blue-700 transition-colors">
                             <PlusCircle size={16} /> Create Exercise
                         </button>
@@ -1865,52 +1960,54 @@ const EditProgramView = ({ programData, onProgramDataChange }) => {
 
                 {/* Program Details Editor */}
                 <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-4 mb-6">
-                    {/* ... same as before ... */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Program Name</label>
+                            <input type="text" value={program.info.name} onChange={(e) => handleInfoChange('name', e.target.value)} className="w-full p-2 bg-white dark:bg-gray-700 rounded-md border-gray-300 dark:border-gray-600" />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Weeks</label>
+                            <input type="number" value={program.info.weeks} onChange={(e) => handleInfoChange('weeks', e.target.value)} className="w-full p-2 bg-white dark:bg-gray-700 rounded-md border-gray-300 dark:border-gray-600" />
+                        </div>
+                    </div>
                 </div>
 
-                {/* Weekly Schedule Editor */}
-                <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-4 mb-6">
-                    {/* ... same as before ... */}
-                </div>
-                
                 {/* Workout Day List */}
-                <Droppable droppableId="all-workouts" direction="vertical" type="workoutDay" isDropDisabled={!isDragEnabled}>
+                <Droppable droppableId="all-workouts" direction="vertical" type="workoutDay">
                     {(provided) => (
                         <div {...provided.droppableProps} ref={provided.innerRef} className="space-y-4">
-                            {workoutOrder.map((workoutName, workoutIndex) => {
-                                const workoutDetails = programStructure[workoutName];
+                            {program.workoutOrder.map((workoutName, workoutIndex) => {
+                                const workoutDetails = program.programStructure[workoutName];
                                 if (!workoutDetails) return null;
                                 return (
-                                    <Draggable key={workoutName} draggableId={workoutName} index={workoutIndex} isDragDisabled={!isDragEnabled}>
+                                    <Draggable key={workoutName} draggableId={workoutName} index={workoutIndex}>
                                         {(provided) => (
                                             <div ref={provided.innerRef} {...provided.draggableProps} {...provided.dragHandleProps}>
                                                 <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-4">
                                                     <div className="flex justify-between items-center mb-3 border-b border-gray-200 dark:border-gray-700 pb-3">
-                                                        <h3 className="text-xl font-bold text-gray-800 dark:text-gray-200">{workoutName}</h3>
+                                                        <div className="flex items-center gap-2">
+                                                            <Move size={20} className="text-gray-400" />
+                                                            <h3 className="text-xl font-bold text-gray-800 dark:text-gray-200">{workoutName}</h3>
+                                                        </div>
                                                          <div className="flex items-center gap-1">
-                                                            {!isDragEnabled && (
-                                                                <>
-                                                                    <button onClick={() => {}} disabled={workoutIndex === 0} className="p-1 disabled:opacity-20"><ArrowUp size={20}/></button>
-                                                                    <button onClick={() => {}} disabled={workoutIndex === workoutOrder.length - 1} className="p-1 disabled:opacity-20"><ArrowDown size={20}/></button>
-                                                                </>
-                                                            )}
+                                                            <button onClick={() => handleReorderWorkoutDay(workoutIndex, -1)} disabled={workoutIndex === 0} className="p-1 disabled:opacity-20"><ArrowUp size={20}/></button>
+                                                            <button onClick={() => handleReorderWorkoutDay(workoutIndex, 1)} disabled={workoutIndex === program.workoutOrder.length - 1} className="p-1 disabled:opacity-20"><ArrowDown size={20}/></button>
                                                             <button onClick={() => startEditingName(workoutName)} className="p-1 hover:text-blue-500"><Edit size={20}/></button>
                                                             <button onClick={() => handleDeleteWorkoutDay(workoutName)} className="p-1 hover:text-red-500"><XCircle size={20}/></button>
                                                         </div>
                                                     </div>
-                                                    <Droppable droppableId={workoutName} type="exercise" isDropDisabled={!isDragEnabled}>
+                                                    <Droppable droppableId={workoutName} type="exercise">
                                                         {(provided) => (
                                                             <ul {...provided.droppableProps} ref={provided.innerRef} className="space-y-2 mb-3">
                                                                 {workoutDetails.exercises.map((ex, index) => (
-                                                                    <Draggable key={ex} draggableId={`${workoutName}-${ex}`} index={index} isDragDisabled={!isDragEnabled}>
+                                                                    <Draggable key={`${workoutName}-${ex}-${index}`} draggableId={`${workoutName}-${ex}-${index}`} index={index}>
                                                                         {(provided) => (
                                                                             <li ref={provided.innerRef} {...provided.draggableProps} {...provided.dragHandleProps} className="flex justify-between items-center p-2 bg-gray-50 dark:bg-gray-700/50 rounded-md group">
-                                                                                <span>{ex}</span>
-                                                                                 {!isDragEnabled && (
-                                                                                    <div className="flex items-center gap-1 text-gray-500">
-                                                                                        {/* Up/Down/Edit/Delete buttons */}
-                                                                                    </div>
-                                                                                 )}
+                                                                                <span className="font-medium">{ex}</span>
+                                                                                 <div className="flex items-center gap-1 text-gray-500">
+                                                                                    <button onClick={() => handleEditExerciseDetails(ex)} className="p-1 opacity-0 group-hover:opacity-100 transition-opacity"><Pencil size={16}/></button>
+                                                                                    <button onClick={() => handleRemoveExerciseFromWorkout(workoutName, index)} className="p-1 opacity-0 group-hover:opacity-100 transition-opacity"><XCircle size={16}/></button>
+                                                                                 </div>
                                                                             </li>
                                                                         )}
                                                                     </Draggable>
@@ -1919,7 +2016,7 @@ const EditProgramView = ({ programData, onProgramDataChange }) => {
                                                             </ul>
                                                         )}
                                                     </Droppable>
-                                                    <button onClick={() => handleAddExerciseToWorkout(workoutName)} className="w-full ...">
+                                                    <button onClick={() => handleAddExerciseToWorkout(workoutName)} className="w-full flex items-center justify-center gap-2 p-2 rounded-lg bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300 hover:bg-blue-200 dark:hover:bg-blue-800/50">
                                                         <PlusCircle size={16}/> Add Exercise
                                                     </button>
                                                 </div>
@@ -1940,7 +2037,7 @@ const EditProgramView = ({ programData, onProgramDataChange }) => {
     );
 };
 
-const EditExerciseModal = ({ exercise, exerciseName, onSave, onClose, onDelete }) => {
+const EditExerciseModal = ({ exercise, exerciseName, onSave, onClose, onDelete, isNew }) => {
     const [details, setDetails] = useState({
         name: exerciseName || '',
         sets: exercise?.sets || 3,
@@ -1967,9 +2064,7 @@ const EditExerciseModal = ({ exercise, exerciseName, onSave, onClose, onDelete }
                 rir: Array.from({ length: numSets }, (_, i) => prev.rir[i] || '0')
             }));
         }
-    }, [details.sets, details.rir.length]);
-
-    const isNew = !exerciseName;
+    }, [details.sets, details.rir]);
 
     const handleRirChange = (index, value) => {
         const newRir = [...details.rir];
@@ -2030,7 +2125,7 @@ const EditExerciseModal = ({ exercise, exerciseName, onSave, onClose, onDelete }
                 <div className="bg-gray-100 dark:bg-gray-900/50 p-4 rounded-lg space-y-3">
                     <h3 className="font-semibold text-lg text-gray-900 dark:text-white -mt-1">RIR Targets Per Set</h3>
                     <div className="grid grid-cols-3 gap-2">
-                        {Array.from({ length: details.sets }, (_, i) => (
+                        {Array.from({ length: parseInt(details.sets, 10) || 0 }, (_, i) => (
                             <div key={i}>
                                 <label htmlFor={`rir-${i}`} className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Set {i + 1}</label>
                                 <input id={`rir-${i}`} type="text" value={details.rir[i] || ''} onChange={(e) => handleRirChange(i, e.target.value)} className="w-full p-2 text-sm bg-white dark:bg-gray-700 rounded-md border-gray-300 dark:border-gray-600" />
@@ -3018,15 +3113,17 @@ const AppCore = () => {
     }, [db, customId]);
 
     const handleProgramDataChange = useCallback((newProgramData) => {
-        const newInstances = programInstances.map(p => {
-            if (p.id === activeInstanceId) {
-                return { ...p, program: newProgramData, lastModified: new Date().toISOString() };
-            }
-            return p;
+        setProgramInstances(prevInstances => {
+            const newInstances = prevInstances.map(p => {
+                if (p.id === activeInstanceId) {
+                    return { ...p, program: newProgramData, lastModified: new Date().toISOString() };
+                }
+                return p;
+            });
+            handleUpdateAndSave({ programInstances: newInstances });
+            return newInstances;
         });
-        setProgramInstances(newInstances);
-        handleUpdateAndSave({ programInstances: newInstances });
-    }, [programInstances, activeInstanceId, handleUpdateAndSave]);
+    }, [activeInstanceId, handleUpdateAndSave]);
 
     const handleProgramUpdate = useCallback((newProgramTemplate) => {
         const newInstance = {
@@ -3035,13 +3132,21 @@ const AppCore = () => {
             createdAt: new Date().toISOString(),
             lastModified: new Date().toISOString()
         };
-        const newInstances = [...programInstances, newInstance];
-        setProgramInstances(newInstances);
+        setProgramInstances(prevInstances => {
+            const newInstances = [...prevInstances, newInstance];
+            // Clear logs when loading a new program and save the new state
+            handleUpdateAndSave({ 
+                programInstances: newInstances, 
+                activeInstanceId: newInstance.id, 
+                logs: {}, 
+                skippedDays: {} 
+            });
+            return newInstances;
+        });
         setActiveInstanceId(newInstance.id);
-        handleUpdateAndSave({ programInstances: newInstances, activeInstanceId: newInstance.id, logs: {}, skippedDays: {} });
         addToast(`Program "${newInstance.program.name}" loaded!`, "success");
         navigate('main');
-    }, [programInstances, handleUpdateAndSave, addToast]);
+    }, [handleUpdateAndSave, addToast]);
     
     const handleInstanceSwitch = (instanceId) => {
         setActiveInstanceId(instanceId);
@@ -3052,10 +3157,12 @@ const AppCore = () => {
     const handleBodyWeightChange = useCallback((newWeight) => {
         setBodyWeight(newWeight);
         const newEntry = { weight: newWeight, date: new Date().toISOString() };
-        const newHistory = [...bodyWeightHistory, newEntry];
-        setBodyWeightHistory(newHistory);
-        handleUpdateAndSave({ bodyWeight: newWeight, bodyWeightHistory: newHistory });
-    }, [bodyWeightHistory, handleUpdateAndSave]);
+        setBodyWeightHistory(prevHistory => {
+            const newHistory = [...prevHistory, newEntry];
+            handleUpdateAndSave({ bodyWeight: newWeight, bodyWeightHistory: newHistory });
+            return newHistory;
+        });
+    }, [handleUpdateAndSave]);
     
     const showTutorial = useCallback(() => {
         openModal(
@@ -3163,9 +3270,42 @@ const AppCore = () => {
 
     // Achievement checking
     useEffect(() => {
-        if (isDataLoading) return;
-        // Logic remains the same
-    }, [historicalLogs, programData, bodyWeight, addToast, unlockedAchievements, db, customId, isDataLoading]);
+        if (isDataLoading || Object.keys(historicalLogs).length === 0) return;
+
+        const newUnlocks = {};
+        let achievementUnlocked = false;
+
+        Object.entries(achievementsList).forEach(([id, achievement]) => {
+            const currentValue = achievement.getValue
+                ? achievement.getValue(historicalLogs, programData, parseFloat(bodyWeight) || 0)
+                : 0;
+            const currentUnlockedTier = unlockedAchievements[id] ?? -1;
+            
+            if (achievement.type === 'tiered') {
+                let newTier = -1;
+                achievement.tiers.forEach((tier, index) => {
+                    if (currentValue >= tier.value) {
+                        newTier = index;
+                    }
+                });
+
+                if (newTier > currentUnlockedTier) {
+                    newUnlocks[id] = newTier;
+                    achievementUnlocked = true;
+                    const tier = achievement.tiers[newTier];
+                    addToast(`Achievement: ${achievement.name} - ${tier.name}!`, tier.name.toLowerCase());
+                } else if(currentUnlockedTier > -1) {
+                    newUnlocks[id] = currentUnlockedTier;
+                }
+            }
+        });
+
+        if (achievementUnlocked) {
+            const finalUnlocks = { ...unlockedAchievements, ...newUnlocks };
+            setUnlockedAchievements(finalUnlocks);
+            handleUpdateAndSave({ unlockedAchievements: finalUnlocks });
+        }
+    }, [historicalLogs, programData, bodyWeight, addToast, unlockedAchievements, db, customId, isDataLoading, handleUpdateAndSave]);
 
     const navigate = (view, data = {}) => {
         setPageState({ view, data });
@@ -3211,7 +3351,16 @@ const AppCore = () => {
     };
 
     const handleTimerEnd = useCallback(() => {
-        // same logic
+        setActiveTimer(null);
+         openModal(
+            <div>
+                <h2 className="text-xl font-bold mb-4">Time's Up!</h2>
+                <p className="text-gray-600 dark:text-gray-400">Your rest is over. Time to hit the next set!</p>
+                <div className="flex justify-end gap-2 mt-6">
+                    <button onClick={closeModal} className="px-4 py-2 bg-blue-600 text-white rounded-lg">Let's Go!</button>
+                </div>
+            </div>
+        );
     }, [openModal, closeModal]);
 
     const handleStartTimer = () => {
@@ -3250,15 +3399,11 @@ const AppCore = () => {
         return status;
     }, [allLogs, skippedDays, programData]);
 
-    const handleEditWorkout = () => {
-        openModal(<EditChoiceModal onChoice={(type) => {
-            closeModal();
-            if (type === 'master') {
-                navigate('editProgram');
-            } else {
-                navigate('editWeek', { /* This part needs rethink, maybe select week from a list */ });
-            }
-        }}/>);
+    const handleEditWeekWorkout = (week, dayKey) => {
+        const workoutName = programData.weeklySchedule.find(d => d.day === dayKey)?.workout;
+        if(workoutName && workoutName !== 'Rest') {
+            navigate('editWeek', { week, workoutName });
+        }
     }
 
     if (isLoading || isDataLoading) {
@@ -3286,7 +3431,7 @@ const AppCore = () => {
             case 'editProgram': return <EditProgramView programData={programData} onProgramDataChange={handleProgramDataChange} />;
             case 'editWeek': return <EditWeekView {...pageState.data} programData={programData} onProgramDataChange={handleProgramDataChange} onBack={() => navigate('main')} />;
             case 'settings': return <SettingsView allLogs={allLogs} historicalLogs={historicalLogs} weightUnit={weightUnit} onWeightUnitChange={handleWeightUnitChange} onResetMeso={handleResetMeso} programData={programData} onProgramDataChange={handleProgramDataChange} onShowTutorial={showTutorial} bodyWeight={bodyWeight} onBodyWeightChange={handleBodyWeightChange} />;
-            default: return <MainView onSessionSelect={(week, day, type, seqIndex) => navigate(type, { week, dayKey: day, sequentialWorkoutIndex: seqIndex })} completedDays={completedDays} onUnskipDay={handleUnskipDay} programData={programData} allLogs={allLogs} onEditWorkout={handleEditWorkout} />;
+            default: return <MainView onSessionSelect={(week, day, type, seqIndex) => navigate(type, { week, dayKey: day, sequentialWorkoutIndex: seqIndex })} onEditWeekWorkout={handleEditWeekWorkout} onEditProgram={() => navigate('editProgram')} completedDays={completedDays} onUnskipDay={handleUnskipDay} programData={programData} allLogs={allLogs} />;
         }
     };
 
