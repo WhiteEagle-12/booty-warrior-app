@@ -3303,8 +3303,10 @@ const achievementsList = {
 };
 
 const AchievementCard = ({ achievementId, achievement, unlockedStatus, currentValue, weightUnit, onClick }) => {
-    // BUG FIX: If achievement data is somehow missing, don't render the card.
-    if (!achievement || !achievement.name) return null;
+    // ROBUSTNESS FIX: Add a strong guard clause to prevent rendering with invalid data.
+    if (!achievement || typeof achievement !== 'object' || !achievement.name || !achievement.icon) {
+        return null;
+    }
 
     const { icon: Icon } = achievement;
     let isUnlocked = false;
@@ -3314,7 +3316,7 @@ const AchievementCard = ({ achievementId, achievement, unlockedStatus, currentVa
     let progressPercentage = 0;
 
     if (achievement.type === 'tiered') {
-        const unlockedTierIndex = unlockedStatus;
+        const unlockedTierIndex = unlockedStatus; // Can be undefined, -1, or a number
         if (unlockedTierIndex !== undefined && unlockedTierIndex > -1) {
             isUnlocked = true;
             const currentTier = achievement.tiers[unlockedTierIndex];
@@ -3323,19 +3325,20 @@ const AchievementCard = ({ achievementId, achievement, unlockedStatus, currentVa
             if (unlockedTierIndex < achievement.tiers.length - 1) {
                 nextTier = achievement.tiers[unlockedTierIndex + 1];
                 const prevTierValue = unlockedTierIndex > 0 ? achievement.tiers[unlockedTierIndex - 1].value : 0;
-                progressPercentage = Math.min(100, ((currentValue - prevTierValue) / (nextTier.value - prevTierValue)) * 100);
+                const range = nextTier.value - prevTierValue;
+                progressPercentage = range > 0 ? Math.min(100, ((currentValue - prevTierValue) / range) * 100) : (currentValue >= nextTier.value ? 100 : 0);
             } else {
                 progressPercentage = 100;
             }
-        } else {
+        } else { // Not unlocked any tiers yet
             nextTier = achievement.tiers[0];
-            progressPercentage = Math.min(100, (currentValue / nextTier.value) * 100);
+            progressPercentage = nextTier.value > 0 ? Math.min(100, (currentValue / nextTier.value) * 100) : (currentValue >= nextTier.value ? 100 : 0);
         }
     } else {
         isUnlocked = !!unlockedStatus;
+        progressPercentage = isUnlocked ? 100 : 0;
     }
     
-    // Color schemes can be simplified or expanded as needed
     const colorKey = tierName ? tierName.toLowerCase().split(' ')[0] : 'default';
     const colorScheme = {
         'bronze': { bg: 'bg-amber-100 dark:bg-amber-900/50', text: 'text-amber-600 dark:text-amber-400', border: 'border-amber-400', progress: 'bg-amber-500' },
@@ -3347,7 +3350,7 @@ const AchievementCard = ({ achievementId, achievement, unlockedStatus, currentVa
         'default': { bg: 'bg-gray-100 dark:bg-gray-800', text: 'text-gray-500', border: 'border-transparent', progress: 'bg-blue-500' }
     }[colorKey] || { bg: 'bg-gray-100 dark:bg-gray-800', text: 'text-gray-500', border: 'border-transparent', progress: 'bg-blue-500' };
 
-    const cardClasses = `p-4 rounded-xl flex flex-col items-center justify-center text-center aspect-square transition-all duration-300 ${isUnlocked ? `${colorScheme.bg} border-2 ${colorScheme.border} shadow-lg` : 'bg-gray-100 dark:bg-gray-800 filter grayscale opacity-60'}`;
+    const cardClasses = `p-4 rounded-xl flex flex-col items-center justify-center text-center aspect-square transition-all duration-300 ${isUnlocked ? `${colorScheme.bg} border-2 ${colorScheme.border} shadow-lg` : 'bg-gray-100 dark:bg-gray-800 filter grayscale opacity-60 hover:opacity-100'}`;
     const iconClasses = isUnlocked ? colorScheme.text : 'text-gray-500';
     const textClasses = isUnlocked ? 'text-gray-800 dark:text-gray-200' : 'text-gray-600 dark:text-gray-400';
 
@@ -3375,25 +3378,24 @@ const AchievementsView = ({ unlockedAchievements, historicalLogs, programData, b
     const { openModal, closeModal } = useContext(AppStateContext);
 
     const processedAchievements = useMemo(() => {
-        // BUG FIX: Filter the achievementsList to ensure we only process valid, defined achievements.
+        if (!programData || !historicalLogs) return [];
+        
         return Object.entries(achievementsList)
-            .filter(([id, achievement]) => achievement && achievement.name)
+            .filter(([id, achievement]) => achievement && typeof achievement === 'object' && achievement.name && achievement.getValue)
             .map(([id, achievement]) => {
-                const currentValue = achievement.getValue 
-                    ? achievement.getValue(historicalLogs, programData, bodyWeight) 
-                    : 0;
-                
+                const currentValue = achievement.getValue(historicalLogs, programData, parseFloat(bodyWeight) || 0);
                 const unlockedStatus = unlockedAchievements[id];
-                
                 return { id, achievement, currentValue, unlockedStatus };
             });
     }, [historicalLogs, programData, bodyWeight, unlockedAchievements]);
     
-    const handleShowDescription = (e, id) => {
+    const handleShowDescription = (e, achievementId) => {
         e.preventDefault();
-        const achievementData = processedAchievements.find(a => a.id === id);
-        // BUG FIX: If for some reason the achievement isn't found, do nothing.
-        if (!achievementData) return;
+        const achievementData = processedAchievements.find(a => a.id === achievementId);
+        if (!achievementData || !achievementData.achievement) {
+            console.error("Could not find achievement data for ID:", achievementId);
+            return;
+        }
 
         const { achievement, unlockedStatus } = achievementData;
         const Icon = achievement.icon;
@@ -3996,13 +3998,68 @@ const EditWeekView = ({ week, dayKey, workoutName, programData, onProgramDataCha
             />, 'lg'
         )
     };
+    
+    const handleEditExercise = (exerciseNameToEdit) => {
+        const exerciseDetails = programData.masterExerciseList[exerciseNameToEdit];
+        openModal(
+            <EditExerciseModal
+                exerciseName={exerciseNameToEdit}
+                exercise={exerciseDetails}
+                onSave={(newDetails, newName) => {
+                    const newMasterList = { ...programData.masterExerciseList };
+                    if (exerciseNameToEdit !== newName) {
+                        delete newMasterList[exerciseNameToEdit];
+                    }
+                    newMasterList[newName] = newDetails;
+
+                    const newProgramStructure = JSON.parse(JSON.stringify(programData.programStructure));
+                    Object.keys(newProgramStructure).forEach(key => {
+                        newProgramStructure[key].exercises = newProgramStructure[key].exercises.map(ex => ex === exerciseNameToEdit ? newName : ex);
+                    });
+
+                    const newWeeklyOverrides = JSON.parse(JSON.stringify(programData.weeklyOverrides || {}));
+                    Object.values(newWeeklyOverrides).forEach(weekOverride => {
+                        Object.values(weekOverride).forEach(workoutOverride => {
+                            workoutOverride.exercises = workoutOverride.exercises.map(ex => ex === exerciseNameToEdit ? newName : ex);
+                        });
+                    });
+
+                    setExercises(currentExercises => currentExercises.map(ex => ex === exerciseNameToEdit ? newName : ex));
+                    
+                    onProgramDataChange({ ...programData, masterExerciseList: newMasterList, programStructure: newProgramStructure, weeklyOverrides: newWeeklyOverrides });
+                    closeModal();
+                }}
+                onDelete={(nameToDelete) => {
+                    const newMasterList = { ...programData.masterExerciseList };
+                    delete newMasterList[nameToDelete];
+
+                    const newProgramStructure = JSON.parse(JSON.stringify(programData.programStructure));
+                    Object.keys(newProgramStructure).forEach(key => {
+                        newProgramStructure[key].exercises = newProgramStructure[key].exercises.filter(ex => ex !== nameToDelete);
+                    });
+
+                    const newWeeklyOverrides = JSON.parse(JSON.stringify(programData.weeklyOverrides || {}));
+                     Object.values(newWeeklyOverrides).forEach(weekOverride => {
+                        Object.values(weekOverride).forEach(workoutOverride => {
+                            workoutOverride.exercises = workoutOverride.exercises.filter(ex => ex !== nameToDelete);
+                        });
+                    });
+
+                    setExercises(currentExercises => currentExercises.filter(ex => ex !== nameToDelete));
+                    
+                    onProgramDataChange({ ...programData, masterExerciseList: newMasterList, programStructure: newProgramStructure, weeklyOverrides: newWeeklyOverrides });
+                    closeModal();
+                }}
+                onClose={closeModal}
+            />, 'lg'
+        );
+    };
 
     const handleSaveChanges = () => {
         const newOverrides = JSON.parse(JSON.stringify(programData.weeklyOverrides || {}));
         if(!newOverrides[week]) {
             newOverrides[week] = {};
         }
-        // Ensure we are applying the override to the correct workout name from the master schedule
         const masterWorkoutName = programData.weeklySchedule.find(d => d.day === dayKey)?.workout;
         if(masterWorkoutName){
             newOverrides[week][masterWorkoutName] = { ...baseWorkout, exercises };
@@ -4010,7 +4067,6 @@ const EditWeekView = ({ week, dayKey, workoutName, programData, onProgramDataCha
         }
         onBack();
     };
-
 
     return (
          <div className="p-4 md:p-6 pb-24">
@@ -4030,6 +4086,7 @@ const EditWeekView = ({ week, dayKey, workoutName, programData, onProgramDataCha
                         <li key={`${ex}-${index}`} className="flex justify-between items-center p-2 bg-gray-50 dark:bg-gray-700/50 rounded-md group">
                             <span className="text-gray-800 dark:text-gray-200">{ex}</span>
                             <div className="flex items-center gap-1 text-gray-500 dark:text-gray-400">
+                                <button onClick={() => handleEditExercise(ex)} className="p-1 hover:text-blue-600 dark:hover:text-blue-400"><Pencil size={16} /></button>
                                 <button onClick={() => handleReorderExercise(index, -1)} disabled={index === 0} className="disabled:opacity-20 p-1 hover:text-gray-900 dark:hover:text-white"><ArrowUp size={16} /></button>
                                 <button onClick={() => handleReorderExercise(index, 1)} disabled={index === exercises.length - 1} className="disabled:opacity-20 p-1 hover:text-gray-900 dark:hover:text-white"><ArrowDown size={16} /></button>
                                 <button onClick={() => handleDeleteExercise(index)} className="p-1 hover:text-red-600 dark:hover:text-red-400"><XCircle size={16} /></button>
