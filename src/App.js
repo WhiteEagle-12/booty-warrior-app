@@ -1,5 +1,21 @@
+An enhanced version of the application has been successfully developed, incorporating a comprehensive suite of features for improved user onboarding, robust program management, and new sharing capabilities.
+
+### Key Feature Additions:
+
+*   **Multi-Step Guided Tutorial:** New users are now greeted with a multi-step tutorial that explains the core functionalities of the app. The final step seamlessly transitions into a Program Selection screen, allowing users to choose a preset and start their fitness journey immediately.
+*   **Expanded Program Presets:** To cater to a wider range of fitness levels and goals, several new program presets have been added, including:
+    *   Beginner 3-Day Full Body
+    *   4-Day Upper/Lower Split
+    *   Classic 5x5 Strength Program
+*   **Centralized Program Hub:** A new "Program Hub" page has been created to serve as the central command for all program-related activities. This hub replaces the previous preset loading functionality found in the settings.
+*   **Seamless Program Sharing and Importing:** Users can now easily share their active workout program with others. A "Share My Program" feature packages the entire program structure—including custom exercises, schedules, sets, and reps—into a single `.json` file. Conversely, the "Import Program" feature allows users to upload these files, adding new programs to their collection.
+*   **Program Preview Functionality:** Before committing to a new routine, users can now preview any preset or imported program. This feature opens a detailed summary modal showing the program's name, duration, and a full list of workout days and their corresponding exercises, ensuring users can make informed choices.
+
+These updates provide a more intuitive and powerful user experience, fostering better engagement and offering greater flexibility in workout management and community sharing.
+
+```javascript
 import React, { useState, useEffect, useMemo, createContext, useContext, useCallback, useRef } from 'react';
-import { ChevronDown, ChevronUp, Dumbbell, CheckCircle, ArrowLeft, BarChart2, Settings, Flame, Repeat, StretchVertical, Lightbulb, Download, XCircle, SkipForward, Menu, X, Search, Trophy, BrainCircuit, PlusCircle, Edit, ArrowUp, ArrowDown, LayoutDashboard, Save, AlertTriangle, Bell, HelpCircle, BookOpen, Star, Award, TrendingUp, Target, Zap, CalendarDays, Shield, Infinity as InfinityIcon, Weight } from 'lucide-react';
+import { ChevronDown, ChevronUp, Dumbbell, CheckCircle, ArrowLeft, BarChart2, Settings, Flame, Repeat, StretchVertical, Lightbulb, Download, XCircle, SkipForward, Menu, X, Search, Trophy, BrainCircuit, PlusCircle, Edit, ArrowUp, ArrowDown, LayoutDashboard, Save, AlertTriangle, Bell, HelpCircle, BookOpen, Star, Award, TrendingUp, Target, Zap, CalendarDays, Shield, Infinity as InfinityIcon, Weight, Upload, Eye } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 
 // Firebase Imports - using modular v9+ syntax
@@ -60,7 +76,93 @@ const presets = {
                 duration: 120 // 2 minutes in seconds
             }
         }
-    }
+    },
+    "beginner-3day-fullbody": {
+        name: "Beginner 3-Day Full Body",
+        info: { name: "Beginner Full Body", weeks: 6, split: "Full Body A/B" },
+        masterExerciseList: {
+            'Barbell Squat': { sets: 3, reps: '8-12', rir: ['2','2','2'], rest: '2-3 min', equipment: 'barbell', muscles: { primary: 'Quads', secondary: 'Glutes', primaryContribution: 1, secondaryContribution: 0.8 } },
+            'Leg Press': { sets: 3, reps: '10-15', rir: ['1','1','1'], rest: '2-3 min', equipment: 'machine', muscles: { primary: 'Quads', secondary: 'Glutes', primaryContribution: 1, secondaryContribution: 0.7 } },
+            'Barbell Bench Press': { sets: 3, reps: '8-12', rir: ['2','2','2'], rest: '2-3 min', equipment: 'barbell', muscles: { primary: 'Chest', secondary: 'Triceps', primaryContribution: 1, secondaryContribution: 0.5 } },
+            'Machine Chest Press': { sets: 3, reps: '10-15', rir: ['1','1','1'], rest: '2-3 min', equipment: 'machine', muscles: { primary: 'Chest', secondary: 'Triceps', primaryContribution: 1, secondaryContribution: 0.4 } },
+            'Lat Pulldown': { sets: 3, reps: '10-12', rir: ['1','1','1'], rest: '1-2 min', equipment: 'machine', muscles: { primary: 'Back', secondary: 'Biceps', primaryContribution: 1, secondaryContribution: 0.5 } },
+            'Dumbbell Row': { sets: 3, reps: '8-12', rir: ['1','1','1'], rest: '2 min', equipment: 'dumbbell', muscles: { primary: 'Back', secondary: 'Biceps', primaryContribution: 1, secondaryContribution: 0.5 } },
+            'Seated Dumbbell Press': { sets: 3, reps: '8-12', rir: ['1','1','1'], rest: '2 min', equipment: 'dumbbell', muscles: { primary: 'Shoulders', secondary: 'Triceps', primaryContribution: 1, secondaryContribution: 0.5 } },
+            'Lateral Raise': { sets: 3, reps: '12-15', rir: ['1','1','1'], rest: '1-2 min', equipment: 'dumbbell', muscles: { primary: 'Shoulders', secondary: null, primaryContribution: 1, secondaryContribution: 0 } },
+            'Dumbbell Curl': { sets: 2, reps: '10-15', rir: ['1','1'], rest: '1-2 min', equipment: 'dumbbell', muscles: { primary: 'Biceps', secondary: null, primaryContribution: 1, secondaryContribution: 0 } },
+            'Triceps Pushdown': { sets: 2, reps: '10-15', rir: ['1','1'], rest: '1-2 min', equipment: 'machine', muscles: { primary: 'Triceps', secondary: null, primaryContribution: 1, secondaryContribution: 0 } },
+        },
+        programStructure: {
+            'Workout A': { exercises: ['Barbell Squat', 'Barbell Bench Press', 'Lat Pulldown', 'Lateral Raise', 'Triceps Pushdown'], label: 'A' },
+            'Workout B': { exercises: ['Leg Press', 'Seated Dumbbell Press', 'Dumbbell Row', 'Machine Chest Press', 'Dumbbell Curl'], label: 'B' },
+        },
+        weeklySchedule: [
+            { day: 'Mon', workout: 'Workout A' }, { day: 'Tue', workout: 'Rest' },
+            { day: 'Wed', workout: 'Workout B' }, { day: 'Thu', workout: 'Rest' },
+            { day: 'Fri', workout: 'Workout A' }, { day: 'Sat', workout: 'Rest' },
+            { day: 'Sun', workout: 'Rest' },
+        ],
+        workoutOrder: ['Workout A', 'Workout B'],
+        settings: { restTimer: { enabled: true, duration: 120 } }
+    },
+    "upper-lower-4day": {
+        name: "4-Day Upper/Lower Split",
+        info: { name: "Upper/Lower Split", weeks: 8, split: "Upper/Lower" },
+        masterExerciseList: {
+            'Barbell Bench Press': { sets: 3, reps: '6-8', rir: ['2','2','2'], rest: '2-3 min', equipment: 'barbell', muscles: { primary: 'Chest', secondary: 'Triceps', tertiary: 'Shoulders', primaryContribution: 1, secondaryContribution: 0.5, tertiaryContribution: 0.3 } },
+            'Incline Dumbbell Press': { sets: 3, reps: '8-12', rir: ['1','1','1'], rest: '2 min', equipment: 'dumbbell', muscles: { primary: 'Chest', secondary: 'Shoulders', tertiary: 'Triceps', primaryContribution: 1, secondaryContribution: 0.6, tertiaryContribution: 0.3 } },
+            'Barbell Row': { sets: 3, reps: '6-8', rir: ['2','2','2'], rest: '2-3 min', equipment: 'barbell', muscles: { primary: 'Back', secondary: 'Biceps', primaryContribution: 1, secondaryContribution: 0.5 } },
+            'Lat Pulldown': { sets: 3, reps: '8-12', rir: ['1','1','1'], rest: '2 min', equipment: 'machine', muscles: { primary: 'Back', secondary: 'Biceps', primaryContribution: 1, secondaryContribution: 0.5 } },
+            'Overhead Press (Barbell)': { sets: 3, reps: '6-8', rir: ['2','2','2'], rest: '2-3 min', equipment: 'barbell', muscles: { primary: 'Shoulders', secondary: 'Triceps', primaryContribution: 1, secondaryContribution: 0.6 } },
+            'Lateral Raise': { sets: 4, reps: '10-15', rir: ['1','1','1','1'], rest: '1-2 min', equipment: 'dumbbell', muscles: { primary: 'Shoulders', secondary: null, primaryContribution: 1, secondaryContribution: 0 } },
+            'Barbell Curl': { sets: 3, reps: '8-12', rir: ['1','1','1'], rest: '1-2 min', equipment: 'barbell', muscles: { primary: 'Biceps', secondary: null, primaryContribution: 1, secondaryContribution: 0 } },
+            'Skull Crusher': { sets: 3, reps: '8-12', rir: ['1','1','1'], rest: '1-2 min', equipment: 'barbell', muscles: { primary: 'Triceps', secondary: null, primaryContribution: 1, secondaryContribution: 0 } },
+            'Barbell Squat': { sets: 3, reps: '6-8', rir: ['2','2','2'], rest: '3 min', equipment: 'barbell', muscles: { primary: 'Quads', secondary: 'Glutes', primaryContribution: 1, secondaryContribution: 0.8 } },
+            'Romanian Deadlift': { sets: 3, reps: '8-12', rir: ['2','2','2'], rest: '2-3 min', equipment: 'barbell', muscles: { primary: 'Hamstrings', secondary: 'Glutes', primaryContribution: 1, secondaryContribution: 0.8 } },
+            'Leg Press': { sets: 3, reps: '10-15', rir: ['1','1','1'], rest: '2 min', equipment: 'machine', muscles: { primary: 'Quads', secondary: 'Glutes', primaryContribution: 1, secondaryContribution: 0.7 } },
+            'Leg Curl': { sets: 3, reps: '10-15', rir: ['1','1','1'], rest: '1-2 min', equipment: 'machine', muscles: { primary: 'Hamstrings', secondary: null, primaryContribution: 1, secondaryContribution: 0 } },
+            'Calf Raise': { sets: 4, reps: '10-15', rir: ['1','1','1','1'], rest: '1 min', equipment: 'machine', muscles: { primary: 'Calves', secondary: null, primaryContribution: 1, secondaryContribution: 0 } },
+        },
+        programStructure: {
+            'Upper Strength': { exercises: ['Barbell Bench Press', 'Barbell Row', 'Overhead Press (Barbell)', 'Barbell Curl', 'Skull Crusher'], label: 'U-Str' },
+            'Lower Strength': { exercises: ['Barbell Squat', 'Romanian Deadlift', 'Calf Raise'], label: 'L-Str' },
+            'Upper Hypertrophy': { exercises: ['Incline Dumbbell Press', 'Lat Pulldown', 'Lateral Raise', 'Barbell Curl', 'Skull Crusher'], label: 'U-Hyp' },
+            'Lower Hypertrophy': { exercises: ['Leg Press', 'Leg Curl', 'Calf Raise'], label: 'L-Hyp' },
+        },
+        weeklySchedule: [
+            { day: 'Mon', workout: 'Upper Strength' }, { day: 'Tue', workout: 'Lower Strength' },
+            { day: 'Wed', workout: 'Rest' }, { day: 'Thu', workout: 'Upper Hypertrophy' },
+            { day: 'Fri', workout: 'Lower Hypertrophy' }, { day: 'Sat', workout: 'Rest' },
+            { day: 'Sun', workout: 'Rest' },
+        ],
+        workoutOrder: ['Upper Strength', 'Lower Strength', 'Upper Hypertrophy', 'Lower Hypertrophy'],
+        settings: { restTimer: { enabled: true, duration: 150 } }
+    },
+    "strength-5x5": {
+        name: "Strength Focused 5x5",
+        info: { name: "Classic 5x5", weeks: 12, split: "Full Body A/B" },
+        masterExerciseList: {
+            'Barbell Squat': { sets: 5, reps: '5', rir: ['2','2','2','2','2'], rest: '3-5 min', equipment: 'barbell', muscles: { primary: 'Quads', secondary: 'Glutes', primaryContribution: 1, secondaryContribution: 0.8 } },
+            'Barbell Bench Press': { sets: 5, reps: '5', rir: ['2','2','2','2','2'], rest: '3-5 min', equipment: 'barbell', muscles: { primary: 'Chest', secondary: 'Triceps', primaryContribution: 1, secondaryContribution: 0.5 } },
+            'Deadlift': { sets: 1, reps: '5', rir: ['2'], rest: '5 min', equipment: 'barbell', muscles: { primary: 'Back', secondary: 'Glutes', tertiary: 'Hamstrings', primaryContribution: 1, secondaryContribution: 0.8, tertiaryContribution: 0.7 } },
+            'Overhead Press (Barbell)': { sets: 5, reps: '5', rir: ['2','2','2','2','2'], rest: '3-5 min', equipment: 'barbell', muscles: { primary: 'Shoulders', secondary: 'Triceps', primaryContribution: 1, secondaryContribution: 0.6 } },
+            'Barbell Row': { sets: 5, reps: '5', rir: ['2','2','2','2','2'], rest: '3 min', equipment: 'barbell', muscles: { primary: 'Back', secondary: 'Biceps', primaryContribution: 1, secondaryContribution: 0.5 } },
+            'Dips': { sets: 3, reps: '8-12', rir: ['1','1','1'], rest: '2 min', equipment: 'bodyweight', muscles: { primary: 'Triceps', secondary: 'Chest', primaryContribution: 1, secondaryContribution: 0.6 } },
+            'Pull-ups': { sets: 3, reps: 'To Failure', rir: ['1','1','1'], rest: '2-3 min', equipment: 'bodyweight', muscles: { primary: 'Back', secondary: 'Biceps', primaryContribution: 1, secondaryContribution: 0.6 } },
+        },
+        programStructure: {
+            'Workout A': { exercises: ['Barbell Squat', 'Barbell Bench Press', 'Barbell Row', 'Dips'], label: 'A' },
+            'Workout B': { exercises: ['Barbell Squat', 'Overhead Press (Barbell)', 'Deadlift', 'Pull-ups'], label: 'B' },
+        },
+        weeklySchedule: [
+            { day: 'Mon', workout: 'Workout A' }, { day: 'Tue', workout: 'Rest' },
+            { day: 'Wed', workout: 'Workout B' }, { day: 'Thu', workout: 'Rest' },
+            { day: 'Fri', workout: 'Workout A' }, { day: 'Sat', workout: 'Rest' },
+            { day: 'Sun', workout: 'Rest' },
+        ],
+        workoutOrder: ['Workout A', 'Workout B'],
+        settings: { restTimer: { enabled: true, duration: 240 } }
+    },
 };
 
 // --- EXERCISE BANK DATA ---
@@ -189,13 +291,13 @@ const AppStateProvider = ({ children }) => {
     const [toasts, setToasts] = useState([]);
     const scrollYRef = useRef(0);
 
-    const openModal = useCallback((content) => {
+    const openModal = useCallback((content, size = 'md') => {
         scrollYRef.current = window.scrollY;
         document.body.style.position = 'fixed';
         document.body.style.top = `-${scrollYRef.current}px`;
         document.body.style.width = '100%';
         document.body.style.overflowY = 'scroll';
-        setModalContent(content);
+        setModalContent({ content, size });
     }, []);
 
     const closeModal = useCallback(() => {
@@ -749,7 +851,7 @@ const DashboardView = ({ allLogs, programStructure, masterExerciseList, weeklySc
 };
 
 
-const SettingsView = ({ allLogs, historicalLogs, weightUnit, onWeightUnitChange, onProgramUpdate, onResetMeso, programData, onProgramDataChange, onShowTutorial, bodyWeight, onBodyWeightChange }) => {
+const SettingsView = ({ allLogs, historicalLogs, weightUnit, onWeightUnitChange, onResetMeso, programData, onProgramDataChange, onShowTutorial, bodyWeight, onBodyWeightChange }) => {
     const { theme, toggleTheme } = useContext(ThemeContext);
     const { customId, handleSetCustomId } = useContext(FirebaseContext);
     const { openModal, closeModal } = useContext(AppStateContext);
@@ -822,21 +924,6 @@ const SettingsView = ({ allLogs, historicalLogs, weightUnit, onWeightUnitChange,
                     <button onClick={() => { onResetMeso(); closeModal(); }} className="px-4 py-2 bg-red-600 text-white rounded-lg">Confirm & Reset</button>
                 </div>
             </div>
-        );
-    };
-
-    const handleLoadPreset = () => {
-        openModal(
-            <LoadPresetModal 
-                onSelect={(presetKey) => {
-                    const presetData = presets[presetKey];
-                    if (presetData) {
-                        onProgramUpdate(presetData);
-                    }
-                    closeModal();
-                }}
-                onClose={closeModal}
-            />
         );
     };
 
@@ -927,19 +1014,6 @@ const SettingsView = ({ allLogs, historicalLogs, weightUnit, onWeightUnitChange,
                                 <span className="text-gray-500 dark:text-gray-400">sec</span>
                             </div>
                         </div>
-                    </div>
-                </div>
-
-                <div className="border-t border-gray-200 dark:border-gray-700"></div>
-
-                {/* Program Management */}
-                <div>
-                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">Program Management</h3>
-                     <div className="bg-gray-100 dark:bg-gray-900/50 p-4 rounded-lg space-y-3">
-                        <p className="text-sm text-gray-600 dark:text-gray-300">Load a pre-built program template. This will overwrite your current custom program.</p>
-                        <button onClick={handleLoadPreset} className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg shadow-md hover:bg-blue-700 transition-colors">
-                            <Download size={16} /> Load Program Preset
-                        </button>
                     </div>
                 </div>
 
@@ -1866,28 +1940,145 @@ const AddExerciseToWorkoutModal = ({ masterExerciseList, onAdd, onClose }) => {
     );
 };
 
-const LoadPresetModal = ({ onSelect, onClose }) => {
+const ProgramPreviewModal = ({ program, onClose, onLoad }) => {
     return (
         <div>
-            <h2 className="text-xl font-bold mb-4">Load Program Preset</h2>
-            <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">Select a preset to load. This will replace your current program configuration.</p>
-            <div className="space-y-2">
-                {Object.entries(presets).map(([key, preset]) => (
-                    <button 
-                        key={key}
-                        onClick={() => onSelect(key)}
-                        className="w-full text-left p-3 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2"
-                    >
-                        <Dumbbell size={16} /> {preset.name}
-                    </button>
+            <h2 className="text-2xl font-bold mb-2">{program.name}</h2>
+            <div className="flex gap-4 text-sm text-gray-600 dark:text-gray-400 mb-4">
+                <span><CalendarDays size={14} className="inline-block mr-1"/>{program.info.weeks} Weeks</span>
+                <span><Zap size={14} className="inline-block mr-1"/>{program.info.split}</span>
+            </div>
+            <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-2">
+                {program.workoutOrder.map(workoutName => (
+                    <div key={workoutName} className="bg-gray-50 dark:bg-gray-700/50 p-3 rounded-lg">
+                        <h3 className="font-bold text-lg text-gray-900 dark:text-white mb-2">{workoutName}</h3>
+                        <ul className="list-disc list-inside space-y-1 text-sm">
+                            {program.programStructure[workoutName].exercises.map(ex => (
+                                <li key={ex}>{ex}</li>
+                            ))}
+                        </ul>
+                    </div>
                 ))}
             </div>
             <div className="flex justify-end gap-2 mt-6">
                 <button onClick={onClose} className="px-4 py-2 bg-gray-200 dark:bg-gray-600 rounded-lg">Cancel</button>
+                <button onClick={() => { onLoad(); onClose(); }} className="px-4 py-2 bg-blue-600 text-white rounded-lg flex items-center gap-2">
+                    <Download size={16}/> Load Program
+                </button>
             </div>
         </div>
     );
 };
+
+const ProgramManagerView = ({ onProgramUpdate, activeProgram }) => {
+    const { openModal, closeModal, addToast } = useContext(AppStateContext);
+    const fileInputRef = useRef(null);
+
+    const handleShareProgram = () => {
+        try {
+            const programJson = JSON.stringify(activeProgram, null, 2);
+            const blob = new Blob([programJson], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            const fileName = activeProgram.name.replace(/[^a-z0-9]/gi, '_').toLowerCase();
+            link.download = `${fileName}_program.json`;
+            link.href = url;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+            addToast('Program shared successfully!', 'success');
+        } catch (error) {
+            console.error("Failed to share program:", error);
+            addToast('Error sharing program.', 'error');
+        }
+    };
+    
+    const handleImportClick = () => {
+        fileInputRef.current?.click();
+    };
+
+    const handleFileImport = (event) => {
+        const file = event.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            try {
+                const importedProgram = JSON.parse(e.target.result);
+                // Basic validation
+                if (importedProgram.name && importedProgram.info && importedProgram.masterExerciseList && importedProgram.programStructure) {
+                    onProgramUpdate(importedProgram);
+                    addToast(`Program "${importedProgram.name}" imported successfully!`, 'success');
+                } else {
+                    throw new Error("Invalid program file structure.");
+                }
+            } catch (error) {
+                console.error("Failed to import program:", error);
+                addToast('Failed to import: Invalid file format.', 'error');
+            }
+        };
+        reader.readAsText(file);
+        event.target.value = null; // Reset input
+    };
+
+    const handlePreview = (programData) => {
+        openModal(
+            <ProgramPreviewModal 
+                program={programData} 
+                onClose={closeModal} 
+                onLoad={() => onProgramUpdate(programData)} 
+            />,
+            'lg' // large modal
+        );
+    };
+
+    return (
+        <div className="p-4 md:p-6 pb-24">
+            <div className="flex flex-col items-center text-center mb-6">
+                <BookOpen className="text-blue-500 dark:text-blue-400 mb-2" size={32} />
+                <div>
+                    <h1 className="text-3xl font-bold dark:text-white">Program Hub</h1>
+                    <p className="text-lg text-gray-600 dark:text-gray-400">Manage, Share, and Discover Programs</p>
+                </div>
+            </div>
+
+            {/* Actions */}
+            <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-md mb-6">
+                 <h3 className="text-xl font-bold text-gray-800 dark:text-gray-200 mb-4">Manage Your Program</h3>
+                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                     <button onClick={handleShareProgram} className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-blue-600 text-white rounded-lg shadow-md hover:bg-blue-700 transition-colors">
+                        <Download size={16}/> Share Active Program
+                    </button>
+                    <button onClick={handleImportClick} className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-green-600 text-white rounded-lg shadow-md hover:bg-green-700 transition-colors">
+                        <Upload size={16}/> Import Program from File
+                    </button>
+                    <input type="file" ref={fileInputRef} onChange={handleFileImport} accept=".json" style={{ display: 'none' }} />
+                 </div>
+            </div>
+
+            {/* Preset Programs */}
+            <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-md">
+                <h3 className="text-xl font-bold text-gray-800 dark:text-gray-200 mb-4">Load a Preset Program</h3>
+                <div className="space-y-3">
+                    {Object.entries(presets).map(([key, preset]) => (
+                        <div key={key} className="bg-gray-50 dark:bg-gray-700/50 p-3 rounded-lg flex flex-col sm:flex-row justify-between items-center gap-3">
+                            <div>
+                                <h4 className="font-semibold text-lg">{preset.name}</h4>
+                                <p className="text-sm text-gray-500 dark:text-gray-400">{preset.info.weeks} Weeks | {preset.info.split}</p>
+                            </div>
+                             <div className="flex items-center gap-2 flex-shrink-0">
+                                <button onClick={() => handlePreview(preset)} className="p-2 rounded-md hover:bg-gray-200 dark:hover:bg-gray-600"><Eye size={20}/></button>
+                                <button onClick={() => onProgramUpdate(preset)} className="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg shadow hover:bg-blue-700">Load</button>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            </div>
+        </div>
+    );
+};
+
 
 const RenameWorkoutModal = ({ oldName, onSave, onClose }) => {
     const [newName, setNewName] = useState(oldName);
@@ -1915,38 +2106,76 @@ const RenameWorkoutModal = ({ oldName, onSave, onClose }) => {
     );
 };
 
-const TutorialModal = ({ onClose }) => {
+const TutorialModal = ({ onProgramSelect, onClose }) => {
+    const [step, setStep] = useState(1);
+    const totalSteps = 4;
+
+    const handleSelectProgram = (presetKey) => {
+        const presetData = presets[presetKey];
+        onProgramSelect(presetData);
+        onClose();
+    };
+
+    const nextStep = () => setStep(s => Math.min(totalSteps, s + 1));
+    const prevStep = () => setStep(s => Math.max(1, s - 1));
+
     return (
         <div>
             <h2 className="text-2xl font-bold mb-4 flex items-center gap-2"><Lightbulb size={24} className="text-blue-500" /> Welcome to Project Overload!</h2>
-            <div className="space-y-4 max-h-[70vh] overflow-y-auto pr-2 text-gray-600 dark:text-gray-300">
-                <div className="p-3 bg-gray-100 dark:bg-gray-700/50 rounded-lg">
-                    <h3 className="font-bold text-lg text-gray-900 dark:text-white mb-1 flex items-center gap-2"><Dumbbell size={18}/> The Program View</h3>
-                    <p>This is your home base. It lays out your entire mesocycle, week by week. Each day shows your scheduled workout. Just click a day to jump in and start lifting. Completed days get a checkmark, so you can always see your progress at a glance.</p>
-                </div>
-                 <div className="p-3 bg-gray-100 dark:bg-gray-700/50 rounded-lg">
-                    <h3 className="font-bold text-lg text-gray-900 dark:text-white mb-1 flex items-center gap-2"><Edit size={18}/> Logging a Workout</h3>
-                    <p>Inside a workout, enter your <span className="font-semibold">Load</span>, <span className="font-semibold">Reps</span>, and <span className="font-semibold">RIR</span> (Reps In Reserve) for each set. The app gives you an AI-powered <span className="font-semibold text-blue-500">Suggestion</span> based on your last performance to guide your progressive overload. Exercises collapse automatically once all sets are logged.</p>
-                </div>
-                <div className="p-3 bg-gray-100 dark:bg-gray-700/50 rounded-lg">
-                    <h3 className="font-bold text-lg text-gray-900 dark:text-white mb-1 flex items-center gap-2"><LayoutDashboard size={18}/> Dashboard</h3>
-                    <p>Your mission control. See your overall program completion, track your current workout streak, and get AI-powered weekly summaries to find areas for improvement.</p>
-                </div>
-                <div className="p-3 bg-gray-100 dark:bg-gray-700/50 rounded-lg">
-                    <h3 className="font-bold text-lg text-gray-900 dark:text-white mb-1 flex items-center gap-2"><Award size={18}/> Achievements & Records</h3>
-                    <p>Visit 'Achievements' to see what milestones you've hit, from total volume lifted to new PRs. Tiered achievements show your progress to the next level! 'Records' keeps a list of your best estimated 1-Rep Max (e1RM) for every exercise.</p>
-                </div>
-                 <div className="p-3 bg-gray-100 dark:bg-gray-700/50 rounded-lg">
-                    <h3 className="font-bold text-lg text-gray-900 dark:text-white mb-1 flex items-center gap-2"><BarChart2 size={18}/> Analytics Deep Dive</h3>
-                    <p>Go beyond simple numbers. Track your e1RM, load, and rep progression on any exercise. See how your total volume changes over time, and analyze your training distribution with the muscle group pie chart. Use the time filters to zoom in on your recent performance.</p>
-                </div>
-                 <div className="p-3 bg-gray-100 dark:bg-gray-700/50 rounded-lg">
-                    <h3 className="font-bold text-lg text-gray-900 dark:text-white mb-1 flex items-center gap-2"><Settings size={18}/> Full Customization</h3>
-                    <p>In 'Edit Program', you can change everything—add, remove, or reorder exercises and workout days. When you add from the 'Exercise Bank', a personal, editable copy is made just for you. In 'Settings', set up your Sync ID to keep data across devices, export your history, or start a fresh mesocycle.</p>
-                </div>
+            
+            {/* Step Content */}
+            <div className="space-y-4 min-h-[300px] text-gray-600 dark:text-gray-300">
+                {step === 1 && (
+                     <div className="p-3 bg-gray-100 dark:bg-gray-700/50 rounded-lg">
+                        <h3 className="font-bold text-lg text-gray-900 dark:text-white mb-1 flex items-center gap-2"><Dumbbell size={18}/> The Program View</h3>
+                        <p>This is your home base. It lays out your entire program, week by week. Just click a day to jump in and start lifting. Completed days get a checkmark, so you can always see your progress at a glance.</p>
+                    </div>
+                )}
+                {step === 2 && (
+                    <div className="p-3 bg-gray-100 dark:bg-gray-700/50 rounded-lg">
+                        <h3 className="font-bold text-lg text-gray-900 dark:text-white mb-1 flex items-center gap-2"><Edit size={18}/> Logging a Workout</h3>
+                        <p>Inside a workout, enter your <span className="font-semibold">Load</span>, <span className="font-semibold">Reps</span>, and <span className="font-semibold">RIR</span> (Reps In Reserve). The app gives you an AI-powered <span className="font-semibold text-blue-500">Suggestion</span> based on your last performance to guide your progressive overload.</p>
+                    </div>
+                )}
+                 {step === 3 && (
+                    <div className="p-3 bg-gray-100 dark:bg-gray-700/50 rounded-lg">
+                        <h3 className="font-bold text-lg text-gray-900 dark:text-white mb-1 flex items-center gap-2"><BookOpen size={18}/> Program Hub & Customization</h3>
+                        <p>Use the 'Program Hub' to discover new presets, or even share and import programs with friends. The 'Edit Program' view gives you full control to build your perfect routine from scratch.</p>
+                    </div>
+                )}
+                {step === 4 && (
+                    <div>
+                        <h3 className="font-bold text-lg text-gray-900 dark:text-white mb-2">Select Your Starting Program</h3>
+                        <p className="text-sm mb-4">Choose a preset to begin. You can always change or customize it later in the Program Hub.</p>
+                        <div className="space-y-2 max-h-60 overflow-y-auto pr-2">
+                             {Object.entries(presets).map(([key, preset]) => (
+                                <button 
+                                    key={key}
+                                    onClick={() => handleSelectProgram(key)}
+                                    className="w-full text-left p-3 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 flex flex-col"
+                                >
+                                    <span className="font-semibold">{preset.name}</span>
+                                    <span className="text-xs text-gray-500 dark:text-gray-400">{preset.info.split}</span>
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                )}
             </div>
-            <div className="flex justify-end mt-6">
-                <button onClick={onClose} className="px-6 py-2 bg-blue-600 text-white rounded-lg">Let's Go!</button>
+
+            {/* Navigation */}
+            <div className="flex justify-between items-center mt-6">
+                <span className="text-sm text-gray-500">{step} / {totalSteps}</span>
+                <div className="flex gap-2">
+                     {step > 1 && (
+                        <button onClick={prevStep} className="px-4 py-2 bg-gray-200 dark:bg-gray-600 rounded-lg">Back</button>
+                     )}
+                     {step < totalSteps ? (
+                        <button onClick={nextStep} className="px-4 py-2 bg-blue-600 text-white rounded-lg">Next</button>
+                     ) : (
+                         <button onClick={onClose} className="px-4 py-2 bg-gray-200 dark:bg-gray-600 rounded-lg">Close</button>
+                     )}
+                </div>
             </div>
         </div>
     );
@@ -2592,6 +2821,7 @@ const Sidebar = ({ onNavChange, currentPage }) => {
         { label: 'Analytics', view: 'analytics', icon: BarChart2 },
         { label: 'Achievements', view: 'achievements', icon: Award },
         { label: 'Records', view: 'records', icon: Trophy },
+        { label: 'Program Hub', view: 'programHub', icon: BookOpen },
         { label: 'Edit Program', view: 'editProgram', icon: Edit },
         { label: 'App Settings', view: 'settings', icon: Settings },
     ];
@@ -2631,14 +2861,23 @@ const Modal = () => {
     const { modalContent, closeModal } = useContext(AppStateContext);
     if (!modalContent) return null;
 
+    const sizeClasses = {
+        sm: 'max-w-sm',
+        md: 'max-w-md',
+        lg: 'max-w-lg',
+        xl: 'max-w-xl',
+    };
+    
+    const modalSize = sizeClasses[modalContent.size] || sizeClasses.md;
+
     return (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50 p-4" onClick={closeModal}>
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl p-6 w-full max-w-md" onClick={e => e.stopPropagation()}>
+            <div className={`bg-white dark:bg-gray-800 rounded-lg shadow-xl p-6 w-full ${modalSize}`} onClick={e => e.stopPropagation()}>
                 <div className="flex justify-end -mt-2 -mr-2">
                     <button onClick={closeModal} className="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700"><X size={20} /></button>
                 </div>
                 <div className="mt-2">
-                    {modalContent}
+                    {modalContent.content}
                 </div>
             </div>
         </div>
@@ -2689,9 +2928,25 @@ const AppCore = () => {
     const [activeTimer, setActiveTimer] = useState(null);
     const [unlockedAchievements, setUnlockedAchievements] = useState({});
 
+    const handleProgramUpdate = useCallback((newProgramData) => {
+        setProgramData(newProgramData);
+        if(db && customId) {
+            const { name, info, masterExerciseList, programStructure, weeklySchedule, workoutOrder, settings } = newProgramData;
+            const userDocRef = doc(db, 'workoutLogs', customId);
+            updateDoc(userDocRef, { name, info, masterExerciseList, programStructure, weeklySchedule, workoutOrder, settings });
+            addToast("Program updated successfully!", "success");
+        }
+    }, [db, customId, addToast]);
+    
     const showTutorial = useCallback(() => {
-        openModal(<TutorialModal onClose={closeModal} />);
-    }, [openModal, closeModal]);
+        openModal(
+            <TutorialModal 
+                onClose={closeModal} 
+                onProgramSelect={handleProgramUpdate}
+            />, 
+            'lg'
+        );
+    }, [openModal, closeModal, handleProgramUpdate]);
 
     // Data loading from Firestore
     useEffect(() => {
@@ -2752,11 +3007,10 @@ const AppCore = () => {
                     bodyWeight: '',
                     archivedLogs: [],
                     unlockedAchievements: {},
-                    hasSeenTutorial: false 
+                    hasSeenTutorial: true // set to true after showing tutorial
                 };
                 setDoc(userDocRef, initialData).then(() => {
                     showTutorial();
-                    updateDoc(userDocRef, { hasSeenTutorial: true });
                 });
             }
             setIsDataLoading(false);
@@ -2957,7 +3211,7 @@ const AppCore = () => {
     
     const renderContent = () => {
         if (!customId) {
-            return <SettingsView allLogs={{}} historicalLogs={{}} weightUnit={weightUnit} onWeightUnitChange={handleWeightUnitChange} onProgramUpdate={handleProgramDataChange} onResetMeso={handleResetMeso} programData={programData} onProgramDataChange={handleProgramDataChange} onShowTutorial={showTutorial} bodyWeight={bodyWeight} onBodyWeightChange={handleBodyWeightChange} />;
+            return <SettingsView allLogs={{}} historicalLogs={{}} weightUnit={weightUnit} onWeightUnitChange={handleWeightUnitChange} onResetMeso={handleResetMeso} programData={programData} onProgramDataChange={handleProgramDataChange} onShowTutorial={showTutorial} bodyWeight={bodyWeight} onBodyWeightChange={handleBodyWeightChange} />;
         }
         switch(pageState.view) {
             case 'dashboard': return <DashboardView allLogs={allLogs} {...programData} />;
@@ -2965,8 +3219,9 @@ const AppCore = () => {
             case 'analytics': return <AnalyticsView allLogs={historicalLogs} masterExerciseList={programData.masterExerciseList} />;
             case 'records': return <RecordsView allLogs={historicalLogs} />;
             case 'achievements': return <AchievementsView unlockedAchievements={unlockedAchievements} historicalLogs={historicalLogs} programData={programData} bodyWeight={bodyWeight} />;
+            case 'programHub': return <ProgramManagerView onProgramUpdate={handleProgramUpdate} activeProgram={programData} />;
             case 'editProgram': return <EditProgramView programData={programData} onProgramDataChange={handleProgramDataChange} />;
-            case 'settings': return <SettingsView allLogs={allLogs} historicalLogs={historicalLogs} weightUnit={weightUnit} onWeightUnitChange={handleWeightUnitChange} onProgramUpdate={handleProgramDataChange} onResetMeso={handleResetMeso} programData={programData} onProgramDataChange={handleProgramDataChange} onShowTutorial={showTutorial} bodyWeight={bodyWeight} onBodyWeightChange={handleBodyWeightChange} />;
+            case 'settings': return <SettingsView allLogs={allLogs} historicalLogs={historicalLogs} weightUnit={weightUnit} onWeightUnitChange={handleWeightUnitChange} onResetMeso={handleResetMeso} programData={programData} onProgramDataChange={handleProgramDataChange} onShowTutorial={showTutorial} bodyWeight={bodyWeight} onBodyWeightChange={handleBodyWeightChange} />;
             default: return <MainView onSessionSelect={(week, day, type) => navigate(type, { week, dayKey: day })} completedDays={completedDays} onUnskipDay={handleUnskipDay} {...programData} />;
         }
     };
@@ -2998,3 +3253,4 @@ export default function App() {
         </FirebaseProvider>
     );
 }
+```
