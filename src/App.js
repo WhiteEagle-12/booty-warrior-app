@@ -13,57 +13,504 @@ import { getAuth, onAuthStateChanged, signInAnonymously } from "firebase/auth";
 // --- PRESET PROGRAM DATA ---
 const presets = {
     "optimal-ppl-ul": {
-        name: "Optimal PPL-UL",
-        info: { name: "Project Overload", weeks: 8, split: "Pull/Push/Legs/Rest/Upper/Lower" },
-        masterExerciseList: {
-            'Incline DB Press': { sets: 2, reps: '5-7', rir: ['0', '0'], rest: '2-3 min', equipment: 'dumbbell', muscles: { primary: 'Chest', secondary: 'Shoulders', tertiary: null, primaryContribution: 1, secondaryContribution: 0.5, tertiaryContribution: 0 } },
-            'Barbell Bench Press': { sets: 2, reps: '5-7', rir: ['0', '0'], rest: '2-3 min', equipment: 'barbell', muscles: { primary: 'Chest', secondary: 'Triceps', tertiary: null, primaryContribution: 1, secondaryContribution: 0.5, tertiaryContribution: 0 } },
-            'Pullups': { sets: 4, reps: '5-7', rir: ['0', '0', '0', '0'], rest: '2-3 min', equipment: 'bodyweight', muscles: { primary: 'Back', secondary: 'Biceps', tertiary: null, primaryContribution: 1, secondaryContribution: 0.5, tertiaryContribution: 0 } },
-            'DB Lateral Raise': { sets: 3, reps: '8-10', rir: ['0', '0', '0'], rest: '1-2 min', equipment: 'dumbbell', muscles: { primary: 'Shoulders', secondary: null, tertiary: null, primaryContribution: 1, secondaryContribution: 0, tertiaryContribution: 0 } },
-            'Bayesian Cable Curl': { sets: 3, reps: '6-8', rir: ['0', '0', '0'], rest: '1-2 min', equipment: 'machine', muscles: { primary: 'Biceps', secondary: null, tertiary: null, primaryContribution: 1, secondaryContribution: 0, tertiaryContribution: 0 } },
-            'Overhead Triceps Extension': { sets: 3, reps: '6-8', rir: ['0', '0', '0'], rest: '1-2 min', equipment: 'machine', muscles: { primary: 'Triceps', secondary: null, tertiary: null, primaryContribution: 1, secondaryContribution: 0, tertiaryContribution: 0 } },
-            'Smith Machine Squat': { sets: 2, reps: '5-7', rir: ['0', '0'], rest: '2-3 min', equipment: 'machine', muscles: { primary: 'Quads', secondary: 'Glutes', tertiary: null, primaryContribution: 1, secondaryContribution: 0.5, tertiaryContribution: 0 } },
-            'Hack Squat': { sets: 2, reps: '5-7', rir: ['0', '0'], rest: '2-3 min', equipment: 'machine', muscles: { primary: 'Quads', secondary: 'Glutes', tertiary: null, primaryContribution: 1, secondaryContribution: 0.5, tertiaryContribution: 0 } },
-            'Lying Leg Curl': { sets: 3, reps: '5-7', rir: ['0', '0', '0'], rest: '1-2 min', equipment: 'machine', muscles: { primary: 'Hamstrings', secondary: null, tertiary: null, primaryContribution: 1, secondaryContribution: 0, tertiaryContribution: 0 } },
-            'Leg Extensions': { sets: 3, reps: '5-7', rir: ['0', '0', '0'], rest: '1-2 min', equipment: 'machine', muscles: { primary: 'Quads', secondary: null, tertiary: null, primaryContribution: 1, secondaryContribution: 0, tertiaryContribution: 0 } },
-            'Standing Calf Raise': { sets: 4, reps: '5-7', rir: ['0', '0', '0', '0'], rest: '1 min', equipment: 'machine', muscles: { primary: 'Calves', secondary: null, tertiary: null, primaryContribution: 1, secondaryContribution: 0, tertiaryContribution: 0 } },
-            'Cable Crunch': { sets: 3, reps: '10-12', rir: ['0', '0', '0'], rest: '1 min', equipment: 'machine', muscles: { primary: 'Abs', secondary: null, tertiary: null, primaryContribution: 1, secondaryContribution: 0, tertiaryContribution: 0 } },
-            'Chest Supported Row': { sets: 4, reps: '5-7', rir: ['0', '0', '0', '0'], rest: '2-3 min', equipment: 'machine', muscles: { primary: 'Back', secondary: 'Biceps', tertiary: null, primaryContribution: 1, secondaryContribution: 0.5, tertiaryContribution: 0 } },
-            'Preacher Curl': { sets: 3, reps: '8-10', rir: ['0', '0', '0'], rest: '1-2 min', equipment: 'barbell', muscles: { primary: 'Biceps', secondary: null, tertiary: null, primaryContribution: 1, secondaryContribution: 0, tertiaryContribution: 0 } },
-            'Pec Flies': { sets: 2, reps: '6-8', rir: ['0', '0'], rest: '1-2 min', equipment: 'machine', muscles: { primary: 'Chest', secondary: null, tertiary: null, primaryContribution: 1, secondaryContribution: 0, tertiaryContribution: 0 } },
-            'Barbell RDL': { sets: 4, reps: '5-7', rir: ['0', '0', '0', '0'], rest: '2-3 min', equipment: 'barbell', muscles: { primary: 'Hamstrings', secondary: 'Glutes', tertiary: null, primaryContribution: 1, secondaryContribution: 0.5, tertiaryContribution: 0 } },
-            'DB Bulgarian Split Squat': { sets: 3, reps: '5-7', rir: ['0', '0', '0'], rest: '2 min', equipment: 'dumbbell', muscles: { primary: 'Quads', secondary: 'Glutes', tertiary: null, primaryContribution: 1, secondaryContribution: 0.5, tertiaryContribution: 0 } },
-            'Safety Bar Squats': { sets: 2, reps: '5-7', rir: ['0', '0'], rest: '2-3 min', equipment: 'barbell', muscles: { primary: 'Quads', secondary: 'Glutes', tertiary: null, primaryContribution: 1, secondaryContribution: 0.5, tertiaryContribution: 0 } },
-            'DB Rows': { sets: 2, reps: '5-7', rir: ['0', '0'], rest: '2-3 min', equipment: 'dumbbell', muscles: { primary: 'Back', secondary: 'Biceps', tertiary: null, primaryContribution: 1, secondaryContribution: 0.5, tertiaryContribution: 0 } },
+      "name": "Optimal PPL-UL",
+      "info": {
+        "weeks": 8,
+        "split": "Pull/Push/Legs/Rest/Upper/Lower",
+        "name": "PPL-UL"
+      },
+      "masterExerciseList": {
+        "Preacher Curl": {
+          "rest": "1-2 min",
+          "muscles": {
+            "secondaryContribution": 0.5,
+            "tertiaryContribution": 0.25,
+            "primary": "Biceps",
+            "primaryContribution": 1,
+            "secondary": "",
+            "tertiary": ""
+          },
+          "reps": "6-8",
+          "sets": 3,
+          "lastSetTechnique": "",
+          "rir": [
+            "1-2",
+            "1-2",
+            "0"
+          ],
+          "equipment": "barbell"
         },
-        programStructure: {
-            'Upper (Strength Focus)': { exercises: ['Incline DB Press', 'Pullups', 'DB Rows', 'Barbell Bench Press', 'Bayesian Cable Curl', 'Overhead Triceps Extension'], label: 'Upper' },
-            'Lower (Strength Focus)': { exercises: ['Smith Machine Squat', 'Hack Squat', 'Safety Bar Squats', 'Lying Leg Curl', 'Standing Calf Raise', 'Cable Crunch'], label: 'Lower' },
-            'Pull (Hypertrophy Focus)': { exercises: ['Chest Supported Row', 'Pullups', 'DB Lateral Raise', 'Preacher Curl'], label: 'Pull' },
-            'Push (Hypertrophy Focus)': { exercises: ['Incline DB Press', 'Barbell Bench Press', 'DB Lateral Raise', 'Overhead Triceps Extension', 'Pec Flies'], label: 'Push' },
-            'Legs (Hypertrophy Focus)': { exercises: ['DB Bulgarian Split Squat', 'Barbell RDL', 'Leg Extensions', 'Lying Leg Curl', 'Standing Calf Raise'], label: 'Legs' },
+        "Pullups": {
+          "reps": "5-7",
+          "equipment": "bodyweight",
+          "muscles": {
+            "primaryContribution": 1,
+            "secondaryContribution": 0.5,
+            "secondary": "Biceps",
+            "tertiaryContribution": 0.25,
+            "tertiary": "",
+            "primary": "Back"
+          },
+          "rir": [
+            "1-2",
+            "1-2",
+            "0"
+          ],
+          "lastSetTechnique": "",
+          "sets": "3",
+          "rest": "2-3 min"
         },
-        weeklySchedule: [
-            { day: 'Mon', workout: 'Pull (Hypertrophy Focus)' }, { day: 'Tue', workout: 'Push (Hypertrophy Focus)' },
-            { day: 'Wed', workout: 'Legs (Hypertrophy Focus)' }, { day: 'Thu', workout: 'Rest' },
-            { day: 'Fri', workout: 'Upper (Strength Focus)' }, { day: 'Sat', workout: 'Lower (Strength Focus)' },
-            { day: 'Sun', workout: 'Rest' },
-        ],
-        workoutOrder: [
-            'Pull (Hypertrophy Focus)',
-            'Push (Hypertrophy Focus)',
-            'Legs (Hypertrophy Focus)',
-            'Upper (Strength Focus)',
-            'Lower (Strength Focus)'
-        ],
-        settings: {
-            useWeeklySchedule: true,
-            restTimer: {
-                enabled: true,
-                duration: 120 // 2 minutes in seconds
-            }
+        "Safety Bar Squats": {
+          "rir": [
+            "0",
+            "0"
+          ],
+          "reps": "5-7",
+          "muscles": {
+            "secondaryContribution": 0.5,
+            "secondary": "Glutes",
+            "tertiary": "",
+            "primaryContribution": 1,
+            "primary": "Quads",
+            "tertiaryContribution": 0.25
+          },
+          "rest": "2-3 min",
+          "equipment": "barbell",
+          "sets": 2,
+          "lastSetTechnique": ""
         },
-        weeklyOverrides: {},
+        "Standing Calf Raise": {
+          "muscles": {
+            "primaryContribution": 1,
+            "tertiaryContribution": 0.25,
+            "secondary": "",
+            "primary": "Calves",
+            "tertiary": "",
+            "secondaryContribution": 0.5
+          },
+          "rir": [
+            "0",
+            "0",
+            "0",
+            "0"
+          ],
+          "rest": "1 min",
+          "sets": 4,
+          "equipment": "machine",
+          "lastSetTechnique": "Static Stretch",
+          "reps": "5-7"
+        },
+        "Bayesian Cable Curl": {
+          "rest": "1-2 min",
+          "lastSetTechnique": "",
+          "reps": "6-8",
+          "sets": 3,
+          "muscles": {
+            "tertiary": "",
+            "secondary": "",
+            "primary": "Biceps",
+            "secondaryContribution": 0.5,
+            "primaryContribution": 1,
+            "tertiaryContribution": 0.25
+          },
+          "rir": [
+            "0",
+            "0",
+            "0"
+          ],
+          "equipment": "machine"
+        },
+        "Incline DB Press": {
+          "sets": 2,
+          "equipment": "dumbbell",
+          "reps": "5-7",
+          "rest": "2-3 min",
+          "rir": [
+            "1",
+            "1"
+          ],
+          "lastSetTechnique": "",
+          "muscles": {
+            "tertiary": "",
+            "secondary": "Shoulders",
+            "tertiaryContribution": 0.25,
+            "secondaryContribution": 0.5,
+            "primary": "Chest",
+            "primaryContribution": 1
+          }
+        },
+        "Lying Leg Curl": {
+          "muscles": {
+            "tertiary": "",
+            "primaryContribution": 1,
+            "secondary": "",
+            "secondaryContribution": 0.5,
+            "primary": "Hamstrings",
+            "tertiaryContribution": 0.25
+          },
+          "reps": "5-7",
+          "lastSetTechnique": "LLPs",
+          "rest": "1-2 min",
+          "rir": [
+            "0",
+            "0",
+            "0"
+          ],
+          "equipment": "machine",
+          "sets": 3
+        },
+        "Cable Crunch": {
+          "lastSetTechnique": "Myo-reps",
+          "rir": [
+            "0",
+            "0",
+            "0"
+          ],
+          "reps": "10-12",
+          "muscles": {
+            "tertiary": "",
+            "primary": "Abs",
+            "secondary": "",
+            "primaryContribution": 1,
+            "tertiaryContribution": 0.25,
+            "secondaryContribution": 0.5
+          },
+          "equipment": "machine",
+          "sets": 3,
+          "rest": "1 min"
+        },
+        "Barbell RDL": {
+          "lastSetTechnique": "",
+          "equipment": "barbell",
+          "reps": "5-7",
+          "sets": 4,
+          "muscles": {
+            "tertiary": "",
+            "secondary": "Glutes",
+            "secondaryContribution": 0.5,
+            "tertiaryContribution": 0.25,
+            "primary": "Hamstrings",
+            "primaryContribution": 1
+          },
+          "rest": "2-3 min",
+          "rir": [
+            "0",
+            "0",
+            "0",
+            "0"
+          ]
+        },
+        "Leg Extensions": {
+          "reps": "5-7",
+          "rest": "1-2 min",
+          "rir": [
+            "0",
+            "0",
+            "0"
+          ],
+          "lastSetTechnique": "",
+          "sets": 3,
+          "muscles": {
+            "primary": "Quads",
+            "secondary": "",
+            "secondaryContribution": 0.5,
+            "tertiary": "",
+            "tertiaryContribution": 0.25,
+            "primaryContribution": 1
+          },
+          "equipment": "machine"
+        },
+        "Smith Machine Squat": {
+          "lastSetTechnique": "",
+          "rir": [
+            "0",
+            "0"
+          ],
+          "muscles": {
+            "tertiaryContribution": 0.25,
+            "primary": "Quads",
+            "secondaryContribution": 0.5,
+            "tertiary": "",
+            "primaryContribution": 1,
+            "secondary": "Glutes"
+          },
+          "equipment": "machine",
+          "rest": "2-3 min",
+          "sets": 2,
+          "reps": "5-7"
+        },
+        "Overhead Triceps Extension": {
+          "rest": "1-2 min",
+          "lastSetTechnique": "",
+          "reps": "6-8",
+          "sets": 3,
+          "equipment": "machine",
+          "muscles": {
+            "tertiaryContribution": 0.25,
+            "tertiary": "",
+            "primary": "Triceps",
+            "secondary": "",
+            "secondaryContribution": 0.5,
+            "primaryContribution": 1
+          },
+          "rir": [
+            "0",
+            "0",
+            "0"
+          ]
+        },
+        "Pec Flies": {
+          "rir": [
+            "0",
+            "0"
+          ],
+          "reps": "6-8",
+          "lastSetTechnique": "Stretch Focus",
+          "rest": "1-2 min",
+          "muscles": {
+            "secondary": "",
+            "primary": "Chest",
+            "primaryContribution": 1,
+            "tertiaryContribution": 0.25,
+            "secondaryContribution": 0.5,
+            "tertiary": ""
+          },
+          "equipment": "machine",
+          "sets": 2
+        },
+        "DB Bulgarian Split Squat": {
+          "rir": [
+            "0",
+            "0",
+            "0"
+          ],
+          "muscles": {
+            "tertiary": "",
+            "tertiaryContribution": 0.25,
+            "primaryContribution": 1,
+            "primary": "Quads",
+            "secondary": "Glutes",
+            "secondaryContribution": 0.5
+          },
+          "equipment": "dumbbell",
+          "reps": "5-7",
+          "lastSetTechnique": "",
+          "sets": 3,
+          "rest": "2 min"
+        },
+        "Barbell Bench Press": {
+          "rest": "2-3 min",
+          "equipment": "barbell",
+          "lastSetTechnique": "",
+          "reps": "5-7",
+          "muscles": {
+            "tertiary": "",
+            "secondaryContribution": 0.5,
+            "primaryContribution": 1,
+            "tertiaryContribution": 0.25,
+            "secondary": "Triceps",
+            "primary": "Chest"
+          },
+          "sets": 2,
+          "rir": [
+            "0",
+            "0"
+          ]
+        },
+        "Hack Squat": {
+          "sets": 2,
+          "reps": "5-7",
+          "equipment": "machine",
+          "rest": "2-3 min",
+          "muscles": {
+            "tertiary": "",
+            "secondary": "Glutes",
+            "secondaryContribution": 0.5,
+            "primary": "Quads",
+            "primaryContribution": 1,
+            "tertiaryContribution": 0.25
+          },
+          "rir": [
+            "0",
+            "0"
+          ],
+          "lastSetTechnique": ""
+        },
+        "Lat Pullovers": {
+          "equipment": "barbell",
+          "lastSetTechnique": "LLPs",
+          "muscles": {
+            "primary": "Back",
+            "secondary": ""
+          },
+          "sets": "2",
+          "rest": "2-3 min",
+          "reps": "6-8",
+          "rir": [
+            "0",
+            "0"
+          ]
+        },
+        "Chest Supported Row": {
+          "rest": "2-3 min",
+          "rir": [
+            "1-2",
+            "1-2",
+            "0"
+          ],
+          "reps": "5-7",
+          "equipment": "machine",
+          "lastSetTechnique": "",
+          "sets": "3",
+          "muscles": {
+            "tertiaryContribution": 0.25,
+            "tertiary": "",
+            "secondary": "Biceps",
+            "primaryContribution": 1,
+            "primary": "Back",
+            "secondaryContribution": 0.5
+          }
+        },
+        "DB Rows": {
+          "muscles": {
+            "secondaryContribution": 0.5,
+            "tertiaryContribution": 0.25,
+            "primaryContribution": 1,
+            "secondary": "Biceps",
+            "tertiary": "",
+            "primary": "Back"
+          },
+          "rest": "2-3 min",
+          "sets": 2,
+          "reps": "5-7",
+          "equipment": "dumbbell",
+          "lastSetTechnique": "",
+          "rir": [
+            "0",
+            "0"
+          ]
+        },
+        "DB Lateral Raise": {
+          "sets": 3,
+          "reps": "8-10",
+          "muscles": {
+            "secondaryContribution": 0.5,
+            "primary": "Shoulders",
+            "tertiaryContribution": 0.25,
+            "tertiary": "",
+            "primaryContribution": 1,
+            "secondary": ""
+          },
+          "rir": [
+            "0",
+            "0",
+            "0"
+          ],
+          "lastSetTechnique": "Myo-reps",
+          "rest": "1-2 min",
+          "equipment": "dumbbell"
+        }
+      },
+      "programStructure": {
+        "Upper (Strength Focus)": {
+          "exercises": [
+            "Incline DB Press",
+            "Pullups",
+            "DB Rows",
+            "Barbell Bench Press",
+            "DB Lateral Raise",
+            "Bayesian Cable Curl",
+            "Overhead Triceps Extension"
+          ],
+          "label": "Upper"
+        },
+        "Lower (Strength Focus)": {
+          "exercises": [
+            "Smith Machine Squat",
+            "Hack Squat",
+            "Safety Bar Squats",
+            "Lying Leg Curl",
+            "Standing Calf Raise",
+            "Cable Crunch"
+          ],
+          "label": "Lower"
+        },
+        "Push (Hypertrophy Focus)": {
+          "exercises": [
+            "Barbell Bench Press",
+            "Incline DB Press",
+            "DB Lateral Raise",
+            "Overhead Triceps Extension",
+            "Pec Flies"
+          ],
+          "label": "Push"
+        },
+        "Legs (Hypertrophy Focus)": {
+          "exercises": [
+            "DB Bulgarian Split Squat",
+            "Barbell RDL",
+            "Leg Extensions",
+            "Lying Leg Curl",
+            "Standing Calf Raise"
+          ],
+          "label": "Legs"
+        },
+        "Pull (Hypertrophy Focus)": {
+          "label": "Pull",
+          "exercises": [
+            "Pullups",
+            "Chest Supported Row",
+            "DB Lateral Raise",
+            "Preacher Curl",
+            "Lat Pullovers"
+          ]
+        }
+      },
+      "weeklySchedule": [
+        {
+          "day": "Mon",
+          "workout": "Pull (Hypertrophy Focus)"
+        },
+        {
+          "workout": "Push (Hypertrophy Focus)",
+          "day": "Tue"
+        },
+        {
+          "workout": "Legs (Hypertrophy Focus)",
+          "day": "Wed"
+        },
+        {
+          "day": "Thu",
+          "workout": "Rest"
+        },
+        {
+          "day": "Fri",
+          "workout": "Upper (Strength Focus)"
+        },
+        {
+          "day": "Sat",
+          "workout": "Lower (Strength Focus)"
+        },
+        {
+          "day": "Sun",
+          "workout": "Rest"
+        }
+      ],
+      "workoutOrder": [
+        "Pull (Hypertrophy Focus)",
+        "Push (Hypertrophy Focus)",
+        "Legs (Hypertrophy Focus)",
+        "Upper (Strength Focus)",
+        "Lower (Strength Focus)"
+      ],
+      "settings": {
+        "restTimer": {
+          "enabled": true,
+          "duration": 180
+        },
+        "useWeeklySchedule": true
+      },
+      "weeklyOverrides": {}
     },
     "beginner-3day-fullbody": {
         name: "Beginner 3-Day Full Body",
@@ -222,7 +669,7 @@ const exerciseBank = {
     'Seated Dumbbell Press': { sets: 3, reps: '8-12', rir: ['1', '1', '1'], rest: '2 min', equipment: 'dumbbell', muscles: { primary: 'Shoulders', secondary: 'Triceps', tertiary: null, primaryContribution: 1, secondaryContribution: 0.5, tertiaryContribution: 0 } },
     'Lateral Raise': { sets: 4, reps: '12-15', rir: ['1', '1', '1', '1'], rest: '1-2 min', equipment: 'dumbbell', muscles: { primary: 'Shoulders', secondary: null, tertiary: null, primaryContribution: 1, secondaryContribution: 0, tertiaryContribution: 0 } },
     'Face Pull': { sets: 3, reps: '15-20', rir: ['1', '1', '1'], rest: '1 min', equipment: 'machine', muscles: { primary: 'Shoulders', secondary: 'Back', tertiary: null, primaryContribution: 1, secondaryContribution: 0.4, tertiaryContribution: 0 } },
-    'Barbell Shrug': { sets: 3, reps: '10-15', rir: ['1', '1', '1'], rest: '1 min', equipment: 'barbell', muscles: { primary: 'Back', secondary: null, tertiary: null, primaryContribution: 1, secondaryContribution: 0, tertiaryContribution: 0 } },
+    'Barbell Shrug': { sets: 3, reps: '10-15', rir: ['1', '1', '1'], rest: '1 min', equipment: 'barbell', muscles: { primary: 'Back', secondary: null, tertiary: null, primaryContribution: 1, secondaryContribution: 0 } },
     // Biceps
     'Barbell Curl': { sets: 3, reps: '8-12', rir: ['1', '1', '1'], rest: '1-2 min', equipment: 'barbell', muscles: { primary: 'Biceps', secondary: null, tertiary: null, primaryContribution: 1, secondaryContribution: 0, tertiaryContribution: 0 } },
     'Dumbbell Curl': { sets: 3, reps: '10-15', rir: ['1', '1', '1'], rest: '1-2 min', equipment: 'dumbbell', muscles: { primary: 'Biceps', secondary: null, tertiary: null, primaryContribution: 1, secondaryContribution: 0, tertiaryContribution: 0 } },
@@ -245,12 +692,19 @@ const getWorkoutForWeek = (programData, week, workoutName) => {
 
 const calculateE1RM = (weight, reps, rir) => {
     // Correctly use RIR in e1RM calculation
-    if (weight === null || weight === undefined || !reps || reps < 1) return 0;
-    const effectiveReps = parseFloat(reps) + (parseFloat(rir) || 0);
-    if (effectiveReps <= 1) return parseFloat(weight);
+    const numWeight = parseFloat(weight);
+    const numReps = parseInt(reps, 10);
+    const numRir = parseInt(rir, 10) || 0;
+
+    if (isNaN(numWeight) || isNaN(numReps) || numReps < 1) return 0;
+    
+    const effectiveReps = numReps + numRir;
+    if (effectiveReps <= 1) return Math.round(numWeight);
+
     // Using the Epley formula
-    return Math.round(parseFloat(weight) * (1 + (effectiveReps / 30)));
+    return Math.round(numWeight * (1 + (effectiveReps / 30)));
 };
+
 
 const getSetVolume = (log, masterExerciseList) => {
     // Implement accurate dumbbell volume tracking
@@ -305,7 +759,7 @@ const findLastPerformanceLogs = (exerciseName, currentWeek, currentDayKey, allLo
     };
 };
 
-const getProgressionSuggestion = (exerciseName, lastPerformanceData, currentPerformance, masterList) => {
+const getProgressionSuggestion = (exerciseName, lastPerformanceData, masterList) => {
     const { lastSession, historicalSessions } = lastPerformanceData;
 
     if (!lastSession) {
@@ -340,21 +794,10 @@ const getProgressionSuggestion = (exerciseName, lastPerformanceData, currentPerf
         if (latestE1RM < avgPreviousE1RM * 0.98) trend = "declining";
     }
 
-    // Check for drop in current performance
-    if (currentPerformance) {
-        const currentE1RM = calculateE1RM(currentPerformance.load, currentPerformance.reps, currentPerformance.rir);
-        const lastE1RM = calculateE1RM(lastTopSet.load, lastTopSet.reps, lastTopSet.rir);
-        if (lastE1RM > 0 && currentE1RM < lastE1RM * 0.9) {
-            return `Performance has dropped. Focus on recovery. Consider maintaining weight or reducing slightly to ensure quality reps.`;
-        }
-    }
-
     // Main progression logic
     if (lastReps >= maxReps && lastRir <= (parseInt(exerciseDetails.rir[0], 10) + 1)) {
         let increment = 5; // Default for barbell/machine
         if (['dumbbell', 'kettlebell'].includes(exerciseDetails.equipment)) increment = 5; 
-        // The following line was removed as 'type' property does not exist in the data structure
-        // if (['isolation', 'accessory'].includes(exerciseDetails.type)) increment = 2.5;
         if (exerciseDetails.equipment === 'bodyweight') return `Add weight or aim for ${lastReps + 1} reps. You're getting stronger!`;
         
         const newWeight = lastWeight + increment;
@@ -615,7 +1058,7 @@ const SetRow = ({ setNumber, logData, onLogChange, lastSetData, exerciseDetails,
 const ExerciseCard = ({ exerciseName, week, dayKey, allLogs, onLogChange, masterExerciseList, weightUnit, workoutDetails }) => {
     const { openModal } = useContext(AppStateContext);
     const exercise = getExerciseDetails(exerciseName, masterExerciseList);
-    const sets = Array.from({ length: exercise?.sets || 0 }, (_, i) => i + 1);
+    const sets = Array.from({ length: Number(exercise?.sets) || 0 }, (_, i) => i + 1);
 
     const isCompleted = useMemo(() => {
         return sets.every(setNumber => {
@@ -637,8 +1080,7 @@ const ExerciseCard = ({ exerciseName, week, dayKey, allLogs, onLogChange, master
     if (!exercise) return <div className="bg-red-100 dark:bg-red-900/50 p-4 rounded-lg text-red-700 dark:text-red-300">Exercise "{exerciseName}" not found in master list.</div>;
 
     const lastPerformanceData = useMemo(() => findLastPerformanceLogs(exerciseName, week, dayKey, allLogs), [exerciseName, week, dayKey, allLogs]);
-    const currentSetLog = allLogs[`${week}-${dayKey}-${exerciseName}-1`];
-    const suggestion = useMemo(() => getProgressionSuggestion(exerciseName, lastPerformanceData, currentSetLog, masterExerciseList), [exerciseName, lastPerformanceData, currentSetLog, masterExerciseList]);
+    const suggestion = useMemo(() => getProgressionSuggestion(exerciseName, lastPerformanceData, masterExerciseList), [exerciseName, lastPerformanceData, masterExerciseList]);
     
     return (
         <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md overflow-hidden">
@@ -682,7 +1124,7 @@ const ExerciseCard = ({ exerciseName, week, dayKey, allLogs, onLogChange, master
                                     exerciseDetails={exercise}
                                     weightUnit={weightUnit}
                                     exerciseName={exerciseName}
-                                    totalSets={exercise.sets}
+                                    totalSets={Number(exercise.sets)}
                                 />
                             ))}
                         </div>
@@ -790,7 +1232,7 @@ const LiftingSession = ({ week, dayKey, onBack, allLogs, setAllLogs, onSkipDay, 
     );
 };
 
-const WeekView = ({ week, completedDays, onSessionSelect, onEditWeekWorkout, firstIncompleteWeek, onUnskipDay, programData }) => {
+const WeekView = ({ week, completedDays, onSessionSelect, firstIncompleteWeek, onUnskipDay, programData }) => {
     const { programStructure, weeklySchedule } = programData;
     const isWeekComplete = useMemo(() => weeklySchedule.every(day => day.workout === 'Rest' || completedDays.get(`${week}-${day.day}`)?.isDayComplete), [week, completedDays, weeklySchedule]);
     const [isOpen, setIsOpen] = useState(week === firstIncompleteWeek);
@@ -832,15 +1274,10 @@ const WeekView = ({ week, completedDays, onSessionSelect, onEditWeekWorkout, fir
                                             <XCircle size={14} /> Skipped
                                         </button>
                                     ) : (
-                                        <div className="flex items-center gap-1">
-                                            <button onClick={() => onSessionSelect(week, day.day, 'lifting')} className="w-full flex items-center justify-between text-xs p-1.5 rounded bg-white dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 shadow-sm transition-colors">
-                                                <div className="flex items-center gap-1 font-semibold">{workoutDetails?.label || workoutName}</div>
-                                                {status?.isDayComplete ? <CheckCircle size={14} className="text-green-500"/> : <Dumbbell size={14} className="text-blue-500"/>}
-                                            </button>
-                                            <button onClick={() => onEditWeekWorkout(week, day.day)} className="p-1 rounded bg-white dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 shadow-sm">
-                                                <Pencil size={14} className="text-gray-500"/>
-                                            </button>
-                                        </div>
+                                        <button onClick={() => onSessionSelect(week, day.day, 'lifting')} className="w-full flex items-center justify-between text-xs p-1.5 rounded bg-white dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 shadow-sm transition-colors">
+                                            <div className="flex items-center gap-1 font-semibold">{workoutDetails?.label || workoutName}</div>
+                                            {status?.isDayComplete ? <CheckCircle size={14} className="text-green-500"/> : <Dumbbell size={14} className="text-blue-500"/>}
+                                        </button>
                                     )}
                                 </div>
                             </div>
@@ -964,7 +1401,7 @@ const StreakCounter = ({ streak }) => {
 };
 
 
-const MainView = ({ onSessionSelect, onEditWeekWorkout, onEditProgram, completedDays, onUnskipDay, programData, allLogs }) => {
+const MainView = ({ onSessionSelect, onEditProgram, completedDays, onUnskipDay, programData, allLogs }) => {
     const { info, weeklySchedule, workoutOrder } = programData;
     const weeks = Array.from({ length: info.weeks }, (_, i) => i + 1);
     
@@ -999,7 +1436,6 @@ const MainView = ({ onSessionSelect, onEditWeekWorkout, onEditProgram, completed
                             week={week} 
                             completedDays={completedDays} 
                             onSessionSelect={onSessionSelect}
-                            onEditWeekWorkout={onEditWeekWorkout} 
                             firstIncompleteWeek={firstIncompleteWeek} 
                             onUnskipDay={onUnskipDay} 
                             programData={programData}
@@ -1060,7 +1496,7 @@ const DashboardView = ({ allLogs, programData, bodyWeightHistory }) => {
                 return workout.exercises.every(ex => {
                     const details = getExerciseDetails(ex, masterExerciseList);
                     if(!details) return false;
-                    return Array.from({length: details.sets}, (_, i) => i + 1).every(setNum => isSetLogComplete(allLogs[`${w}-${day.day}-${ex}-${setNum}`]));
+                    return Array.from({length: Number(details.sets)}, (_, i) => i + 1).every(setNum => isSetLogComplete(allLogs[`${w}-${day.day}-${ex}-${setNum}`]));
                 });
             });
             if (!isWeekComplete) {
@@ -1165,7 +1601,7 @@ const DashboardView = ({ allLogs, programData, bodyWeightHistory }) => {
 };
 
 
-const SettingsView = ({ allLogs, historicalLogs, weightUnit, onWeightUnitChange, onResetMeso, programData, onProgramDataChange, onShowTutorial, bodyWeight, onBodyWeightChange }) => {
+const SettingsView = ({ allLogs, historicalLogs, weightUnit, onWeightUnitChange, onResetMeso, programData, onProgramDataChange, onShowTutorial, bodyWeight, onBodyWeightChange, onBack }) => {
     const { theme, toggleTheme } = useContext(ThemeContext);
     const { customId, handleSetCustomId } = useContext(FirebaseContext);
     const { openModal, closeModal } = useContext(AppStateContext);
@@ -1279,7 +1715,14 @@ const SettingsView = ({ allLogs, historicalLogs, weightUnit, onWeightUnitChange,
 
     return (
         <div className="p-4 md:p-6 pb-24">
-            <div className="flex flex-col items-center text-center mb-6"><Settings className="text-blue-500 dark:text-blue-400 mb-2" size={32} /><div><h1 className="text-3xl font-bold dark:text-white">App Settings</h1></div></div>
+            <div className="flex justify-between items-center mb-6">
+                 <button onClick={onBack} className="flex items-center gap-2 text-sm font-medium text-blue-600 dark:text-blue-400 hover:underline"><ArrowLeft size={16}/> Back to Program</button>
+                 <div className="flex flex-col items-center text-center">
+                    <Settings className="text-blue-500 dark:text-blue-400 mb-2" size={32} />
+                    <h1 className="text-3xl font-bold dark:text-white">App Settings</h1>
+                </div>
+                <div className="w-28"></div> {/* Spacer */}
+            </div>
             <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-md space-y-6">
                 
                 {/* Sync & Data */}
@@ -1415,7 +1858,7 @@ const SettingsView = ({ allLogs, historicalLogs, weightUnit, onWeightUnitChange,
     );
 };
 
-const AnalyticsView = ({ allLogs, masterExerciseList }) => {
+const AnalyticsView = ({ allLogs, masterExerciseList, onBack }) => {
     const [selectedExercise, setSelectedExercise] = useState('');
     const [searchTerm, setSearchTerm] = useState('');
 
@@ -1565,12 +2008,13 @@ const AnalyticsView = ({ allLogs, masterExerciseList }) => {
 
     return (
         <div className="p-4 md:p-6 pb-24">
-            <div className="flex flex-col items-center text-center mb-6">
-                <BarChart2 className="text-blue-500 dark:text-blue-400 mb-2" size={32} />
-                <div>
+            <div className="flex justify-between items-center mb-6">
+                <button onClick={onBack} className="flex items-center gap-2 text-sm font-medium text-blue-600 dark:text-blue-400 hover:underline"><ArrowLeft size={16}/> Back to Program</button>
+                 <div className="flex flex-col items-center text-center">
+                    <BarChart2 className="text-blue-500 dark:text-blue-400 mb-2" size={32} />
                     <h1 className="text-3xl font-bold dark:text-white">Analytics</h1>
-                    <p className="text-lg text-gray-600 dark:text-gray-400">Your Performance Breakdown</p>
                 </div>
+                <div className="w-28"></div> {/* Spacer */}
             </div>
 
             <div className="space-y-8">
@@ -1670,7 +2114,7 @@ const AnalyticsView = ({ allLogs, masterExerciseList }) => {
     );
 };
 
-const RecordsView = ({ allLogs }) => {
+const RecordsView = ({ allLogs, onBack }) => {
     const [searchTerm, setSearchTerm] = useState('');
     
     const personalRecords = useMemo(() => {
@@ -1699,12 +2143,14 @@ const RecordsView = ({ allLogs }) => {
 
     return (
         <div className="p-4 md:p-6 pb-24">
-            <div className="flex flex-col items-center text-center mb-6">
-                <Trophy className="text-yellow-500 dark:text-yellow-400 mb-2" size={32} />
-                <div>
+             <div className="flex justify-between items-center mb-6">
+                <button onClick={onBack} className="flex items-center gap-2 text-sm font-medium text-blue-600 dark:text-blue-400 hover:underline"><ArrowLeft size={16}/> Back to Program</button>
+                 <div className="flex flex-col items-center text-center">
+                    <Trophy className="text-yellow-500 dark:text-yellow-400 mb-2" size={32} />
                     <h1 className="text-3xl font-bold dark:text-white">Personal Records</h1>
                     <p className="text-lg text-gray-600 dark:text-gray-400">Your Best Lifts (e1RM)</p>
                 </div>
+                <div className="w-28"></div> {/* Spacer */}
             </div>
             <div className="mb-6">
                 <div className="relative">
@@ -1745,7 +2191,7 @@ const RecordsView = ({ allLogs }) => {
     );
 };
 
-const EditProgramView = ({ programData, onProgramDataChange }) => {
+const EditProgramView = ({ programData, onProgramDataChange, onBack, onNavigate }) => {
     const { openModal, closeModal } = useContext(AppStateContext);
     const [program, setProgram] = useState(programData);
 
@@ -1761,11 +2207,6 @@ const EditProgramView = ({ programData, onProgramDataChange }) => {
 
     const handleInfoChange = (field, value) => {
         updateProgram({ info: { ...program.info, [field]: value } });
-    };
-
-    const handleScheduleChange = (day, newWorkoutName) => {
-        const newSchedule = program.weeklySchedule.map(d => d.day === day ? { ...d, workout: newWorkoutName } : d);
-        updateProgram({ weeklySchedule: newSchedule });
     };
 
     const handleAddWorkoutDay = () => {
@@ -1940,26 +2381,48 @@ const EditProgramView = ({ programData, onProgramDataChange }) => {
         }
     };
     
+    const handleEditDay = (week, dayKey) => {
+        const workoutName = programData.weeklySchedule.find(d => d.day === dayKey)?.workout;
+        const baseWorkout = getWorkoutForWeek(programData, week, workoutName);
+
+        if (!workoutName || workoutName === 'Rest' || !baseWorkout) return;
+
+        openModal(
+            <EditChoiceModal
+                onChoice={(choice) => {
+                    closeModal();
+                    if (choice === 'week') {
+                        onNavigate('editWeek', { week, dayKey, workoutName });
+                    } else {
+                        // Logic to edit master template (already in this view)
+                        // Maybe scroll to the relevant workout day editor
+                        const element = document.getElementById(`workout-day-editor-${workoutName}`);
+                        element?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    }
+                }}
+            />
+        );
+    };
+
     return (
         <DragDropContext onDragEnd={onDragEnd}>
             <div className="p-4 md:p-6 pb-24">
-                 <div className="flex flex-col sm:flex-row justify-between items-center text-center sm:text-left mb-6">
-                    <div className="flex items-center gap-3 mb-4 sm:mb-0">
+                 <div className="flex justify-between items-center text-center mb-6">
+                    <button onClick={onBack} className="flex items-center gap-2 text-sm font-medium text-blue-600 dark:text-blue-400 hover:underline"><ArrowLeft size={16}/> Back</button>
+                    <div className="flex items-center gap-3">
                         <Edit className="text-blue-500 dark:text-blue-400" size={32} />
                         <div>
                             <h1 className="text-3xl font-bold dark:text-white">Edit Program</h1>
-                            <p className="text-lg text-gray-600 dark:text-gray-400">Customize Your Workouts</p>
                         </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                        <button onClick={handleCreateNewExercise} className="flex-shrink-0 flex items-center gap-2 px-3 py-2 bg-blue-600 text-white text-sm rounded-lg shadow-md hover:bg-blue-700 transition-colors">
-                            <PlusCircle size={16} /> Create Exercise
-                        </button>
-                    </div>
+                    <button onClick={handleCreateNewExercise} className="flex-shrink-0 flex items-center gap-2 px-3 py-2 bg-blue-600 text-white text-sm rounded-lg shadow-md hover:bg-blue-700 transition-colors">
+                        <PlusCircle size={16} /> Create
+                    </button>
                 </div>
 
                 {/* Program Details Editor */}
                 <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-4 mb-6">
+                     <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">Program Info</h3>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div>
                             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Program Name</label>
@@ -1972,7 +2435,35 @@ const EditProgramView = ({ programData, onProgramDataChange }) => {
                     </div>
                 </div>
 
+                {/* Weekly Schedule Editor */}
+                 <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-4 mb-6">
+                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">Weekly Schedule & Overrides</h3>
+                    <div className="space-y-4">
+                        {Array.from({ length: program.info.weeks }, (_, i) => i + 1).map(week => (
+                             <div key={week}>
+                                <h4 className="font-bold text-md text-gray-800 dark:text-gray-200 mb-2">Week {week}</h4>
+                                <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2">
+                                    {program.weeklySchedule.map(({ day, workout }) => (
+                                        <div key={`${week}-${day}`} className="bg-gray-100 dark:bg-gray-700/50 p-2 rounded-lg text-center">
+                                            <div className="font-bold text-sm mb-1">{day}</div>
+                                            <p className="text-xs text-gray-600 dark:text-gray-400 mb-2 truncate">{program.weeklyOverrides?.[week]?.[workout]?.label || workout}</p>
+                                            <button 
+                                                onClick={() => handleEditDay(week, day)} 
+                                                className="w-full text-xs p-1 rounded bg-white dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 shadow-sm"
+                                                disabled={workout === 'Rest'}
+                                            >
+                                                Edit Day
+                                            </button>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+
                 {/* Workout Day List */}
+                 <h3 className="text-lg font-semibold text-gray-900 dark:text-white my-3">Master Workout Templates</h3>
                 <Droppable droppableId="all-workouts" direction="vertical" type="workoutDay">
                     {(provided) => (
                         <div {...provided.droppableProps} ref={provided.innerRef} className="space-y-4">
@@ -1982,7 +2473,7 @@ const EditProgramView = ({ programData, onProgramDataChange }) => {
                                 return (
                                     <Draggable key={workoutName} draggableId={workoutName} index={workoutIndex}>
                                         {(provided) => (
-                                            <div ref={provided.innerRef} {...provided.draggableProps} {...provided.dragHandleProps}>
+                                            <div ref={provided.innerRef} {...provided.draggableProps} {...provided.dragHandleProps} id={`workout-day-editor-${workoutName}`}>
                                                 <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-4">
                                                     <div className="flex justify-between items-center mb-3 border-b border-gray-200 dark:border-gray-700 pb-3">
                                                         <div className="flex items-center gap-2">
@@ -2278,7 +2769,7 @@ const ProgramPreviewModal = ({ program, onClose, onLoad }) => {
     );
 };
 
-const ProgramManagerView = ({ onProgramUpdate, activeProgram, programInstances, onInstanceSwitch }) => {
+const ProgramManagerView = ({ onProgramUpdate, activeProgram, programInstances, onInstanceSwitch, onBack }) => {
     const { openModal, closeModal, addToast } = useContext(AppStateContext);
     const fileInputRef = useRef(null);
 
@@ -2365,12 +2856,13 @@ const ProgramManagerView = ({ onProgramUpdate, activeProgram, programInstances, 
 
     return (
         <div className="p-4 md:p-6 pb-24">
-            <div className="flex flex-col items-center text-center mb-6">
-                <BookOpen className="text-blue-500 dark:text-blue-400 mb-2" size={32} />
-                <div>
+            <div className="flex justify-between items-center mb-6">
+                 <button onClick={onBack} className="flex items-center gap-2 text-sm font-medium text-blue-600 dark:text-blue-400 hover:underline"><ArrowLeft size={16}/> Back to Program</button>
+                 <div className="flex flex-col items-center text-center">
+                    <BookOpen className="text-blue-500 dark:text-blue-400 mb-2" size={32} />
                     <h1 className="text-3xl font-bold dark:text-white">Program Hub</h1>
-                    <p className="text-lg text-gray-600 dark:text-gray-400">Manage, Share, and Discover Programs</p>
                 </div>
+                <div className="w-28"></div> {/* Spacer */}
             </div>
 
             <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-md mb-6">
@@ -2628,8 +3120,8 @@ const formatWeight = (value, unit, includeUnit = true) => {
 };
 
 const calculateStreak = (allLogs, programData) => {
-    if (!programData) return 0;
-    const { weeklySchedule, programStructure, masterExerciseList, info, workoutOrder, settings } = programData;
+    if (!programData || !programData.info) return 0;
+    const { weeklySchedule, masterExerciseList, info, workoutOrder, settings } = programData;
     let currentStreak = 0;
     let streakBroken = false;
     
@@ -2640,7 +3132,7 @@ const calculateStreak = (allLogs, programData) => {
         return workout.exercises.every(exName => {
             const exDetails = getExerciseDetails(exName, masterExerciseList);
             if (!exDetails) return false;
-            return Array.from({ length: exDetails.sets }, (_, i) => i + 1).every(setNum => {
+            return Array.from({ length: Number(exDetails.sets) }, (_, i) => i + 1).every(setNum => {
                 const log = allLogs[`${week}-${dayKey}-${exName}-${setNum}`];
                 return isSetLogComplete(log);
             });
@@ -2653,7 +3145,7 @@ const calculateStreak = (allLogs, programData) => {
          return workout.exercises.some(exName => {
              const exDetails = getExerciseDetails(exName, masterExerciseList);
              if (!exDetails) return false;
-             return Array.from({ length: exDetails.sets }, (_, i) => i + 1).some(setNum => !!allLogs[`${week}-${dayKey}-${exName}-${setNum}`]);
+             return Array.from({ length: Number(exDetails.sets) }, (_, i) => i + 1).some(setNum => !!allLogs[`${week}-${dayKey}-${exName}-${setNum}`]);
         });
     }
     
@@ -2864,12 +3356,10 @@ const AchievementCard = ({ achievementId, achievement, unlockedStatus, currentVa
     );
 };
 
-const AchievementsView = ({ unlockedAchievements, historicalLogs, programData, bodyWeight, weightUnit }) => {
+const AchievementsView = ({ unlockedAchievements, historicalLogs, programData, bodyWeight, weightUnit, onBack }) => {
     const { openModal, closeModal } = useContext(AppStateContext);
 
     const processedAchievements = useMemo(() => {
-        if (!historicalLogs || Object.keys(historicalLogs).length === 0) return [];
-        
         return Object.entries(achievementsList).map(([id, achievement]) => {
             const currentValue = achievement.getValue 
                 ? achievement.getValue(historicalLogs, programData, bodyWeight) 
@@ -2880,10 +3370,6 @@ const AchievementsView = ({ unlockedAchievements, historicalLogs, programData, b
             return { id, achievement, currentValue, unlockedStatus };
         });
     }, [historicalLogs, programData, bodyWeight, unlockedAchievements]);
-
-    if (processedAchievements.length === 0) {
-        return ( <div/> );
-    }
     
     const handleShowDescription = (e, id) => {
         e.preventDefault();
@@ -2922,26 +3408,35 @@ const AchievementsView = ({ unlockedAchievements, historicalLogs, programData, b
 
     return (
         <div className="p-4 md:p-6 pb-24">
-            <div className="flex flex-col items-center text-center mb-6">
-                <Award className="text-yellow-500 dark:text-yellow-400 mb-2" size={32} />
-                <div>
+            <div className="flex justify-between items-center mb-6">
+                 <button onClick={onBack} className="flex items-center gap-2 text-sm font-medium text-blue-600 dark:text-blue-400 hover:underline"><ArrowLeft size={16}/> Back to Program</button>
+                 <div className="flex flex-col items-center text-center">
+                    <Award className="text-yellow-500 dark:text-yellow-400 mb-2" size={32} />
                     <h1 className="text-3xl font-bold dark:text-white">Achievements</h1>
-                    <p className="text-lg text-gray-600 dark:text-gray-400">Your Milestones & Trophies</p>
                 </div>
+                <div className="w-28"></div> {/* Spacer */}
             </div>
-             <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                {processedAchievements.map(({ id, achievement, currentValue, unlockedStatus }) => (
-                    <AchievementCard 
-                        key={id}
-                        achievementId={id}
-                        achievement={achievement}
-                        unlockedStatus={unlockedStatus}
-                        currentValue={currentValue}
-                        weightUnit={weightUnit}
-                        onClick={handleShowDescription}
-                    />
-                ))}
-            </div>
+            {Object.keys(historicalLogs).length > 0 ? (
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                    {processedAchievements.map(({ id, achievement, currentValue, unlockedStatus }) => (
+                        <AchievementCard 
+                            key={id}
+                            achievementId={id}
+                            achievement={achievement}
+                            unlockedStatus={unlockedStatus}
+                            currentValue={currentValue}
+                            weightUnit={weightUnit}
+                            onClick={handleShowDescription}
+                        />
+                    ))}
+                </div>
+            ) : (
+                <div className="text-center py-16 bg-white dark:bg-gray-800 rounded-xl shadow-md">
+                    <Award size={48} className="mx-auto text-gray-400 dark:text-gray-500" />
+                    <h3 className="mt-4 text-xl font-semibold text-gray-900 dark:text-white">No Achievements Yet</h3>
+                    <p className="mt-2 text-gray-500 dark:text-gray-400">Start logging your workouts to unlock achievements and track your progress!</p>
+                </div>
+            )}
         </div>
     );
 };
@@ -3388,7 +3883,7 @@ const AppCore = () => {
                 const isDayComplete = workout.exercises.every(exName => {
                     const exDetails = getExerciseDetails(exName, programData.masterExerciseList);
                     if (!exDetails) return false;
-                    return Array.from({ length: exDetails.sets }, (_, i) => i + 1).every(setNum => {
+                    return Array.from({ length: Number(exDetails.sets) }, (_, i) => i + 1).every(setNum => {
                         const log = allLogs[`${dayKey}-${exName}-${setNum}`];
                         return isSetLogComplete(log);
                     });
@@ -3398,13 +3893,6 @@ const AppCore = () => {
         }
         return status;
     }, [allLogs, skippedDays, programData]);
-
-    const handleEditWeekWorkout = (week, dayKey) => {
-        const workoutName = programData.weeklySchedule.find(d => d.day === dayKey)?.workout;
-        if(workoutName && workoutName !== 'Rest') {
-            navigate('editWeek', { week, workoutName });
-        }
-    }
 
     if (isLoading || isDataLoading) {
         return (
@@ -3417,21 +3905,23 @@ const AppCore = () => {
         );
     }
     
+    const onBack = () => navigate('main');
+
     const renderContent = () => {
         if (!customId) {
              return <div/>;
         }
         switch(pageState.view) {
-            case 'dashboard': return <DashboardView allLogs={allLogs} programData={programData} bodyWeightHistory={bodyWeightHistory} />;
-            case 'lifting': return <LiftingSession {...pageState.data} onBack={() => navigate('main')} allLogs={allLogs} setAllLogs={setAllLogs} onSkipDay={handleSkipDay} programData={programData} weightUnit={weightUnit} onStartTimer={handleStartTimer} />;
-            case 'analytics': return <AnalyticsView allLogs={historicalLogs} masterExerciseList={programData.masterExerciseList} />;
-            case 'records': return <RecordsView allLogs={historicalLogs} />;
-            case 'achievements': return <AchievementsView unlockedAchievements={unlockedAchievements} historicalLogs={historicalLogs} programData={programData} bodyWeight={bodyWeight} weightUnit={weightUnit} />;
-            case 'programHub': return <ProgramManagerView onProgramUpdate={handleProgramUpdate} activeProgram={{...programData, id: activeInstanceId}} programInstances={programInstances} onInstanceSwitch={handleInstanceSwitch} />;
-            case 'editProgram': return <EditProgramView programData={programData} onProgramDataChange={handleProgramDataChange} />;
-            case 'editWeek': return <EditWeekView {...pageState.data} programData={programData} onProgramDataChange={handleProgramDataChange} onBack={() => navigate('main')} />;
-            case 'settings': return <SettingsView allLogs={allLogs} historicalLogs={historicalLogs} weightUnit={weightUnit} onWeightUnitChange={handleWeightUnitChange} onResetMeso={handleResetMeso} programData={programData} onProgramDataChange={handleProgramDataChange} onShowTutorial={showTutorial} bodyWeight={bodyWeight} onBodyWeightChange={handleBodyWeightChange} />;
-            default: return <MainView onSessionSelect={(week, day, type, seqIndex) => navigate(type, { week, dayKey: day, sequentialWorkoutIndex: seqIndex })} onEditWeekWorkout={handleEditWeekWorkout} onEditProgram={() => navigate('editProgram')} completedDays={completedDays} onUnskipDay={handleUnskipDay} programData={programData} allLogs={allLogs} />;
+            case 'dashboard': return <DashboardView allLogs={allLogs} programData={programData} bodyWeightHistory={bodyWeightHistory} onBack={onBack} />;
+            case 'lifting': return <LiftingSession {...pageState.data} onBack={onBack} allLogs={allLogs} setAllLogs={setAllLogs} onSkipDay={handleSkipDay} programData={programData} weightUnit={weightUnit} onStartTimer={handleStartTimer} />;
+            case 'analytics': return <AnalyticsView allLogs={historicalLogs} masterExerciseList={programData.masterExerciseList} onBack={onBack} />;
+            case 'records': return <RecordsView allLogs={historicalLogs} onBack={onBack} />;
+            case 'achievements': return <AchievementsView unlockedAchievements={unlockedAchievements} historicalLogs={historicalLogs} programData={programData} bodyWeight={bodyWeight} weightUnit={weightUnit} onBack={onBack} />;
+            case 'programHub': return <ProgramManagerView onProgramUpdate={handleProgramUpdate} activeProgram={{...programData, id: activeInstanceId}} programInstances={programInstances} onInstanceSwitch={handleInstanceSwitch} onBack={onBack} />;
+            case 'editProgram': return <EditProgramView programData={programData} onProgramDataChange={handleProgramDataChange} onBack={onBack} onNavigate={navigate} />;
+            case 'editWeek': return <EditWeekView {...pageState.data} programData={programData} onProgramDataChange={handleProgramDataChange} onBack={onBack} />;
+            case 'settings': return <SettingsView allLogs={allLogs} historicalLogs={historicalLogs} weightUnit={weightUnit} onWeightUnitChange={handleWeightUnitChange} onResetMeso={handleResetMeso} programData={programData} onProgramDataChange={handleProgramDataChange} onShowTutorial={showTutorial} bodyWeight={bodyWeight} onBodyWeightChange={handleBodyWeightChange} onBack={onBack} />;
+            default: return <MainView onSessionSelect={(week, day, type, seqIndex) => navigate(type, { week, dayKey: day, sequentialWorkoutIndex: seqIndex })} onEditProgram={() => navigate('editProgram')} completedDays={completedDays} onUnskipDay={handleUnskipDay} programData={programData} allLogs={allLogs} />;
         }
     };
 
@@ -3470,7 +3960,7 @@ const EditChoiceModal = ({ onChoice }) => {
     );
 }
 
-const EditWeekView = ({ week, workoutName, programData, onProgramDataChange, onBack }) => {
+const EditWeekView = ({ week, dayKey, workoutName, programData, onProgramDataChange, onBack }) => {
     const { openModal, closeModal } = useContext(AppStateContext);
     const { masterExerciseList } = programData;
 
