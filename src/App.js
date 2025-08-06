@@ -933,11 +933,12 @@ const FirebaseProvider = ({ children }) => {
 
     const handleSetCustomId = useCallback((id) => {
         const sanitizedId = id.trim().replace(/[^a-zA-Z0-9-_]/g, '');
-        if (sanitizedId) {
+        if (sanitizedId && sanitizedId.length > 0) {
             localStorage.setItem('projectOverloadSyncId', sanitizedId);
             setCustomId(sanitizedId);
+            return sanitizedId;
         }
-        return sanitizedId;
+        return null;
     }, []);
 
     const value = { 
@@ -1196,18 +1197,15 @@ const LiftingSession = ({ week, dayKey, onBack, allLogs, setAllLogs, onSkipDay, 
         </div>
     );
     
-    const pageTitle = programData.settings.useWeeklySchedule ? `Week ${week}: ${dayKey}` : `Workout #${sequentialWorkoutIndex + 1}`;
+    const pageTitle = programData.settings.useWeeklySchedule ? `Week ${week}: ${dayKey}` : `Day ${sequentialWorkoutIndex + 1}`;
     const workoutDisplayName = programData.settings.useWeeklySchedule ? workoutName : `${workoutName} (${programData.programStructure[workoutName]?.label || ''})`;
 
 
     return (
         <div className="p-4 md:p-6 pb-24">
-            <div className="flex justify-between items-center mb-4">
-                <button onClick={onBack} className="flex items-center gap-2 text-sm font-medium text-blue-600 dark:text-blue-400 hover:underline"><ArrowLeft size={16}/> Back to Program</button>
-                <div className="flex items-center gap-2">
-                    <button onClick={onStartTimer} className="flex items-center gap-2 text-sm font-medium text-yellow-600 dark:text-yellow-400 bg-yellow-100 dark:bg-yellow-900/50 px-3 py-1.5 rounded-lg hover:bg-yellow-200 dark:hover:bg-yellow-800/50 transition-colors"><Timer size={16}/> Start Timer</button>
-                    <button onClick={() => onSkipDay(week, dayKey)} className="flex items-center gap-2 text-sm font-medium text-red-500 dark:text-red-400 bg-red-100 dark:bg-red-900/50 px-3 py-1.5 rounded-lg hover:bg-red-200 dark:hover:bg-red-800/50 transition-colors"><SkipForward size={16}/> Skip Day</button>
-                </div>
+            <div className="flex justify-end items-center mb-4 gap-2">
+                <button onClick={onStartTimer} className="flex items-center gap-2 text-sm font-medium text-yellow-600 dark:text-yellow-400 bg-yellow-100 dark:bg-yellow-900/50 px-3 py-1.5 rounded-lg hover:bg-yellow-200 dark:hover:bg-yellow-800/50 transition-colors"><Timer size={16}/> Start Timer</button>
+                <button onClick={() => onSkipDay(week, dayKey)} className="flex items-center gap-2 text-sm font-medium text-red-500 dark:text-red-400 bg-red-100 dark:bg-red-900/50 px-3 py-1.5 rounded-lg hover:bg-red-200 dark:hover:bg-red-800/50 transition-colors"><SkipForward size={16}/> Skip Day</button>
             </div>
             <div className="mb-6 text-center">
                 <h2 className="text-3xl font-bold dark:text-white">{pageTitle}</h2>
@@ -1352,7 +1350,7 @@ const SequentialView = ({ onSessionSelect, allLogs, programData }) => {
                         className={`w-full text-left p-4 rounded-lg shadow-sm flex justify-between items-center transition-all ${cardClass}`}
                     >
                         <div>
-                            <p className="text-xs text-gray-500 dark:text-gray-400">Workout #{i + 1} (Week {week})</p>
+                            <p className="text-xs text-gray-500 dark:text-gray-400">Day #{i + 1} (Week {week})</p>
                             <h3 className="font-bold text-lg">{workoutName}</h3>
                         </div>
                         {isComplete ? <CheckCircle size={24} className="text-green-500" /> : <Dumbbell size={24} className="text-gray-500" />}
@@ -1531,6 +1529,7 @@ const DashboardView = ({ allLogs, programData, bodyWeightHistory }) => {
     
     const formattedBodyWeightHistory = useMemo(() => {
         return bodyWeightHistory
+            .filter(entry => parseFloat(entry.weight) > 0)
             .map(entry => ({...entry, date: new Date(entry.date) }))
             .sort((a,b) => a.date - b.date)
             .map(entry => ({
@@ -1715,13 +1714,11 @@ const SettingsView = ({ allLogs, historicalLogs, weightUnit, onWeightUnitChange,
 
     return (
         <div className="p-4 md:p-6 pb-24">
-            <div className="flex justify-between items-center mb-6">
-                 <button onClick={onBack} className="flex items-center gap-2 text-sm font-medium text-blue-600 dark:text-blue-400 hover:underline"><ArrowLeft size={16}/> Back to Program</button>
-                 <div className="flex flex-col items-center text-center">
+            <div className="flex justify-center items-center mb-6 text-center">
+                 <div className="flex flex-col items-center">
                     <Settings className="text-blue-500 dark:text-blue-400 mb-2" size={32} />
                     <h1 className="text-3xl font-bold dark:text-white">App Settings</h1>
                 </div>
-                <div className="w-28"></div> {/* Spacer */}
             </div>
             <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-md space-y-6">
                 
@@ -1932,52 +1929,41 @@ const AnalyticsView = ({ allLogs, masterExerciseList, onBack }) => {
 
     const muscleGroupData = useMemo(() => {
         const dataByMuscle = {};
+        const { programStructure, masterExerciseList } = programData;
 
         const ensureMuscle = (muscle) => {
             if (muscle && !dataByMuscle[muscle]) {
-                dataByMuscle[muscle] = { volume: 0, sets: 0 };
+                dataByMuscle[muscle] = { sets: 0 };
             }
         };
 
-        Object.values(allLogs).forEach(log => {
-            if ((log.load === 0 || log.load) && log.reps && log.exercise) {
-                const exerciseDetails = getExerciseDetails(log.exercise, masterExerciseList);
+        Object.values(programStructure).forEach(workout => {
+            workout.exercises.forEach(exerciseName => {
+                const exerciseDetails = getExerciseDetails(exerciseName, masterExerciseList);
                 if (exerciseDetails && exerciseDetails.muscles) {
-                    const volume = getSetVolume(log, masterExerciseList);
-                    const { primary, secondary, tertiary, primaryContribution = 1, secondaryContribution = 0.5, tertiaryContribution = 0.25 } = exerciseDetails.muscles;
+                    const { primary, secondary, tertiary } = exerciseDetails.muscles;
+                    const sets = Number(exerciseDetails.sets) || 0;
                     
                     ensureMuscle(primary);
-                    if(primary) {
-                        dataByMuscle[primary].volume += volume * primaryContribution;
-                        dataByMuscle[primary].sets += 1;
-                    }
+                    if(primary) dataByMuscle[primary].sets += sets;
 
                     ensureMuscle(secondary);
-                    if(secondary) {
-                        dataByMuscle[secondary].volume += volume * secondaryContribution;
-                        dataByMuscle[secondary].sets += 1;
-                    }
+                    if(secondary) dataByMuscle[secondary].sets += sets;
 
                     ensureMuscle(tertiary);
-                    if(tertiary) {
-                        dataByMuscle[tertiary].volume += volume * tertiaryContribution;
-                        dataByMuscle[tertiary].sets += 1;
-                    }
+                    if(tertiary) dataByMuscle[tertiary].sets += sets;
                 }
-            }
+            });
         });
 
-        const totalVolume = Object.values(dataByMuscle).reduce((sum, d) => sum + d.volume, 0);
         const totalSets = Object.values(dataByMuscle).reduce((sum, d) => sum + d.sets, 0);
 
         return Object.entries(dataByMuscle).map(([name, data]) => ({
             name,
-            volume: Math.round(data.volume),
             sets: data.sets,
-            volumePercentage: totalVolume > 0 ? Math.round((data.volume / totalVolume) * 100) : 0,
             setsPercentage: totalSets > 0 ? Math.round((data.sets / totalSets) * 100) : 0,
-        })).sort((a,b) => b.volume - a.volume);
-    }, [allLogs, masterExerciseList]);
+        })).sort((a,b) => b.sets - a.sets);
+    }, [programData]);
 
     const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#AF19FF', '#FF42A1', '#42A1FF'];
     const RADIAN = Math.PI / 180;
@@ -2008,13 +1994,11 @@ const AnalyticsView = ({ allLogs, masterExerciseList, onBack }) => {
 
     return (
         <div className="p-4 md:p-6 pb-24">
-            <div className="flex justify-between items-center mb-6">
-                <button onClick={onBack} className="flex items-center gap-2 text-sm font-medium text-blue-600 dark:text-blue-400 hover:underline"><ArrowLeft size={16}/> Back to Program</button>
-                 <div className="flex flex-col items-center text-center">
+            <div className="flex justify-center items-center mb-6 text-center">
+                 <div className="flex flex-col items-center">
                     <BarChart2 className="text-blue-500 dark:text-blue-400 mb-2" size={32} />
                     <h1 className="text-3xl font-bold dark:text-white">Analytics</h1>
                 </div>
-                <div className="w-28"></div> {/* Spacer */}
             </div>
 
             <div className="space-y-8">
@@ -2143,14 +2127,12 @@ const RecordsView = ({ allLogs, onBack }) => {
 
     return (
         <div className="p-4 md:p-6 pb-24">
-             <div className="flex justify-between items-center mb-6">
-                <button onClick={onBack} className="flex items-center gap-2 text-sm font-medium text-blue-600 dark:text-blue-400 hover:underline"><ArrowLeft size={16}/> Back to Program</button>
-                 <div className="flex flex-col items-center text-center">
+             <div className="flex justify-center items-center mb-6 text-center">
+                 <div className="flex flex-col items-center">
                     <Trophy className="text-yellow-500 dark:text-yellow-400 mb-2" size={32} />
                     <h1 className="text-3xl font-bold dark:text-white">Personal Records</h1>
                     <p className="text-lg text-gray-600 dark:text-gray-400">Your Best Lifts (e1RM)</p>
                 </div>
-                <div className="w-28"></div> {/* Spacer */}
             </div>
             <div className="mb-6">
                 <div className="relative">
@@ -2409,7 +2391,6 @@ const EditProgramView = ({ programData, onProgramDataChange, onBack, onNavigate 
         <DragDropContext onDragEnd={onDragEnd}>
             <div className="p-4 md:p-6 pb-24">
                  <div className="flex justify-between items-center text-center mb-6">
-                    <button onClick={onBack} className="flex items-center gap-2 text-sm font-medium text-blue-600 dark:text-blue-400 hover:underline"><ArrowLeft size={16}/> Back</button>
                     <div className="flex items-center gap-3">
                         <Edit className="text-blue-500 dark:text-blue-400" size={32} />
                         <div>
@@ -2867,13 +2848,11 @@ const ProgramManagerView = ({ onProgramUpdate, activeProgram, programInstances, 
 
     return (
         <div className="p-4 md:p-6 pb-24">
-            <div className="flex justify-between items-center mb-6">
-                 <button onClick={onBack} className="flex items-center gap-2 text-sm font-medium text-blue-600 dark:text-blue-400 hover:underline"><ArrowLeft size={16}/> Back to Program</button>
-                 <div className="flex flex-col items-center text-center">
+            <div className="flex justify-center items-center mb-6 text-center">
+                 <div className="flex flex-col items-center">
                     <BookOpen className="text-blue-500 dark:text-blue-400 mb-2" size={32} />
                     <h1 className="text-3xl font-bold dark:text-white">Program Hub</h1>
                 </div>
-                <div className="w-28"></div> {/* Spacer */}
             </div>
 
             <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-md mb-6">
@@ -3213,6 +3192,7 @@ const achievementsList = {
             { name: "Silver", value: 100000, description: (v, u) => `Lifted a total of ${formatWeight(v, u)}. That's some serious weight!` },
             { name: "Gold", value: 500000, description: (v, u) => `Lifted a total of ${formatWeight(v, u)}. Incredible strength!` },
             { name: "Platinum", value: 1000000, description: (v, u) => `Joined the ${formatWeight(v, u)} club! Truly elite.` },
+            { name: "Diamond", value: 2000000, description: (v, u) => `Lifted ${formatWeight(v, u)}. You are a legend.` },
         ],
         getValue: (logs, program) => Object.values(logs).reduce((sum, log) => sum + getSetVolume(log, program.masterExerciseList), 0),
     },
@@ -3261,6 +3241,7 @@ const achievementsList = {
         tiers: [
             { name: "1.0x BW", value: 1.0, description: () => "Benching your bodyweight is a classic milestone." },
             { name: "1.5x BW", value: 1.5, description: () => "Benching 1.5x your bodyweight is seriously strong." },
+            { name: "2.0x BW", value: 2.0, description: () => "Benching double your bodyweight is elite." },
         ],
         getValue: (logs, program, bodyWeight) => {
             if (!bodyWeight || bodyWeight <= 0) return 0;
@@ -3276,6 +3257,7 @@ const achievementsList = {
         tiers: [
             { name: "1.5x BW", value: 1.5, description: () => "Squatting 1.5x your bodyweight." },
             { name: "2.0x BW", value: 2.0, description: () => "Squatting 2x your bodyweight. Strong foundation!" },
+            { name: "2.5x BW", value: 2.5, description: () => "Squatting 2.5x your bodyweight. Powerful!" },
         ],
         getValue: (logs, program, bodyWeight) => {
             if (!bodyWeight || bodyWeight <= 0) return 0;
@@ -3291,6 +3273,7 @@ const achievementsList = {
         tiers: [
             { name: "2.0x BW", value: 2.0, description: () => "Deadlifting 2x your bodyweight." },
             { name: "2.5x BW", value: 2.5, description: () => "Deadlifting 2.5x your bodyweight. Powerful!" },
+            { name: "3.0x BW", value: 3.0, description: () => "Deadlifting 3x your bodyweight. Incredible!" },
         ],
         getValue: (logs, program, bodyWeight) => {
             if (!bodyWeight || bodyWeight <= 0) return 0;
@@ -3298,7 +3281,127 @@ const achievementsList = {
             return maxDeadlift / bodyWeight;
         }
     },
-    // ... other achievements
+    overhead_overlord: {
+        name: "Overhead Overlord",
+        description: "Achieve new e1RM milestones in any overhead press variation.",
+        icon: Trophy,
+        type: 'tiered',
+        tiers: [
+            { name: "135 Club", value: 135, description: (v, u) => `Achieved an e1RM of ${formatWeight(v, u)} on overhead press.` },
+            { name: "185 Club", value: 185, description: (v, u) => `Achieved an e1RM of ${formatWeight(v, u)} on overhead press.` },
+            { name: "225 Club", value: 225, description: (v, u) => `Achieved an e1RM of ${formatWeight(v, u)} on overhead press.` },
+        ],
+        getValue: (logs) => getMaxE1RMFor(logs, 'press')
+    },
+    pull_up_pro: {
+        name: "Pull-up Pro",
+        description: "Complete a high number of strict pull-ups in a single set.",
+        icon: Award,
+        type: 'tiered',
+        tiers: [
+            { name: "10 Reps", value: 10, description: () => "Completed 10 strict pull-ups." },
+            { name: "15 Reps", value: 15, description: () => "Completed 15 strict pull-ups." },
+            { name: "20 Reps", value: 20, description: () => "Completed 20 strict pull-ups." },
+        ],
+        getValue: (logs) => {
+            const pullupLogs = Object.values(logs).filter(l => !l.skipped && l.exercise.toLowerCase().includes('pull-up'));
+            if (pullupLogs.length === 0) return 0;
+            return Math.max(0, ...pullupLogs.map(l => parseInt(l.reps, 10)));
+        }
+    },
+    workouts_completed: {
+        name: "Workouts Completed",
+        description: "Total number of workout sessions completed.",
+        icon: CalendarDays,
+        type: 'tiered',
+        tiers: [
+            { name: "10 Sessions", value: 10, description: () => "Completed 10 workouts." },
+            { name: "50 Sessions", value: 50, description: () => "Completed 50 workouts. Keep it up!" },
+            { name: "100 Sessions", value: 100, description: () => "Completed 100 workouts. Incredible dedication!" },
+        ],
+        getValue: (logs) => {
+            const completedWorkouts = new Set(Object.values(logs).filter(l => !l.skipped).map(l => `${l.week}-${l.dayKey}`));
+            return completedWorkouts.size;
+        }
+    },
+    workout_streak: {
+        name: "Workout Streak",
+        description: "Number of consecutive scheduled workouts completed.",
+        icon: Flame,
+        type: 'tiered',
+        tiers: [
+            { name: "10 Streak", value: 10, description: () => "Completed 10 workouts in a row." },
+            { name: "30 Streak", value: 30, description: () => "30 consecutive workouts. Unstoppable!" },
+            { name: "50 Streak", value: 50, description: () => "50 consecutive workouts. Legendary!" },
+        ],
+        getValue: (logs, program) => calculateStreak(logs, program)
+    },
+    volume_volcano: {
+        name: "Volume Volcano",
+        description: "Set a new personal record for single-day lifting volume.",
+        icon: TrendingUp,
+        type: 'single',
+        getValue: (logs, program) => {
+            const dailyVolumes = Object.values(logs).reduce((acc, log) => {
+                const day = `${log.week}-${log.dayKey}`;
+                acc[day] = (acc[day] || 0) + getSetVolume(log, program.masterExerciseList);
+                return acc;
+            }, {});
+            return Math.max(0, ...Object.values(dailyVolumes));
+        }
+    },
+    weekly_avalanche: {
+        name: "Weekly Avalanche",
+        description: "Set a new personal record for weekly lifting volume.",
+        icon: Zap,
+        type: 'single',
+        getValue: (logs, program) => {
+            const weeklyVolumes = Object.values(logs).reduce((acc, log) => {
+                acc[log.week] = (acc[log.week] || 0) + getSetVolume(log, program.masterExerciseList);
+                return acc;
+            }, {});
+            return Math.max(0, ...Object.values(weeklyVolumes));
+        }
+    },
+    rpe_honesty: {
+        name: "RPE Honesty",
+        description: "Record your Reps in Reserve (RIR) for a large number of sets.",
+        icon: Shield,
+        type: 'tiered',
+        tiers: [
+            { name: "50 Sets", value: 50, description: () => "Logged RIR for 50 sets." },
+            { name: "150 Sets", value: 150, description: () => "Logged RIR for 150 sets." },
+            { name: "300 Sets", value: 300, description: () => "Logged RIR for 300 sets." },
+        ],
+        getValue: (logs) => Object.values(logs).filter(l => l.rir !== undefined && l.rir !== null && l.rir !== '').length
+    },
+    meso_master: {
+        name: "Meso Master",
+        description: "Complete every single workout in a full mesocycle.",
+        icon: Star,
+        type: 'single',
+        getValue: (logs, program) => {
+            if (!program || !program.info) return 0;
+            const { info, weeklySchedule, workoutOrder, settings } = program;
+            const totalWorkouts = settings.useWeeklySchedule
+                ? info.weeks * weeklySchedule.filter(d => d.workout !== 'Rest').length
+                : info.weeks * workoutOrder.length;
+
+            const completedWorkouts = new Set(Object.values(logs).filter(l => !l.skipped).map(l => `${l.week}-${l.dayKey}`));
+            return completedWorkouts.size >= totalWorkouts ? 1 : 0;
+        }
+    },
+    the_architect: {
+        name: "The Architect",
+        description: "Create a custom exercise in the program editor.",
+        icon: Pencil,
+        type: 'single',
+        getValue: (logs, program) => {
+            const presetExercises = new Set(Object.keys(exerciseBank));
+            const customExercises = Object.keys(program.masterExerciseList).filter(ex => !presetExercises.has(ex));
+            return customExercises.length > 0 ? 1 : 0;
+        }
+    }
 };
 
 const AchievementCard = ({ achievementId, achievement, unlockedStatus, currentValue, weightUnit, onClick }) => {
@@ -3344,6 +3447,12 @@ const AchievementCard = ({ achievementId, achievement, unlockedStatus, currentVa
         'silver': { bg: 'bg-slate-100 dark:bg-slate-800/50', text: 'text-slate-600 dark:text-slate-400', border: 'border-slate-400', progress: 'bg-slate-500' },
         'gold': { bg: 'bg-yellow-100 dark:bg-yellow-900/50', text: 'text-yellow-500 dark:text-yellow-400', border: 'border-yellow-500', progress: 'bg-yellow-500' },
         'platinum': { bg: 'bg-cyan-100 dark:bg-cyan-900/50', text: 'text-cyan-500 dark:text-cyan-400', border: 'border-cyan-400', progress: 'bg-cyan-500' },
+        'diamond': { bg: 'bg-violet-100 dark:bg-violet-900/50', text: 'text-violet-500 dark:text-violet-400', border: 'border-violet-400', progress: 'bg-violet-500' },
+        '1.0x': { bg: 'bg-green-100 dark:bg-green-900/50', text: 'text-green-600 dark:text-green-400', border: 'border-green-400', progress: 'bg-green-500' },
+        '1.5x': { bg: 'bg-blue-100 dark:bg-blue-900/50', text: 'text-blue-600 dark:text-blue-400', border: 'border-blue-400', progress: 'bg-blue-500' },
+        '2.0x': { bg: 'bg-indigo-100 dark:bg-indigo-900/50', text: 'text-indigo-600 dark:text-indigo-400', border: 'border-indigo-400', progress: 'bg-indigo-500' },
+        '2.5x': { bg: 'bg-purple-100 dark:bg-purple-900/50', text: 'text-purple-600 dark:text-purple-400', border: 'border-purple-400', progress: 'bg-purple-500' },
+        '3.0x': { bg: 'bg-pink-100 dark:bg-pink-900/50', text: 'text-pink-600 dark:text-pink-400', border: 'border-pink-400', progress: 'bg-pink-500' },
         'two': { bg: 'bg-red-100 dark:bg-red-800/50', text: 'text-red-500', border: 'border-red-500', progress: 'bg-red-500'},
         'three': { bg: 'bg-blue-100 dark:bg-blue-800/50', text: 'text-blue-500', border: 'border-blue-500', progress: 'bg-blue-500'},
         'default': { bg: 'bg-gray-100 dark:bg-gray-800', text: 'text-gray-500', border: 'border-transparent', progress: 'bg-blue-500' }
@@ -3430,13 +3539,11 @@ const AchievementsView = ({ unlockedAchievements, historicalLogs, programData, b
 
     return (
         <div className="p-4 md:p-6 pb-24">
-            <div className="flex justify-between items-center mb-6">
-                 <button onClick={onBack} className="flex items-center gap-2 text-sm font-medium text-blue-600 dark:text-blue-400 hover:underline"><ArrowLeft size={16}/> Back to Program</button>
-                 <div className="flex flex-col items-center text-center">
+            <div className="flex justify-center items-center mb-6 text-center">
+                 <div className="flex flex-col items-center">
                     <Award className="text-yellow-500 dark:text-yellow-400 mb-2" size={32} />
                     <h1 className="text-3xl font-bold dark:text-white">Achievements</h1>
                 </div>
-                <div className="w-28"></div> {/* Spacer */}
             </div>
             {Object.keys(historicalLogs).length > 0 ? (
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
@@ -3673,13 +3780,16 @@ const AppCore = () => {
     }
 
     const handleBodyWeightChange = useCallback((newWeight) => {
-        setBodyWeight(newWeight);
-        const newEntry = { weight: newWeight, date: new Date().toISOString() };
-        setBodyWeightHistory(prevHistory => {
-            const newHistory = [...prevHistory, newEntry];
-            handleUpdateAndSave({ bodyWeight: newWeight, bodyWeightHistory: newHistory });
-            return newHistory;
-        });
+        const weightValue = parseFloat(newWeight);
+        if (!isNaN(weightValue) && weightValue > 0) {
+            setBodyWeight(weightValue.toString());
+            const newEntry = { weight: weightValue, date: new Date().toISOString() };
+            setBodyWeightHistory(prevHistory => {
+                const newHistory = [...prevHistory, newEntry];
+                handleUpdateAndSave({ bodyWeight: weightValue.toString(), bodyWeightHistory: newHistory });
+                return newHistory;
+            });
+        }
     }, [handleUpdateAndSave]);
     
     const showTutorial = useCallback(() => {
@@ -4069,8 +4179,7 @@ const EditWeekView = ({ week, dayKey, workoutName, programData, onProgramDataCha
 
     return (
          <div className="p-4 md:p-6 pb-24">
-            <div className="flex justify-between items-center mb-6">
-                <button onClick={onBack} className="flex items-center gap-2 text-sm font-medium text-blue-600 dark:text-blue-400 hover:underline"><ArrowLeft size={16}/> Back to Program</button>
+            <div className="flex justify-end items-center mb-6">
                  <button onClick={handleSaveChanges} className="px-4 py-2 bg-blue-600 text-white rounded-lg shadow-md hover:bg-blue-700 transition-colors flex items-center gap-2">
                     <Save size={16} /> Save Changes
                 </button>
