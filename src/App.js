@@ -1855,7 +1855,8 @@ const SettingsView = ({ allLogs, historicalLogs, weightUnit, onWeightUnitChange,
     );
 };
 
-const AnalyticsView = ({ allLogs, masterExerciseList, onBack }) => {
+const AnalyticsView = ({ allLogs, programData, onBack }) => {
+    const { masterExerciseList } = programData;
     const [selectedExercise, setSelectedExercise] = useState('');
     const [searchTerm, setSearchTerm] = useState('');
 
@@ -2258,6 +2259,11 @@ const EditProgramView = ({ programData, onProgramDataChange, onBack, onNavigate 
         updateProgram({ workoutOrder: newOrder });
     };
 
+    const handleRemoveDayFromMaster = (indexToRemove) => {
+        const newWorkoutOrder = program.workoutOrder.filter((_, index) => index !== indexToRemove);
+        updateProgram({ workoutOrder: newWorkoutOrder });
+    };
+
     const handleAddExerciseToWorkout = (workoutName) => {
         const myExercises = program.masterExerciseList;
 
@@ -2381,9 +2387,7 @@ const EditProgramView = ({ programData, onProgramDataChange, onBack, onNavigate 
     };
     
     const handleEditDay = (week, dayKey) => {
-        const workoutName = programData.weeklySchedule.find(d => d.day === dayKey)?.workout;
-        if (!workoutName || workoutName === 'Rest') return;
-        // Directly navigate to edit week override view
+        const workoutName = programData.weeklySchedule.find(d => d.day === dayKey)?.workout || 'Rest';
         onNavigate('editWeek', { week, dayKey, workoutName });
     };
 
@@ -2440,8 +2444,7 @@ const EditProgramView = ({ programData, onProgramDataChange, onBack, onNavigate 
                                                     </p>
                                                     <button 
                                                         onClick={() => handleEditDay(week, day)} 
-                                                        className="w-full text-xs p-1 rounded bg-white dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
-                                                        disabled={!workoutForDay}
+                                                        className="w-full text-xs p-1 rounded bg-white dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 shadow-sm"
                                                     >
                                                         Edit Day
                                                     </button>
@@ -2475,8 +2478,8 @@ const EditProgramView = ({ programData, onProgramDataChange, onBack, onNavigate 
                                                             <h3 className="text-xl font-bold text-gray-800 dark:text-gray-200">{workoutName}</h3>
                                                         </div>
                                                          <div className="flex items-center gap-1">
-                                                            <button onClick={() => startEditingName(workoutName)} className="p-1 hover:text-blue-500"><Edit size={20}/></button>
-                                                            <button onClick={() => handleDeleteWorkoutDay(workoutName)} className="p-1 hover:text-red-500"><XCircle size={20}/></button>
+                                                            {workoutName !== 'Rest' && <button onClick={() => startEditingName(workoutName)} className="p-1 hover:text-blue-500"><Edit size={20}/></button>}
+                                                            <button onClick={() => handleRemoveDayFromMaster(workoutIndex)} className="p-1 hover:text-red-500"><XCircle size={20}/></button>
                                                         </div>
                                                     </div>
                                                     <Droppable droppableId={workoutName} type="exercise">
@@ -2511,6 +2514,9 @@ const EditProgramView = ({ programData, onProgramDataChange, onBack, onNavigate 
                             {provided.placeholder}
                              <button onClick={handleAddWorkoutDay} className="w-full flex items-center justify-center gap-2 p-3 rounded-xl bg-green-100 dark:bg-green-900/50 text-green-700 dark:text-green-300 hover:bg-green-200 dark:hover:bg-green-800/50 font-bold">
                                 <PlusCircle size={20}/> Add New Workout Day
+                            </button>
+                             <button onClick={() => updateProgram({ workoutOrder: [...program.workoutOrder, 'Rest'] })} className="w-full flex items-center justify-center gap-2 p-3 rounded-xl bg-indigo-100 dark:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-200 dark:hover:bg-indigo-800/50 font-bold">
+                                <PlusCircle size={20}/> Add Rest Day
                             </button>
                         </div>
                     )}
@@ -4047,7 +4053,7 @@ const AppCore = () => {
         switch(pageState.view) {
             case 'dashboard': return <DashboardView allLogs={allLogs} programData={programData} bodyWeightHistory={bodyWeightHistory} onBack={onBack} />;
             case 'lifting': return <LiftingSession {...pageState.data} onBack={onBack} allLogs={allLogs} setAllLogs={setAllLogs} onSkipDay={handleSkipDay} programData={programData} weightUnit={weightUnit} onStartTimer={handleStartTimer} />;
-            case 'analytics': return <AnalyticsView allLogs={historicalLogs} masterExerciseList={programData.masterExerciseList} onBack={onBack} />;
+            case 'analytics': return <AnalyticsView allLogs={historicalLogs} programData={programData} onBack={onBack} />;
             case 'records': return <RecordsView allLogs={historicalLogs} onBack={onBack} />;
             case 'achievements': return <AchievementsView unlockedAchievements={unlockedAchievements} historicalLogs={historicalLogs} programData={programData} bodyWeight={bodyWeight} weightUnit={weightUnit} onBack={onBack} />;
             case 'programHub': return <ProgramManagerView onProgramUpdate={handleProgramUpdate} activeProgram={{...programData, id: activeInstanceId}} programInstances={programInstances} onInstanceSwitch={handleInstanceSwitch} onBack={onBack} />;
@@ -4076,10 +4082,16 @@ const AppCore = () => {
 
 const EditWeekView = ({ week, dayKey, workoutName, programData, onProgramDataChange, onBack }) => {
     const { openModal, closeModal } = useContext(AppStateContext);
-    const { masterExerciseList } = programData;
+    const { masterExerciseList, workoutOrder } = programData;
 
-    const baseWorkout = useMemo(() => getWorkoutForWeek(programData, week, workoutName), [programData, week, workoutName]);
-    const [exercises, setExercises] = useState(baseWorkout.exercises);
+    const [currentWorkoutName, setCurrentWorkoutName] = useState(workoutName);
+
+    const baseWorkout = useMemo(() => getWorkoutForWeek(programData, week, currentWorkoutName), [programData, week, currentWorkoutName]);
+    const [exercises, setExercises] = useState(baseWorkout?.exercises || []);
+
+    useEffect(() => {
+        setExercises(baseWorkout?.exercises || []);
+    }, [baseWorkout]);
 
     const handleReorderExercise = (index, direction) => {
         const newExercises = [...exercises];
@@ -4166,16 +4178,22 @@ const EditWeekView = ({ week, dayKey, workoutName, programData, onProgramDataCha
 
     const handleSaveChanges = () => {
         const newOverrides = JSON.parse(JSON.stringify(programData.weeklyOverrides || {}));
-        if(!newOverrides[week]) {
+        if (!newOverrides[week]) {
             newOverrides[week] = {};
         }
         const masterWorkoutName = programData.weeklySchedule.find(d => d.day === dayKey)?.workout;
-        if(masterWorkoutName){
+
+        if (currentWorkoutName === 'Rest') {
+            newOverrides[week][masterWorkoutName] = { exercises: [], label: 'Rest' };
+        } else {
             newOverrides[week][masterWorkoutName] = { ...baseWorkout, exercises };
-            onProgramDataChange({ ...programData, weeklyOverrides: newOverrides });
         }
+
+        onProgramDataChange({ ...programData, weeklyOverrides: newOverrides });
         onBack();
     };
+
+    const uniqueWorkouts = [...new Set(workoutOrder)];
 
     return (
          <div className="p-4 md:p-6 pb-24">
@@ -4185,27 +4203,39 @@ const EditWeekView = ({ week, dayKey, workoutName, programData, onProgramDataCha
                 </button>
             </div>
             <div className="text-center mb-6">
-                 <h1 className="text-3xl font-bold dark:text-white">Editing Workout</h1>
-                 <p className="text-lg text-gray-600 dark:text-gray-400">Week {week} - {workoutName}</p>
+                 <h1 className="text-3xl font-bold dark:text-white">Editing Day</h1>
+                 <p className="text-lg text-gray-600 dark:text-gray-400">Week {week} - {dayKey}</p>
             </div>
-            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-4">
-                 <ul className="space-y-2 mb-3">
-                    {exercises.map((ex, index) => (
-                        <li key={`${ex}-${index}`} className="flex justify-between items-center p-2 bg-gray-50 dark:bg-gray-700/50 rounded-md group">
-                            <span className="text-gray-800 dark:text-gray-200">{ex}</span>
-                            <div className="flex items-center gap-1 text-gray-500 dark:text-gray-400">
-                                <button onClick={() => handleEditExercise(ex)} className="p-1 hover:text-blue-600 dark:hover:text-blue-400"><Pencil size={16} /></button>
-                                <button onClick={() => handleReorderExercise(index, -1)} disabled={index === 0} className="disabled:opacity-20 p-1 hover:text-gray-900 dark:hover:text-white"><ArrowUp size={16} /></button>
-                                <button onClick={() => handleReorderExercise(index, 1)} disabled={index === exercises.length - 1} className="disabled:opacity-20 p-1 hover:text-gray-900 dark:hover:text-white"><ArrowDown size={16} /></button>
-                                <button onClick={() => handleDeleteExercise(index)} className="p-1 hover:text-red-600 dark:hover:text-red-400"><XCircle size={16} /></button>
-                            </div>
-                        </li>
-                    ))}
-                    {exercises.length === 0 && <p className="text-center text-gray-500 dark:text-gray-400 py-2">No exercises yet.</p>}
-                </ul>
-                 <button onClick={handleAddExercise} className="w-full flex items-center justify-center gap-2 text-sm p-2 rounded-md bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300 hover:bg-blue-200 dark:hover:bg-blue-800/50">
-                    <PlusCircle size={16}/> Add Exercise
-                </button>
+            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-4 space-y-4">
+                <div>
+                    <label htmlFor="workout-select" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Select Workout</label>
+                    <select id="workout-select" value={currentWorkoutName} onChange={e => setCurrentWorkoutName(e.target.value)} className="w-full p-2 bg-white dark:bg-gray-700 rounded-md border-gray-300 dark:border-gray-600 shadow-sm">
+                        <option value="Rest">Rest Day</option>
+                        {uniqueWorkouts.map(wo => wo !== 'Rest' && <option key={wo} value={wo}>{wo}</option>)}
+                    </select>
+                </div>
+
+                {currentWorkoutName !== 'Rest' && (
+                    <>
+                        <ul className="space-y-2 mb-3">
+                            {exercises.map((ex, index) => (
+                                <li key={`${ex}-${index}`} className="flex justify-between items-center p-2 bg-gray-50 dark:bg-gray-700/50 rounded-md group">
+                                    <span className="text-gray-800 dark:text-gray-200">{ex}</span>
+                                    <div className="flex items-center gap-1 text-gray-500 dark:text-gray-400">
+                                        <button onClick={() => handleEditExercise(ex)} className="p-1 hover:text-blue-600 dark:hover:text-blue-400"><Pencil size={16} /></button>
+                                        <button onClick={() => handleReorderExercise(index, -1)} disabled={index === 0} className="disabled:opacity-20 p-1 hover:text-gray-900 dark:hover:text-white"><ArrowUp size={16} /></button>
+                                        <button onClick={() => handleReorderExercise(index, 1)} disabled={index === exercises.length - 1} className="disabled:opacity-20 p-1 hover:text-gray-900 dark:hover:text-white"><ArrowDown size={16} /></button>
+                                        <button onClick={() => handleDeleteExercise(index)} className="p-1 hover:text-red-600 dark:hover:text-red-400"><XCircle size={16} /></button>
+                                    </div>
+                                </li>
+                            ))}
+                            {exercises.length === 0 && <p className="text-center text-gray-500 dark:text-gray-400 py-2">No exercises yet.</p>}
+                        </ul>
+                         <button onClick={handleAddExercise} className="w-full flex items-center justify-center gap-2 text-sm p-2 rounded-md bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300 hover:bg-blue-200 dark:hover:bg-blue-800/50">
+                            <PlusCircle size={16}/> Add Exercise
+                        </button>
+                    </>
+                )}
             </div>
          </div>
     );
