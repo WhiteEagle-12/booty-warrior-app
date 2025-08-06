@@ -660,7 +660,7 @@ const exerciseBank = {
     'Leg Press': { sets: 4, reps: '10-15', rir: ['1', '1', '1', '1'], rest: '2-3 min', equipment: 'machine', muscles: { primary: 'Quads', secondary: 'Glutes', tertiary: 'Hamstrings', primaryContribution: 1, secondaryContribution: 0.7, tertiaryContribution: 0.3 } },
     'Romanian Deadlift': { sets: 3, reps: '8-12', rir: ['2', '2', '2'], rest: '2-3 min', equipment: 'barbell', muscles: { primary: 'Hamstrings', secondary: 'Glutes', tertiary: 'Back', primaryContribution: 1, secondaryContribution: 0.8, tertiaryContribution: 0.3 } },
     'Leg Extension': { sets: 3, reps: '12-15', rir: ['1', '1', '1'], rest: '1-2 min', equipment: 'machine', muscles: { primary: 'Quads', secondary: null, tertiary: null, primaryContribution: 1, secondaryContribution: 0, tertiaryContribution: 0 } },
-    'Leg Curl': { sets: 3, reps: '12-15', rir: ['1', '1', '1'], rest: '1-2 min', equipment: 'machine', muscles: { primary: 'Hamstrings', secondary: null, tertiary: null, primaryContribution: 1, secondaryContribution: 0, tertiaryContribution: 0 } },
+    'Leg Curl': { sets: 3, reps: '12-15', rir: ['1', '1', '1'], rest: '1-2 min', equipment: 'machine', muscles: { primary: 'Hamstrings', secondary: null, tertiary: null, primaryContribution: 1, secondaryContribution: 0 } },
     'Bulgarian Split Squat': { sets: 3, reps: '8-12', rir: ['1', '1', '1'], rest: '2 min', equipment: 'dumbbell', muscles: { primary: 'Quads', secondary: 'Glutes', tertiary: null, primaryContribution: 1, secondaryContribution: 0.8, tertiaryContribution: 0 } },
     'Calf Raise': { sets: 4, reps: '15-20', rir: ['1', '1', '1', '1'], rest: '1 min', equipment: 'machine', muscles: { primary: 'Calves', secondary: null, tertiary: null, primaryContribution: 1, secondaryContribution: 0, tertiaryContribution: 0 } },
     // Shoulders
@@ -1578,11 +1578,11 @@ const DashboardView = ({ allLogs, programData, bodyWeightHistory }) => {
     return (
        <div className="p-4 md:p-6">
             <div className="flex flex-col items-center text-center mb-6">
-                <LayoutDashboard className="text-blue-500 dark:text-blue-400 mb-2" size={32} />
-                <div>
+                <div className="flex justify-center items-center">
+                    <LayoutDashboard className="text-blue-500 dark:text-blue-400 mr-2" size={32} />
                     <h1 className="text-3xl font-bold dark:text-white">Dashboard</h1>
-                    <p className="text-lg text-gray-600 dark:text-gray-400">Your Program At a Glance</p>
                 </div>
+                <p className="text-lg text-gray-600 dark:text-gray-400">Your Program At a Glance</p>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
@@ -1792,7 +1792,10 @@ const SettingsView = ({ allLogs, historicalLogs, weightUnit, onWeightUnitChange,
                         </div>
                         <div className="flex justify-between items-center">
                             <label htmlFor="bodyWeight" className="font-semibold dark:text-gray-200">Body Weight ({weightUnit})</label>
-                            <input id="bodyWeight" type="number" value={bodyWeight} onChange={(e) => onBodyWeightChange(e.target.value)} className="w-24 p-2 bg-white dark:bg-gray-700 rounded-md border-gray-300 dark:border-gray-600 shadow-sm" />
+                            <div className="flex items-center gap-2">
+                                <input id="bodyWeight" type="number" value={bodyWeight} onChange={(e) => onBodyWeightChange(e.target.value, false)} className="w-24 p-2 bg-white dark:bg-gray-700 rounded-md border-gray-300 dark:border-gray-600 shadow-sm" />
+                                <button onClick={() => onBodyWeightChange(bodyWeight, true)} className="px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">Log</button>
+                            </div>
                         </div>
                         <div className="flex justify-between items-center">
                              <div className="flex items-center gap-2">
@@ -2082,9 +2085,9 @@ const AnalyticsView = ({ allLogs, programData, onBack }) => {
 
     return (
         <div className="p-4 md:p-6 pb-24">
-            <div className="flex justify-center items-center mb-6 text-center">
-                 <div className="flex flex-col items-center">
-                    <BarChart2 className="text-blue-500 dark:text-blue-400 mb-2" size={32} />
+            <div className="flex flex-col items-center text-center mb-6">
+                <div className="flex justify-center items-center">
+                    <BarChart2 className="text-blue-500 dark:text-blue-400 mr-2" size={32} />
                     <h1 className="text-3xl font-bold dark:text-white">Analytics</h1>
                 </div>
             </div>
@@ -2226,12 +2229,12 @@ const RecordsView = ({ allLogs, onBack }) => {
 
     return (
         <div className="p-4 md:p-6 pb-24">
-             <div className="flex justify-center items-center mb-6 text-center">
-                 <div className="flex flex-col items-center">
-                    <Trophy className="text-yellow-500 dark:text-yellow-400 mb-2" size={32} />
+             <div className="flex flex-col items-center text-center mb-6">
+                <div className="flex justify-center items-center">
+                    <Trophy className="text-yellow-500 dark:text-yellow-400 mr-2" size={32} />
                     <h1 className="text-3xl font-bold dark:text-white">Personal Records</h1>
-                    <p className="text-lg text-gray-600 dark:text-gray-400">Your Best Lifts (e1RM)</p>
                 </div>
+                <p className="text-lg text-gray-600 dark:text-gray-400">Your Best Lifts (e1RM)</p>
             </div>
             <div className="mb-6">
                 <div className="relative">
@@ -3087,13 +3090,16 @@ const ProgramManagerView = ({ onProgramUpdate, activeProgram, programInstances, 
                  <h3 className="text-xl font-bold text-gray-800 dark:text-gray-200 mb-4">Manage Your Program</h3>
                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                      <button onClick={handleShareProgram} className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-blue-600 text-white rounded-lg shadow-md hover:bg-blue-700 transition-colors">
-                        <Download size={16}/> Export Program
+                        <Download size={16}/> Export Active Program
                     </button>
                     <button onClick={handleImportClick} className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-green-600 text-white rounded-lg shadow-md hover:bg-green-700 transition-colors">
-                        <Upload size={16}/> Import Program
+                        <Upload size={16}/> Import from File
                     </button>
                     <input type="file" ref={fileInputRef} onChange={handleFileImport} accept=".json,.csv" style={{ display: 'none' }} />
                  </div>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-2 text-center col-span-1 sm:col-span-2">
+                    Export your current program as a JSON file to share or back it up. Import a JSON or CSV file to load a new program.
+                </p>
             </div>
 
             {/* Custom/Archived Programs */}
@@ -3739,6 +3745,11 @@ const AchievementCard = ({ achievementId, achievement, unlockedStatus, currentVa
         '3.0x': { bg: 'bg-pink-100 dark:bg-pink-900/50', text: 'text-pink-600 dark:text-pink-400', border: 'border-pink-400', progress: 'bg-pink-500' },
         'two': { bg: 'bg-red-100 dark:bg-red-800/50', text: 'text-red-500', border: 'border-red-500', progress: 'bg-red-500'},
         'three': { bg: 'bg-blue-100 dark:bg-blue-800/50', text: 'text-blue-500', border: 'border-blue-500', progress: 'bg-blue-500'},
+        'four': { bg: 'bg-green-100 dark:bg-green-800/50', text: 'text-green-500', border: 'border-green-500', progress: 'bg-green-500'},
+        'five': { bg: 'bg-yellow-100 dark:bg-yellow-800/50', text: 'text-yellow-500', border: 'border-yellow-500', progress: 'bg-yellow-500'},
+        '135': { bg: 'bg-gray-100 dark:bg-gray-800/50', text: 'text-gray-500', border: 'border-gray-500', progress: 'bg-gray-500'},
+        '185': { bg: 'bg-red-100 dark:bg-red-800/50', text: 'text-red-500', border: 'border-red-500', progress: 'bg-red-500'},
+        '225': { bg: 'bg-blue-100 dark:bg-blue-800/50', text: 'text-blue-500', border: 'border-blue-500', progress: 'bg-blue-500'},
         'default': { bg: 'bg-gray-100 dark:bg-gray-800', text: 'text-gray-500', border: 'border-transparent', progress: 'bg-blue-500' }
     }[colorKey] || { bg: 'bg-gray-100 dark:bg-gray-800', text: 'text-gray-500', border: 'border-transparent', progress: 'bg-blue-500' };
 
@@ -3823,9 +3834,9 @@ const AchievementsView = ({ unlockedAchievements, historicalLogs, programData, b
 
     return (
         <div className="p-4 md:p-6 pb-24">
-            <div className="flex justify-center items-center mb-6 text-center">
-                 <div className="flex flex-col items-center">
-                    <Award className="text-yellow-500 dark:text-yellow-400 mb-2" size={32} />
+            <div className="flex flex-col items-center text-center mb-6">
+                <div className="flex justify-center items-center">
+                    <Award className="text-yellow-500 dark:text-yellow-400 mr-2" size={32} />
                     <h1 className="text-3xl font-bold dark:text-white">Achievements</h1>
                 </div>
             </div>
@@ -4063,18 +4074,23 @@ const AppCore = () => {
         addToast("Switched program!", "success");
     }
 
-    const handleBodyWeightChange = useCallback((newWeight) => {
-        const weightValue = parseFloat(newWeight);
-        if (!isNaN(weightValue) && weightValue > 0) {
-            setBodyWeight(weightValue.toString());
-            const newEntry = { weight: weightValue, date: new Date().toISOString() };
-            setBodyWeightHistory(prevHistory => {
-                const newHistory = [...prevHistory, newEntry];
-                handleUpdateAndSave({ bodyWeight: weightValue.toString(), bodyWeightHistory: newHistory });
-                return newHistory;
-            });
+    const handleBodyWeightChange = useCallback((newWeight, save = false) => {
+        setBodyWeight(newWeight);
+        if (save) {
+            const weightValue = parseFloat(newWeight);
+            if (!isNaN(weightValue) && weightValue > 0) {
+                const newEntry = { weight: weightValue, date: new Date().toISOString() };
+                setBodyWeightHistory(prevHistory => {
+                    const newHistory = [...prevHistory, newEntry];
+                    handleUpdateAndSave({ bodyWeight: weightValue.toString(), bodyWeightHistory: newHistory });
+                    addToast("Weight logged successfully!", "success");
+                    return newHistory;
+                });
+            } else {
+                addToast("Invalid weight value.", "error");
+            }
         }
-    }, [handleUpdateAndSave]);
+    }, [handleUpdateAndSave, addToast]);
     
     const showTutorial = useCallback(() => {
         openModal(
@@ -4182,42 +4198,49 @@ const AppCore = () => {
 
     // Achievement checking
     useEffect(() => {
-        if (isDataLoading || Object.keys(historicalLogs).length === 0) return;
+        if (isDataLoading) return;
 
-        const newUnlocks = {};
-        let achievementUnlocked = false;
+        const verifyAchievements = () => {
+            const newUnlocks = {};
+            let achievementsChanged = false;
 
-        Object.entries(achievementsList).forEach(([id, achievement]) => {
-            const currentValue = achievement.getValue 
-                ? achievement.getValue(historicalLogs, programData, parseFloat(bodyWeight) || 0)
-                : 0;
-            const currentUnlockedTier = unlockedAchievements[id] ?? -1;
-            
-            if (achievement.type === 'tiered') {
+            Object.entries(achievementsList).forEach(([id, achievement]) => {
+                const currentValue = achievement.getValue
+                    ? achievement.getValue(historicalLogs, programData, parseFloat(bodyWeight) || 0)
+                    : 0;
+                const oldTier = unlockedAchievements[id] ?? -1;
                 let newTier = -1;
-                achievement.tiers.forEach((tier, index) => {
-                    if (currentValue >= tier.value) {
-                        newTier = index;
-                    }
-                });
 
-                if (newTier > currentUnlockedTier) {
-                    newUnlocks[id] = newTier;
-                    achievementUnlocked = true;
-                    const tier = achievement.tiers[newTier];
-                    addToast(`Achievement: ${achievement.name} - ${tier.name}!`, tier.name.toLowerCase());
-                } else if(currentUnlockedTier > -1) {
-                    newUnlocks[id] = currentUnlockedTier;
+                if (achievement.type === 'tiered') {
+                    achievement.tiers.forEach((tier, index) => {
+                        if (currentValue >= tier.value) {
+                            newTier = index;
+                        }
+                    });
+                } else { // Single-tier
+                    newTier = currentValue >= 1 ? 0 : -1;
                 }
-            }
-        });
 
-        if (achievementUnlocked) {
-            const finalUnlocks = { ...unlockedAchievements, ...newUnlocks };
-            setUnlockedAchievements(finalUnlocks);
-            handleUpdateAndSave({ unlockedAchievements: finalUnlocks });
-        }
-    }, [historicalLogs, programData, bodyWeight, addToast, unlockedAchievements, db, customId, isDataLoading, handleUpdateAndSave]);
+                if (newTier !== oldTier) {
+                    achievementsChanged = true;
+                    if (newTier > oldTier) {
+                        const tier = achievement.tiers[newTier];
+                        addToast(`Achievement: ${achievement.name} - ${tier.name}!`, tier.name.toLowerCase());
+                    }
+                }
+                if (newTier > -1) {
+                    newUnlocks[id] = newTier;
+                }
+            });
+
+            if (achievementsChanged) {
+                setUnlockedAchievements(newUnlocks);
+                handleUpdateAndSave({ unlockedAchievements: newUnlocks });
+            }
+        };
+
+        verifyAchievements();
+    }, [isDataLoading, historicalLogs, programData, bodyWeight, addToast, unlockedAchievements, handleUpdateAndSave]);
 
     const navigate = (view, data = {}) => {
         setPageState({ view, data });
@@ -4443,157 +4466,3 @@ const EditWeekView = ({ week, dayKey, workoutName, programData, onProgramDataCha
                             workoutOverride.exercises = workoutOverride.exercises.filter(ex => ex !== nameToDelete);
                         });
                     });
-
-                    setExercises(currentExercises => currentExercises.filter(ex => ex !== nameToDelete));
-                    
-                    onProgramDataChange({ ...programData, masterExerciseList: newMasterList, programStructure: newProgramStructure, weeklyOverrides: newWeeklyOverrides });
-                    closeModal();
-                }}
-                onClose={closeModal}
-            />, 'lg'
-        );
-    };
-
-    const handleSaveChanges = () => {
-        const newOverrides = JSON.parse(JSON.stringify(programData.weeklyOverrides || {}));
-        if (!newOverrides[week]) {
-            newOverrides[week] = {};
-        }
-        const masterWorkoutName = programData.weeklySchedule.find(d => d.day === dayKey)?.workout;
-
-        if (currentWorkoutName === 'Rest') {
-            newOverrides[week][masterWorkoutName] = { exercises: [], label: 'Rest' };
-        } else {
-            newOverrides[week][masterWorkoutName] = { ...baseWorkout, exercises };
-        }
-
-        onProgramDataChange({ ...programData, weeklyOverrides: newOverrides });
-        onBack();
-    };
-
-    const uniqueWorkouts = [...new Set(workoutOrder)];
-
-    return (
-         <div className="p-4 md:p-6 pb-24">
-            <div className="flex justify-end items-center mb-6">
-                 <button onClick={handleSaveChanges} className="px-4 py-2 bg-blue-600 text-white rounded-lg shadow-md hover:bg-blue-700 transition-colors flex items-center gap-2">
-                    <Save size={16} /> Save Changes
-                </button>
-            </div>
-            <div className="text-center mb-6">
-                 <h1 className="text-3xl font-bold dark:text-white">Editing Day</h1>
-                 <p className="text-lg text-gray-600 dark:text-gray-400">Week {week} - {dayKey}</p>
-            </div>
-            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-4 space-y-4">
-                <div>
-                    <label htmlFor="workout-select" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Select Workout</label>
-                    <select id="workout-select" value={currentWorkoutName} onChange={e => setCurrentWorkoutName(e.target.value)} className="w-full p-2 bg-white dark:bg-gray-700 rounded-md border-gray-300 dark:border-gray-600 shadow-sm">
-                        <option value="Rest">Rest Day</option>
-                        {uniqueWorkouts.map(wo => wo !== 'Rest' && <option key={wo} value={wo}>{wo}</option>)}
-                    </select>
-                </div>
-
-                {currentWorkoutName !== 'Rest' && (
-                    <>
-                        <ul className="space-y-2 mb-3">
-                            {exercises.map((ex, index) => (
-                                <li key={`${ex}-${index}`} className="flex justify-between items-center p-2 bg-gray-50 dark:bg-gray-700/50 rounded-md group">
-                                    <span className="text-gray-800 dark:text-gray-200">{ex}</span>
-                                    <div className="flex items-center gap-1 text-gray-500 dark:text-gray-400">
-                                        <button onClick={() => handleEditExercise(ex)} className="p-1 hover:text-blue-600 dark:hover:text-blue-400"><Pencil size={16} /></button>
-                                        <button onClick={() => handleReorderExercise(index, -1)} disabled={index === 0} className="disabled:opacity-20 p-1 hover:text-gray-900 dark:hover:text-white"><ArrowUp size={16} /></button>
-                                        <button onClick={() => handleReorderExercise(index, 1)} disabled={index === exercises.length - 1} className="disabled:opacity-20 p-1 hover:text-gray-900 dark:hover:text-white"><ArrowDown size={16} /></button>
-                                        <button onClick={() => handleDeleteExercise(index)} className="p-1 hover:text-red-600 dark:hover:text-red-400"><XCircle size={16} /></button>
-                                    </div>
-                                </li>
-                            ))}
-                            {exercises.length === 0 && <p className="text-center text-gray-500 dark:text-gray-400 py-2">No exercises yet.</p>}
-                        </ul>
-                         <button onClick={handleAddExercise} className="w-full flex items-center justify-center gap-2 text-sm p-2 rounded-md bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300 hover:bg-blue-200 dark:hover:bg-blue-800/50">
-                            <PlusCircle size={16}/> Add Exercise
-                        </button>
-                    </>
-                )}
-            </div>
-         </div>
-    );
-};
-
-const InfoTooltip = ({ content }) => (
-    <div className="relative flex items-center group">
-        <HelpCircle size={14} className="text-gray-400 dark:text-gray-500" />
-        <div className="absolute bottom-full mb-2 w-48 p-2 text-xs text-white bg-gray-900 rounded-md shadow-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-            {content}
-        </div>
-    </div>
-);
-
-const ExerciseHistoryModal = ({ exerciseName, allLogs }) => {
-    const dayOrder = { Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6, Sun: 7 };
-
-    const history = useMemo(() => {
-        const sessions = {};
-        Object.values(allLogs)
-            .filter(log => log.exercise === exerciseName && !log.skipped && (log.load === 0 || log.load))
-            .forEach(log => {
-                const sessionKey = `${log.week}-${log.dayKey}`;
-                if (!sessions[sessionKey]) {
-                    sessions[sessionKey] = {
-                        week: log.week,
-                        dayKey: log.dayKey,
-                        date: log.date,
-                        sets: []
-                    };
-                }
-                sessions[sessionKey].sets.push(log);
-            });
-
-        return Object.values(sessions)
-            .sort((a, b) => new Date(b.date) - new Date(a.date))
-            .slice(0, 4)
-            .map(session => ({
-                ...session,
-                sets: session.sets.sort((a, b) => a.set - b.set)
-            }));
-    }, [allLogs, exerciseName]);
-
-    return (
-        <div>
-            <h2 className="text-xl font-bold mb-4">History for {exerciseName}</h2>
-            <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-2">
-                {history.length > 0 ? history.map(session => (
-                    <div key={`${session.week}-${session.dayKey}`} className="bg-gray-100 dark:bg-gray-700/50 p-3 rounded-lg">
-                        <h3 className="font-semibold text-gray-900 dark:text-white">Week {session.week}, {session.dayKey}</h3>
-                        <div className="grid grid-cols-3 gap-x-4 mt-1 text-sm text-gray-600 dark:text-gray-300">
-                           <span className="font-medium">Load</span>
-                           <span className="font-medium">Reps</span>
-                           <span className="font-medium">RIR</span>
-                        </div>
-                        {session.sets.map(log => (
-                           <div key={log.set} className="grid grid-cols-3 gap-x-4 text-sm">
-                               <span>{log.load} lbs</span>
-                               <span>{log.reps}</span>
-                               <span>{log.rir}</span>
-                           </div>
-                        ))}
-                    </div>
-                )) : (
-                    <p className="text-gray-500 dark:text-gray-400">No history found for this exercise yet. Keep logging!</p>
-                )}
-            </div>
-        </div>
-    );
-};
-
-
-export default function App() {
-    return (
-        <FirebaseProvider>
-            <ThemeProvider>
-                <AppStateProvider>
-                    <AppCore />
-                </AppStateProvider>
-            </ThemeProvider>
-        </FirebaseProvider>
-    );
-}
