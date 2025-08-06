@@ -685,8 +685,14 @@ const exerciseBank = {
 const getExerciseDetails = (exerciseName, masterList) => masterList?.[exerciseName] || null;
 
 const getWorkoutForWeek = (programData, week, workoutName) => {
-    // Return the override if it exists, otherwise fall back to the master template
-    return programData?.weeklyOverrides?.[week]?.[workoutName] || programData?.programStructure?.[workoutName] || null;
+    // This function now only retrieves the master template. Overrides are handled at the schedule level.
+    if (!workoutName || workoutName === 'Rest') return null;
+    return programData?.programStructure?.[workoutName] || null;
+};
+
+const getWorkoutNameForDay = (pData, week, dayKey) => {
+    // Centralized function to get the correct workout name, respecting overrides.
+    return pData.weeklyOverrides?.[week]?.[dayKey] || pData.weeklySchedule.find(s => s.day === dayKey)?.workout || 'Rest';
 };
 
 const calculateE1RM = (weight, reps, rir) => {
@@ -991,6 +997,35 @@ const ThemeProvider = ({ children }) => {
 
 // --- Components (Child components defined first) ---
 
+const InfoTooltip = ({ content }) => {
+    const { theme } = useContext(ThemeContext);
+    const [show, setShow] = useState(false);
+
+    // Using CSS variables set in the ThemeProvider for consistency
+    const tooltipStyle = {
+        backgroundColor: 'var(--tooltip-bg)',
+        border: '1px solid var(--tooltip-border)',
+        color: theme === 'dark' ? 'white' : 'black',
+    };
+
+    return (
+        <div className="relative flex items-center"
+             onMouseEnter={() => setShow(true)}
+             onMouseLeave={() => setShow(false)}
+        >
+            <HelpCircle size={16} className="text-gray-500 dark:text-gray-400 cursor-pointer" />
+            {show && (
+                <div
+                    className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 p-2 rounded-md shadow-lg z-10 text-xs"
+                    style={tooltipStyle}
+                >
+                    {content}
+                </div>
+            )}
+        </div>
+    );
+};
+
 const IntensityTechnique = ({ technique }) => {
     if (!technique) return null;
     let icon = <Flame size={14} className="text-red-500" />;
@@ -1147,11 +1182,11 @@ const LiftingSession = ({ week, dayKey, onBack, allLogs, setAllLogs, onSkipDay, 
 
     const workoutName = useMemo(() => {
         if (programData.settings.useWeeklySchedule) {
-            return programData.weeklySchedule.find(s => s.day === dayKey)?.workout;
+            return getWorkoutNameForDay(programData, week, dayKey);
         } else {
             return programData.workoutOrder[sequentialWorkoutIndex % programData.workoutOrder.length];
         }
-    }, [programData, dayKey, sequentialWorkoutIndex]);
+    }, [programData, week, dayKey, sequentialWorkoutIndex]);
 
     const workout = getWorkoutForWeek(programData, week, workoutName);
 
@@ -1235,16 +1270,18 @@ const LiftingSession = ({ week, dayKey, onBack, allLogs, setAllLogs, onSkipDay, 
 };
 
 const WeekView = ({ week, completedDays, onSessionSelect, firstIncompleteWeek, onUnskipDay, programData }) => {
-    const { programStructure, weeklySchedule } = programData;
-    const isWeekComplete = useMemo(() => weeklySchedule.every(day => day.workout === 'Rest' || completedDays.get(`${week}-${day.day}`)?.isDayComplete), [week, completedDays, weeklySchedule]);
+    const { weeklySchedule } = programData;
+    const isWeekComplete = useMemo(() => weeklySchedule.every(day => {
+        const workoutName = getWorkoutNameForDay(programData, week, day.day);
+        return workoutName === 'Rest' || completedDays.get(`${week}-${day.day}`)?.isDayComplete;
+    }), [week, completedDays, weeklySchedule, programData]);
+
     const [isOpen, setIsOpen] = useState(week === firstIncompleteWeek);
     
     useEffect(() => {
         setIsOpen(week === firstIncompleteWeek);
     }, [firstIncompleteWeek, week]);
     
-    const getWorkoutForDay = (w, d) => weeklySchedule.find(s => s.day === d)?.workout;
-
     return (
         <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-4">
             <button onClick={() => setIsOpen(!isOpen)} className="w-full flex justify-between items-center text-left">
@@ -1256,7 +1293,7 @@ const WeekView = ({ week, completedDays, onSessionSelect, firstIncompleteWeek, o
                     {weeklySchedule.map(day => {
                         const dayKey = `${week}-${day.day}`;
                         const status = completedDays.get(dayKey);
-                        const workoutName = getWorkoutForDay(week, day.day);
+                        const workoutName = getWorkoutNameForDay(programData, week, day.day);
                         const workoutDetails = getWorkoutForWeek(programData, week, workoutName);
                         const isRestDay = !workoutName || workoutName === 'Rest';
                         
@@ -1346,6 +1383,7 @@ const SequentialView = ({ onSessionSelect, allLogs, programData }) => {
         return Array.from({ length: totalSessions }, (_, i) => {
             const weekForProgram = Math.floor(i / totalWorkoutsInCycle) + 1;
             const workoutName = workoutOrder[i % totalWorkoutsInCycle];
+            // Sequential view doesn't use weekly schedule, so getWorkoutForWeek is appropriate here without overrides.
             const workout = getWorkoutForWeek(programData, weekForProgram, workoutName);
             const dayKey = `workout-${i}`;
 
@@ -1440,16 +1478,20 @@ const StreakCounter = ({ streak }) => {
 
 
 const MainView = ({ onSessionSelect, onEditProgram, completedDays, onUnskipDay, programData, allLogs }) => {
-    const { info, weeklySchedule, workoutOrder } = programData;
+    const { info, weeklySchedule } = programData;
     const weeks = Array.from({ length: info.weeks }, (_, i) => i + 1);
     
     const firstIncompleteWeek = useMemo(() => {
         if (!programData.settings.useWeeklySchedule) return 1;
         for (let w = 1; w <= info.weeks; w++) {
-            if (!weeklySchedule.every(d => d.workout === 'Rest' || completedDays.get(`${w}-${d.day}`)?.isDayComplete)) return w;
+            const isWeekComplete = weeklySchedule.every(d => {
+                const workoutName = getWorkoutNameForDay(programData, w, d.day);
+                return workoutName === 'Rest' || completedDays.get(`${w}-${d.day}`)?.isDayComplete;
+            });
+            if (!isWeekComplete) return w;
         }
         return info.weeks + 1;
-    }, [completedDays, weeklySchedule, info.weeks, programData.settings.useWeeklySchedule]);
+    }, [completedDays, weeklySchedule, info.weeks, programData]);
 
     return (
         <div className="p-4 md:p-6">
@@ -1495,8 +1537,9 @@ const DashboardView = ({ allLogs, programData, bodyWeightHistory }) => {
         let weeklySetsCount = 0;
         if (settings.useWeeklySchedule) {
             weeklySchedule.forEach(day => {
-                if (day.workout !== 'Rest') {
-                    const workout = getWorkoutForWeek(programData, 1, day.workout);
+                const workoutName = getWorkoutNameForDay(programData, 1, day.day);
+                if (workoutName !== 'Rest') {
+                    const workout = getWorkoutForWeek(programData, 1, workoutName);
                     if (workout) {
                         workout.exercises.forEach(exName => {
                             const details = getExerciseDetails(exName, masterExerciseList);
@@ -1525,9 +1568,10 @@ const DashboardView = ({ allLogs, programData, bodyWeightHistory }) => {
         let incompleteWeek = 1;
         for (let w = 1; w <= info.weeks; w++) {
              const isWeekComplete = weeklySchedule.every(day => {
-                if(day.workout === 'Rest') return true;
-                const workout = getWorkoutForWeek(programData, w, day.workout);
-                if(!workout) return true; // Treat as rest day if no workout
+                const workoutName = getWorkoutNameForDay(programData, w, day.day);
+                if(workoutName === 'Rest') return true;
+                const workout = getWorkoutForWeek(programData, w, workoutName);
+                if(!workout) return true;
                 return workout.exercises.every(ex => {
                     const details = getExerciseDetails(ex, masterExerciseList);
                     if(!details) return false;
@@ -1547,7 +1591,8 @@ const DashboardView = ({ allLogs, programData, bodyWeightHistory }) => {
         if (!settings.useWeeklySchedule) return [];
         const volumesByDay = {};
         weeklySchedule.forEach(d => {
-            if (d.workout !== 'Rest') volumesByDay[d.day] = 0;
+            const workoutName = getWorkoutNameForDay(programData, firstIncompleteWeek, d.day);
+            if (workoutName !== 'Rest') volumesByDay[d.day] = 0;
         });
 
         Object.values(allLogs).forEach(log => {
@@ -1557,12 +1602,12 @@ const DashboardView = ({ allLogs, programData, bodyWeightHistory }) => {
         });
         
         return weeklySchedule
-            .filter(d => d.workout !== 'Rest')
+            .filter(d => getWorkoutNameForDay(programData, firstIncompleteWeek, d.day) !== 'Rest')
             .map(d => ({
                 day: d.day,
-                volume: Math.round(volumesByDay[d.day])
+                volume: Math.round(volumesByDay[d.day] || 0)
             }));
-    }, [allLogs, masterExerciseList, firstIncompleteWeek, settings.useWeeklySchedule, weeklySchedule]);
+    }, [allLogs, masterExerciseList, firstIncompleteWeek, settings.useWeeklySchedule, weeklySchedule, programData]);
     
     const formattedBodyWeightHistory = useMemo(() => {
         return bodyWeightHistory
@@ -2276,7 +2321,7 @@ const RecordsView = ({ allLogs, onBack }) => {
 };
 
 const EditWeekCard = ({ week, program, onEditDay }) => {
-    const [isOpen, setIsOpen] = useState(false); // Collapsed by default
+    const [isOpen, setIsOpen] = useState(false);
 
     const hasOverrides = program.weeklyOverrides && program.weeklyOverrides[week];
     const weekLabel = hasOverrides ? `Week ${week} (Customized)` : `Week ${week}`;
@@ -2291,9 +2336,9 @@ const EditWeekCard = ({ week, program, onEditDay }) => {
             {isOpen && (
                 <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2 mt-3">
                     {program.weeklySchedule.map(({ day }) => {
-                        const workoutName = program.weeklySchedule.find(d => d.day === day)?.workout || 'Rest';
+                        const workoutName = getWorkoutNameForDay(program, week, day);
                         const workoutDetails = getWorkoutForWeek(program, week, workoutName);
-                        const isRest = !workoutDetails || workoutDetails.label === 'Rest';
+                        const isRest = !workoutDetails || workoutName === 'Rest';
                         const displayWorkoutName = isRest ? 'Rest' : (workoutDetails.label || workoutName);
 
                         return (
@@ -2313,6 +2358,75 @@ const EditWeekCard = ({ week, program, onEditDay }) => {
                     })}
                 </div>
             )}
+        </div>
+    );
+};
+
+const EditWeekView = ({ week, dayKey, programData, onProgramDataChange, onBack }) => {
+    const { programStructure, weeklySchedule, weeklyOverrides } = programData;
+
+    // This function determines the actual workout name for a given day, considering overrides.
+    const getWorkoutNameForDay = (pData, w, d) => {
+        return pData.weeklyOverrides?.[w]?.[d] || pData.weeklySchedule.find(s => s.day === d)?.workout || 'Rest';
+    };
+
+    const currentWorkoutName = getWorkoutNameForDay(programData, week, dayKey);
+
+    const handleWorkoutChange = (newWorkoutName) => {
+        const newOverrides = JSON.parse(JSON.stringify(weeklyOverrides || {}));
+
+        if (!newOverrides[week]) {
+            newOverrides[week] = {};
+        }
+
+        const baseWorkoutName = programData.weeklySchedule.find(d => d.day === dayKey)?.workout || 'Rest';
+
+        if (newWorkoutName === baseWorkoutName) {
+            // If we are setting it back to the original schedule, we can remove the override
+            delete newOverrides[week][dayKey];
+            if (Object.keys(newOverrides[week]).length === 0) {
+                delete newOverrides[week]; // Clean up empty week objects
+            }
+        } else {
+            // Otherwise, set the new workout name as an override for that specific day
+            newOverrides[week][dayKey] = newWorkoutName;
+        }
+
+        onProgramDataChange({ ...programData, weeklyOverrides: newOverrides });
+        onBack(); // Go back to the previous view after making a selection
+    };
+
+    const availableWorkouts = ['Rest', ...Object.keys(programStructure)];
+    const currentWorkoutDetails = programData.programStructure[currentWorkoutName];
+
+    return (
+        <div className="p-4 md:p-6 pb-24">
+            <button onClick={onBack} className="flex items-center gap-2 text-sm font-medium text-blue-600 dark:text-blue-400 hover:underline mb-4">
+                <ArrowLeft size={16}/> Back to Edit Program
+            </button>
+            <div className="text-center mb-6">
+                <h1 className="text-3xl font-bold dark:text-white">Editing Week {week}: {dayKey}</h1>
+                <p className="text-lg text-gray-600 dark:text-gray-400">Current: {currentWorkoutDetails?.label || currentWorkoutName}</p>
+            </div>
+
+            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-4">
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">Select New Workout</h3>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                    {availableWorkouts.map(name => (
+                        <button
+                            key={name}
+                            onClick={() => handleWorkoutChange(name)}
+                            className={`p-4 rounded-lg text-center transition-colors font-semibold
+                                ${name === currentWorkoutName
+                                    ? 'bg-blue-600 text-white shadow-lg ring-2 ring-blue-400'
+                                    : 'bg-gray-100 dark:bg-gray-700 hover:bg-blue-100 dark:hover:bg-blue-900/50'}`
+                            }
+                        >
+                            {programStructure[name]?.label || name}
+                        </button>
+                    ))}
+                </div>
+            </div>
         </div>
     );
 };
@@ -2530,8 +2644,8 @@ const EditProgramView = ({ programData, onProgramDataChange, onBack, onNavigate 
     };
     
     const handleEditDay = (week, dayKey) => {
-        const workoutName = programData.weeklySchedule.find(d => d.day === dayKey)?.workout || 'Rest';
-        onNavigate('editWeek', { week, dayKey, workoutName });
+        // No need to pass workoutName, the view will determine it
+        onNavigate('editWeek', { week, dayKey });
     };
 
     return (
@@ -2640,9 +2754,6 @@ const EditProgramView = ({ programData, onProgramDataChange, onBack, onNavigate 
                             {provided.placeholder}
                              <button onClick={handleAddWorkoutDay} className="w-full flex items-center justify-center gap-2 p-3 rounded-xl bg-green-100 dark:bg-green-900/50 text-green-700 dark:text-green-300 hover:bg-green-200 dark:hover:bg-green-800/50 font-bold">
                                 <PlusCircle size={20}/> Add New Workout Day
-                            </button>
-                             <button onClick={() => updateProgram({ workoutOrder: [...program.workoutOrder, 'Rest'] })} className="w-full flex items-center justify-center gap-2 p-3 rounded-xl bg-indigo-100 dark:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-200 dark:hover:bg-indigo-800/50 font-bold">
-                                <PlusCircle size={20}/> Add Rest Day
                             </button>
                         </div>
                     )}
@@ -3027,6 +3138,42 @@ const ProgramManagerView = ({ onProgramUpdate, activeProgram, programInstances, 
             addToast('Error exporting program.', 'error');
         }
     };
+
+    const handleExportProgramToCSV = () => {
+        const { name, masterExerciseList, programStructure, weeklySchedule, weeklyOverrides } = activeProgram.program;
+        const headers = ['Workout Day', 'Day of Week', 'Exercise', 'Sets', 'Reps', 'RIR', 'Rest', 'Muscles Primary', 'Muscles Secondary', 'Muscles Tertiary'];
+        const rows = [];
+
+        weeklySchedule.forEach(({ day }) => {
+            const workoutName = getWorkoutNameForDay(activeProgram.program, new Date().getWeek, day); // Simplified week, assuming for structure
+            if (workoutName !== 'Rest') {
+                const workoutDetails = programStructure[workoutName];
+                if (workoutDetails) {
+                    workoutDetails.exercises.forEach(exName => {
+                        const exDetails = masterExerciseList[exName];
+                        if (exDetails) {
+                            rows.push([
+                                `"${workoutName}"`, day, `"${exName}"`, exDetails.sets, `"${exDetails.reps}"`,
+                                `"${Array.isArray(exDetails.rir) ? exDetails.rir.join(';') : exDetails.rir}"`,
+                                `"${exDetails.rest}"`, `"${exDetails.muscles?.primary || ''}"`,
+                                `"${exDetails.muscles?.secondary || ''}"`, `"${exDetails.muscles?.tertiary || ''}"`
+                            ].join(','));
+                        }
+                    });
+                }
+            }
+        });
+
+        const csvContent = [headers.join(','), ...rows].join('\n');
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement("a");
+        link.href = URL.createObjectURL(blob);
+        const fileName = name.replace(/[^a-z0-9]/gi, '_').toLowerCase();
+        link.download = `${fileName}_program_structure.csv`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    };
     
     const handleImportClick = () => {
         fileInputRef.current?.click();
@@ -3040,7 +3187,7 @@ const ProgramManagerView = ({ onProgramUpdate, activeProgram, programInstances, 
         reader.onload = (e) => {
             try {
                 if (file.name.endsWith('.csv')) {
-                    openModal(<RestoreProgramModal csvData={e.target.result} onRestore={onProgramUpdate} onClose={closeModal} />);
+                    openModal(<ImportProgramCSVModal csvData={e.target.result} onRestore={onProgramUpdate} onClose={closeModal} />);
                 } else {
                     const importedProgram = JSON.parse(e.target.result);
                     if (
@@ -3090,15 +3237,18 @@ const ProgramManagerView = ({ onProgramUpdate, activeProgram, programInstances, 
                  <h3 className="text-xl font-bold text-gray-800 dark:text-gray-200 mb-4">Manage Your Program</h3>
                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                      <button onClick={handleShareProgram} className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-blue-600 text-white rounded-lg shadow-md hover:bg-blue-700 transition-colors">
-                        <Download size={16}/> Export Active Program
+                        <Download size={16}/> Export Program (JSON)
                     </button>
-                    <button onClick={handleImportClick} className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-green-600 text-white rounded-lg shadow-md hover:bg-green-700 transition-colors">
+                     <button onClick={handleExportProgramToCSV} className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-teal-600 text-white rounded-lg shadow-md hover:bg-teal-700 transition-colors">
+                        <Download size={16}/> Export Program (CSV)
+                    </button>
+                    <button onClick={handleImportClick} className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-green-600 text-white rounded-lg shadow-md hover:bg-green-700 transition-colors col-span-full">
                         <Upload size={16}/> Import from File
                     </button>
                     <input type="file" ref={fileInputRef} onChange={handleFileImport} accept=".json,.csv" style={{ display: 'none' }} />
                  </div>
                 <p className="text-xs text-gray-500 dark:text-gray-400 mt-2 text-center col-span-1 sm:col-span-2">
-                    Export your current program as a JSON file to share or back it up. Import a JSON or CSV file to load a new program.
+                    Export your current program to share or back it up. Import a JSON or CSV file to load a new program structure.
                 </p>
             </div>
 
@@ -3391,7 +3541,7 @@ const calculateStreak = (allLogs, programData) => {
     
     const isDayComplete = (week, dayKey, workoutName) => {
         const workout = getWorkoutForWeek(programData, week, workoutName);
-        if (!workout) return false;
+        if (!workout) return true; // Rest days are always "complete" for streak purposes
 
         return workout.exercises.every(exName => {
             const exDetails = getExerciseDetails(exName, masterExerciseList);
@@ -3417,13 +3567,13 @@ const calculateStreak = (allLogs, programData) => {
         const sortedDays = [];
         for (let week = 1; week <= info.weeks; week++) {
             for (const day of weeklySchedule) {
-                if (day.workout !== 'Rest') {
-                    sortedDays.push({ week, day: day.day });
+                const workoutName = getWorkoutNameForDay(programData, week, day.day);
+                if (workoutName !== 'Rest') {
+                    sortedDays.push({ week, day: day.day, workoutName });
                 }
             }
         }
-        for (const { week, day } of sortedDays) {
-            const workoutName = weeklySchedule.find(d => d.day === day)?.workout;
+        for (const { week, day, workoutName } of sortedDays) {
             if (isDayComplete(week, day, workoutName)) {
                 if (!streakBroken) currentStreak++;
             } else {
@@ -4310,11 +4460,11 @@ const AppCore = () => {
     const completedDays = useMemo(() => {
         const status = new Map();
         if (!programData || !programData.info) return status;
-        const getWorkoutForDay = (w, d) => programData.weeklySchedule.find(s => s.day === d)?.workout;
+
         for (let week = 1; week <= programData.info.weeks; week++) {
             programData.weeklySchedule.forEach(day => {
                 const dayKey = `${week}-${day.day}`;
-                const workoutName = getWorkoutForDay(week, day.day);
+                const workoutName = getWorkoutNameForDay(programData, week, day.day);
                 const workout = getWorkoutForWeek(programData, week, workoutName);
                 const isSkipped = !!skippedDays[dayKey];
                 
@@ -4362,7 +4512,7 @@ const AppCore = () => {
             case 'achievements': return <AchievementsView unlockedAchievements={unlockedAchievements} historicalLogs={historicalLogs} programData={programData} bodyWeight={bodyWeight} weightUnit={weightUnit} onBack={onBack} />;
             case 'programHub': return <ProgramManagerView onProgramUpdate={handleProgramUpdate} activeProgram={{...programData, id: activeInstanceId}} programInstances={programInstances} onInstanceSwitch={handleInstanceSwitch} onBack={onBack} />;
             case 'editProgram': return <EditProgramView programData={programData} onProgramDataChange={handleProgramDataChange} onBack={onBack} onNavigate={navigate} />;
-            case 'editWeek': return <EditWeekView {...pageState.data} programData={programData} onProgramDataChange={handleProgramDataChange} onBack={onBack} />;
+            case 'editWeek': return <EditWeekView {...pageState.data} programData={programData} onProgramDataChange={handleProgramDataChange} onBack={() => navigate('editProgram')} />;
             case 'settings': return <SettingsView allLogs={allLogs} historicalLogs={historicalLogs} weightUnit={weightUnit} onWeightUnitChange={handleWeightUnitChange} onResetMeso={handleResetMeso} programData={programData} onProgramDataChange={handleProgramDataChange} onShowTutorial={showTutorial} bodyWeight={bodyWeight} onBodyWeightChange={handleBodyWeightChange} onBack={onBack} />;
             default: return <MainView onSessionSelect={(week, day, type, seqIndex) => navigate(type, { week, dayKey: day, sequentialWorkoutIndex: seqIndex })} onEditProgram={() => navigate('editProgram')} completedDays={completedDays} onUnskipDay={handleUnskipDay} programData={programData} allLogs={allLogs} />;
         }
