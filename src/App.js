@@ -1,19 +1,3 @@
-An enhanced version of the application has been successfully developed, incorporating a comprehensive suite of features for improved user onboarding, robust program management, and new sharing capabilities.
-
-### Key Feature Additions:
-
-*   **Multi-Step Guided Tutorial:** New users are now greeted with a multi-step tutorial that explains the core functionalities of the app. The final step seamlessly transitions into a Program Selection screen, allowing users to choose a preset and start their fitness journey immediately.
-*   **Expanded Program Presets:** To cater to a wider range of fitness levels and goals, several new program presets have been added, including:
-    *   Beginner 3-Day Full Body
-    *   4-Day Upper/Lower Split
-    *   Classic 5x5 Strength Program
-*   **Centralized Program Hub:** A new "Program Hub" page has been created to serve as the central command for all program-related activities. This hub replaces the previous preset loading functionality found in the settings.
-*   **Seamless Program Sharing and Importing:** Users can now easily share their active workout program with others. A "Share My Program" feature packages the entire program structure—including custom exercises, schedules, sets, and reps—into a single `.json` file. Conversely, the "Import Program" feature allows users to upload these files, adding new programs to their collection.
-*   **Program Preview Functionality:** Before committing to a new routine, users can now preview any preset or imported program. This feature opens a detailed summary modal showing the program's name, duration, and a full list of workout days and their corresponding exercises, ensuring users can make informed choices.
-
-These updates provide a more intuitive and powerful user experience, fostering better engagement and offering greater flexibility in workout management and community sharing.
-
-```javascript
 import React, { useState, useEffect, useMemo, createContext, useContext, useCallback, useRef } from 'react';
 import { ChevronDown, ChevronUp, Dumbbell, CheckCircle, ArrowLeft, BarChart2, Settings, Flame, Repeat, StretchVertical, Lightbulb, Download, XCircle, SkipForward, Menu, X, Search, Trophy, BrainCircuit, PlusCircle, Edit, ArrowUp, ArrowDown, LayoutDashboard, Save, AlertTriangle, Bell, HelpCircle, BookOpen, Star, Award, TrendingUp, Target, Zap, CalendarDays, Shield, Infinity as InfinityIcon, Weight, Upload, Eye } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
