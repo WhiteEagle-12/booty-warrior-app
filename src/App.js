@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, createContext, useContext, useCallback, useRef } from 'react';
-import { ChevronDown, ChevronUp, Dumbbell, CheckCircle, ArrowLeft, BarChart2, Settings, Flame, Repeat, StretchVertical, Lightbulb, Download, XCircle, SkipForward, Menu, X, Search, Trophy, BrainCircuit, PlusCircle, Edit, ArrowUp, ArrowDown, LayoutDashboard, Save, AlertTriangle, Bell, HelpCircle, BookOpen, Star, Award, TrendingUp, Target, Zap, CalendarDays, Shield, Infinity as InfinityIcon, Weight, Upload, Eye } from 'lucide-react';
+import { ChevronDown, ChevronUp, Dumbbell, CheckCircle, ArrowLeft, BarChart2, Settings, Flame, Repeat, StretchVertical, Lightbulb, Download, XCircle, SkipForward, Menu, X, Search, Trophy, BrainCircuit, PlusCircle, Edit, ArrowUp, ArrowDown, LayoutDashboard, Save, AlertTriangle, Bell, HelpCircle, BookOpen, Star, Award, TrendingUp, Target, Zap, CalendarDays, Shield, Infinity as InfinityIcon, Weight, Upload, Eye, Timer } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 
 // Firebase Imports - using modular v9+ syntax
@@ -55,6 +55,7 @@ const presets = {
             'Lower (Strength Focus)'
         ],
         settings: {
+            useWeeklySchedule: true,
             restTimer: {
                 enabled: true,
                 duration: 120 // 2 minutes in seconds
@@ -87,7 +88,7 @@ const presets = {
             { day: 'Sun', workout: 'Rest' },
         ],
         workoutOrder: ['Workout A', 'Workout B'],
-        settings: { restTimer: { enabled: true, duration: 120 } }
+        settings: { useWeeklySchedule: true, restTimer: { enabled: true, duration: 120 } }
     },
     "upper-lower-4day": {
         name: "4-Day Upper/Lower Split",
@@ -120,7 +121,7 @@ const presets = {
             { day: 'Sun', workout: 'Rest' },
         ],
         workoutOrder: ['Upper Strength', 'Lower Strength', 'Upper Hypertrophy', 'Lower Hypertrophy'],
-        settings: { restTimer: { enabled: true, duration: 150 } }
+        settings: { useWeeklySchedule: true, restTimer: { enabled: true, duration: 150 } }
     },
     "strength-5x5": {
         name: "Strength Focused 5x5",
@@ -145,7 +146,7 @@ const presets = {
             { day: 'Sun', workout: 'Rest' },
         ],
         workoutOrder: ['Workout A', 'Workout B'],
-        settings: { restTimer: { enabled: true, duration: 240 } }
+        settings: { useWeeklySchedule: true, restTimer: { enabled: true, duration: 240 } }
     },
 };
 
@@ -192,12 +193,28 @@ const exerciseBank = {
 };
 
 // --- Helper Functions & Context ---
+const getExerciseDetails = (exerciseName, masterList) => masterList[exerciseName] || null;
+
 const calculateE1RM = (weight, reps, rir) => {
-    if (!weight || !reps || reps < 1) return 0;
+    // FIX: Correctly use RIR in e1RM calculation
+    if (weight === null || weight === undefined || !reps || reps < 1) return 0;
     const effectiveReps = parseFloat(reps) + (parseFloat(rir) || 0);
     if (effectiveReps <= 1) return parseFloat(weight);
+    // Using the Epley formula
     return Math.round(parseFloat(weight) * (1 + (effectiveReps / 30)));
 };
+
+const getSetVolume = (log, masterExerciseList) => {
+    // FIX: Implement accurate dumbbell volume tracking
+    if (!log || log.skipped || !log.load || !log.reps) return 0;
+    const volume = parseFloat(log.load) * parseInt(log.reps, 10);
+    const details = getExerciseDetails(log.exercise, masterExerciseList);
+    if (details?.equipment === 'dumbbell') {
+        return volume * 2;
+    }
+    return volume;
+};
+
 
 const findLastPerformanceLogs = (exerciseName, currentWeek, currentDayKey, allLogs) => {
     const dayOrder = { Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6, Sun: 7 };
@@ -206,7 +223,7 @@ const findLastPerformanceLogs = (exerciseName, currentWeek, currentDayKey, allLo
     let lastDayNum = -1;
     for (const logId in allLogs) {
         const log = allLogs[logId];
-        if (log.exercise === exerciseName && log.load && log.reps) {
+        if (log.exercise === exerciseName && (log.load || log.load === 0) && log.reps && !log.skipped) {
             const logDayNum = (log.week - 1) * 7 + dayOrder[log.dayKey];
             if (logDayNum < currentDayNum && logDayNum > lastDayNum) {
                 lastDayNum = logDayNum;
@@ -215,11 +232,9 @@ const findLastPerformanceLogs = (exerciseName, currentWeek, currentDayKey, allLo
         }
     }
     if (!lastSession) return null;
-    const logsForSession = Object.values(allLogs).filter(log => log.exercise === exerciseName && log.week === lastSession.week && log.dayKey === lastSession.dayKey);
+    const logsForSession = Object.values(allLogs).filter(log => log.exercise === exerciseName && log.week === lastSession.week && log.dayKey === lastSession.dayKey && !log.skipped);
     return logsForSession.reduce((acc, log) => { acc[log.set] = log; return acc; }, {});
 };
-
-const getExerciseDetails = (exerciseName, masterList) => masterList[exerciseName] || null;
 
 const getProgressionSuggestion = (exerciseName, lastPerformance, currentPerformance, masterList) => {
     if (!lastPerformance) return "Log your first set to get a baseline.";
@@ -447,8 +462,8 @@ const SetRow = ({ setNumber, logData, onLogChange, lastSetData, exerciseDetails,
     };
 
     return (
-        <div className="grid grid-cols-3 sm:grid-cols-6 gap-2 items-center py-2 px-3 bg-gray-50 dark:bg-gray-700/50 rounded-md">
-            <div className="text-sm font-bold text-gray-800 dark:text-gray-200 col-span-3 sm:col-span-1">Set {setNumber}</div>
+        <div className="grid grid-cols-4 sm:grid-cols-7 gap-2 items-center py-2 px-3 bg-gray-50 dark:bg-gray-700/50 rounded-md">
+            <div className="text-sm font-bold text-gray-800 dark:text-gray-200 col-span-4 sm:col-span-1">Set {setNumber}</div>
             <div className="hidden sm:block text-sm text-center text-gray-600 dark:text-gray-400">{exerciseDetails.reps}</div>
             <div className="hidden sm:block text-sm text-center font-medium text-blue-600 dark:text-blue-400">{targetEffort}</div>
             <div>
@@ -467,6 +482,9 @@ const SetRow = ({ setNumber, logData, onLogChange, lastSetData, exerciseDetails,
                     className="w-full p-1.5 text-sm bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 placeholder:text-gray-400 dark:placeholder:text-gray-500"
                 />
             </div>
+            <div className="sm:pl-2">
+                <button onClick={() => onLogChange(setNumber, 'skip', true)} className="text-xs p-1.5 w-full bg-gray-200 dark:bg-gray-600 hover:bg-gray-300 dark:hover:bg-gray-500 rounded-md transition-colors">Skip</button>
+            </div>
         </div>
     );
 };
@@ -476,10 +494,19 @@ const ExerciseCard = ({ exerciseName, week, dayKey, allLogs, onLogChange, master
     const exercise = getExerciseDetails(exerciseName, masterExerciseList);
     const sets = Array.from({ length: exercise?.sets || 0 }, (_, i) => i + 1);
     
+    const isSetComplete = (log) => {
+        // FIX: Allow load of 0 to be valid for bodyweight exercises
+        const isLoadValid = (log?.load !== undefined && log?.load !== null && log.load !== '');
+        const areRepsValid = !!log?.reps;
+        const isRirValid = (log?.rir !== undefined && log?.rir !== null && log?.rir !== '');
+        // FIX: A set is also "complete" for UI purposes if it's skipped
+        return log?.skipped || (isLoadValid && areRepsValid && isRirValid);
+    }
+
     const isCompleted = useMemo(() => {
         return sets.every(setNumber => {
             const log = allLogs[`${week}-${dayKey}-${exerciseName}-${setNumber}`];
-            return log?.load && log?.reps && (log?.rir !== undefined && log?.rir !== null && log?.rir !== '');
+            return isSetComplete(log);
         });
     }, [allLogs, week, dayKey, exerciseName, sets]);
 
@@ -514,15 +541,16 @@ const ExerciseCard = ({ exerciseName, week, dayKey, allLogs, onLogChange, master
                         <p className="text-sm text-blue-800 dark:text-blue-200"><span className="font-bold">Suggestion:</span> {suggestion}</p>
                     </div>
                     <div className="overflow-x-auto">
-                        <div className="hidden sm:grid grid-cols-6 gap-2 mb-2 px-3 text-xs font-medium text-gray-500 dark:text-gray-400 min-w-[480px]">
+                        <div className="hidden sm:grid grid-cols-7 gap-2 mb-2 px-3 text-xs font-medium text-gray-500 dark:text-gray-400 min-w-[540px]">
                             <span></span>
                             <span className="text-center">Target Reps</span>
                             <span className="text-center">Target Effort</span>
                             <span className="text-center">Load ({weightUnit})</span>
                             <span className="text-center">Reps</span>
                             <span className="text-center">RIR</span>
+                            <span></span>
                         </div>
-                        <div className="space-y-2 min-w-[480px]">
+                        <div className="space-y-2 min-w-[540px]">
                             {sets.map(setNumber => (
                                 <SetRow 
                                     key={setNumber} 
@@ -556,9 +584,19 @@ const LiftingSession = ({ week, dayKey, onBack, allLogs, setAllLogs, onSkipDay, 
         const logId = `${week}-${dayKey}-${exerciseName}-${setNumber}`;
         const currentLog = allLogs[logId] || { week, dayKey, session: workoutName, exercise: exerciseName, set: setNumber, date: new Date().toISOString() };
         
+        const wasSetComplete = (log) => {
+             const isLoadValid = (log?.load !== undefined && log?.load !== null && log.load !== '');
+             const areRepsValid = !!log?.reps;
+             const isRirValid = (log?.rir !== undefined && log?.rir !== null && log?.rir !== '');
+             return log?.skipped || (isLoadValid && areRepsValid && isRirValid);
+        }
+        const wasCompleteBefore = wasSetComplete(currentLog);
+
         let newLogEntry = { ...currentLog };
 
-        if (field === 'load') {
+        if (field === 'skip') {
+            newLogEntry.skipped = true;
+        } else if (field === 'load') {
             newLogEntry.displayLoad = value;
             if (weightUnit === 'kg') {
                 newLogEntry.load = parseFloat(value) * 2.20462;
@@ -569,8 +607,7 @@ const LiftingSession = ({ week, dayKey, onBack, allLogs, setAllLogs, onSkipDay, 
             newLogEntry[field] = value;
         }
 
-        const wasSetComplete = currentLog.load && currentLog.reps && (currentLog.rir !== undefined && currentLog.rir !== null && currentLog.rir !== '');
-        const isSetNowComplete = newLogEntry.load && newLogEntry.reps && (newLogEntry.rir !== undefined && newLogEntry.rir !== null && newLogEntry.rir !== '');
+        const isCompleteNow = wasSetComplete(newLogEntry);
 
         setAllLogs(prev => ({ ...prev, [logId]: newLogEntry }));
 
@@ -579,7 +616,8 @@ const LiftingSession = ({ week, dayKey, onBack, allLogs, setAllLogs, onSkipDay, 
             updateDoc(userDocRef, { [`logs.${logId}`]: newLogEntry });
         }
         
-        if (!wasSetComplete && isSetNowComplete) {
+        // FIX: Start timer when set becomes complete
+        if (!wasCompleteBefore && isCompleteNow && !newLogEntry.skipped) {
             onStartTimer();
         }
     };
@@ -596,7 +634,10 @@ const LiftingSession = ({ week, dayKey, onBack, allLogs, setAllLogs, onSkipDay, 
         <div className="p-4 md:p-6 pb-24">
             <div className="flex justify-between items-center mb-4">
                 <button onClick={onBack} className="flex items-center gap-2 text-sm font-medium text-blue-600 dark:text-blue-400 hover:underline"><ArrowLeft size={16}/> Back to Program</button>
-                <button onClick={() => onSkipDay(week, dayKey)} className="flex items-center gap-2 text-sm font-medium text-red-500 dark:text-red-400 bg-red-100 dark:bg-red-900/50 px-3 py-1.5 rounded-lg hover:bg-red-200 dark:hover:bg-red-800/50 transition-colors"><SkipForward size={16}/> Skip Day</button>
+                <div className="flex items-center gap-2">
+                    <button onClick={onStartTimer} className="flex items-center gap-2 text-sm font-medium text-yellow-600 dark:text-yellow-400 bg-yellow-100 dark:bg-yellow-900/50 px-3 py-1.5 rounded-lg hover:bg-yellow-200 dark:hover:bg-yellow-800/50 transition-colors"><Timer size={16}/> Start Timer</button>
+                    <button onClick={() => onSkipDay(week, dayKey)} className="flex items-center gap-2 text-sm font-medium text-red-500 dark:text-red-400 bg-red-100 dark:bg-red-900/50 px-3 py-1.5 rounded-lg hover:bg-red-200 dark:hover:bg-red-800/50 transition-colors"><SkipForward size={16}/> Skip Day</button>
+                </div>
             </div>
             <div className="mb-6 text-center">
                 <h2 className="text-3xl font-bold dark:text-white">Week {week}: {dayKey}</h2>
@@ -759,7 +800,7 @@ const DashboardView = ({ allLogs, programStructure, masterExerciseList, weeklySc
             }
         });
         const total = weeklySets * info.weeks;
-        const completed = Object.values(allLogs).filter(log => log.load && log.reps && (log.rir !== undefined && log.rir !== null && log.rir !== '')).length;
+        const completed = Object.values(allLogs).filter(log => !log.skipped && (log.load === 0 || log.load) && log.reps).length;
 
         let currentStreak = 0;
         let streakBroken = false;
@@ -772,22 +813,26 @@ const DashboardView = ({ allLogs, programStructure, masterExerciseList, weeklySc
                 }
             }
         }
-
-        for (const {week, day} of sortedDays) {
+        
+        const isDayComplete = (week, day) => {
             const workoutName = weeklySchedule.find(d => d.day === day)?.workout;
             const workout = programStructure[workoutName];
-            if (!workout) continue;
+            if (!workout) return false;
 
-            const isDayComplete = workout.exercises.every(exName => {
+            return workout.exercises.every(exName => {
                 const exDetails = getExerciseDetails(exName, masterExerciseList);
                 if (!exDetails) return false;
                 return Array.from({ length: exDetails.sets }, (_, i) => i + 1).every(setNum => {
                     const log = allLogs[`${week}-${day}-${exName}-${setNum}`];
-                    return log?.load && log?.reps && (log.rir !== undefined && log.rir !== null && log.rir !== '');
+                    // A set is complete if it has valid log data OR it was skipped
+                    return log?.skipped || ((log?.load === 0 || log?.load) && log?.reps && (log?.rir !== undefined && log?.rir !== null && log?.rir !== ''));
                 });
             });
+        }
 
-            if (isDayComplete) {
+
+        for (const {week, day} of sortedDays) {
+            if (isDayComplete(week, day)) {
                 if (!streakBroken) {
                     currentStreak++;
                 }
@@ -843,7 +888,8 @@ const SettingsView = ({ allLogs, historicalLogs, weightUnit, onWeightUnitChange,
     const [exportSelection, setExportSelection] = useState('all');
 
     const exportData = (logsToExport, filename) => {
-        if (Object.keys(logsToExport).length === 0) {
+        const validLogs = Object.values(logsToExport).filter(log => !log.skipped && log.exercise);
+        if (validLogs.length === 0) {
             openModal(
                 <div>
                     <h2 className="text-xl font-bold mb-4">No Data to Export</h2>
@@ -856,7 +902,7 @@ const SettingsView = ({ allLogs, historicalLogs, weightUnit, onWeightUnitChange,
             return;
         }
         const dayOrder = { Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6, Sun: 7 };
-        const sortedLogs = Object.values(logsToExport).filter(log => log.exercise).sort((a, b) => ((a.week - 1) * 7 + dayOrder[a.dayKey]) - ((b.week - 1) * 7 + dayOrder[b.dayKey]) || a.set - b.set);
+        const sortedLogs = validLogs.sort((a, b) => ((a.week - 1) * 7 + dayOrder[a.dayKey]) - ((b.week - 1) * 7 + dayOrder[b.dayKey]) || a.set - b.set);
         const headers = ['Week', 'Day', 'Session', 'Exercise', 'Set', 'Load (lbs)', 'Reps', 'RIR', 'e1RM'];
         const csvContent = [headers.join(','), ...sortedLogs.map(log => [log.week, log.dayKey, `"${log.session}"`, `"${log.exercise}"`, log.set, log.load, log.reps, log.rir || '', calculateE1RM(log.load, log.reps, log.rir)].join(','))].join('\n');
         const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
@@ -881,11 +927,11 @@ const SettingsView = ({ allLogs, historicalLogs, weightUnit, onWeightUnitChange,
         exportData(logsToExport, `project_overload_${type}_${value.replace('-', '_')}_data.csv`);
     };
 
-    const hasLogs = Object.keys(historicalLogs).length > 0;
+    const hasLogs = Object.keys(historicalLogs).filter(k => !historicalLogs[k].skipped).length > 0;
     
     const exportOptions = useMemo(() => {
         if (!hasLogs) return { weeks: [], workouts: [] };
-        const logs = Object.values(historicalLogs).filter(log => log.exercise && log.week && log.dayKey);
+        const logs = Object.values(historicalLogs).filter(log => log.exercise && log.week && log.dayKey && !log.skipped);
         const dayOrder = { Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6, Sun: 7 };
         const loggedWeeks = [...new Set(logs.map(log => log.week))].sort((a, b) => a - b);
         const loggedWorkouts = [...new Set(logs.map(log => `workout:${log.week}-${log.dayKey}`))].sort((a, b) => {
@@ -1076,14 +1122,15 @@ const AnalyticsView = ({ allLogs, masterExerciseList }) => {
     const filteredExercises = useMemo(() => uniqueExercises.filter(ex => ex.toLowerCase().includes(searchTerm.toLowerCase())), [uniqueExercises, searchTerm]);
 
     const filteredLogs = useMemo(() => {
-        if (timeFilter === 'all') return allLogs;
+        const logs = Object.fromEntries(Object.entries(allLogs).filter(([, log]) => !log.skipped));
+        if (timeFilter === 'all') return logs;
         const now = new Date();
         const filterDate = new Date();
         if (timeFilter === 'week') filterDate.setDate(now.getDate() - 7);
         if (timeFilter === 'month') filterDate.setDate(now.getDate() - 30);
         
         return Object.fromEntries(
-            Object.entries(allLogs).filter(([, log]) => {
+            Object.entries(logs).filter(([, log]) => {
                 if (!log.date) return false;
                 return new Date(log.date) >= filterDate;
             })
@@ -1104,7 +1151,7 @@ const AnalyticsView = ({ allLogs, masterExerciseList }) => {
         if (!selectedExercise || Object.keys(filteredLogs).length === 0) return [];
         const dayOrder = { Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6, Sun: 7 };
         const sessions = Object.values(filteredLogs).reduce((acc, log) => {
-            if (log.exercise === selectedExercise && log.load && log.reps) {
+            if (log.exercise === selectedExercise && (log.load === 0 || log.load) && log.reps) {
                 const sessionKey = `${log.week}-${log.dayKey}`;
                 if (!acc[sessionKey]) acc[sessionKey] = { week: parseInt(log.week, 10), dayKey: log.dayKey, sets: [] };
                 acc[sessionKey].sets.push({ ...log, load: parseFloat(log.load), reps: parseInt(log.reps, 10), rir: parseInt(log.rir, 10) });
@@ -1128,19 +1175,19 @@ const AnalyticsView = ({ allLogs, masterExerciseList }) => {
         if (Object.keys(filteredLogs).length === 0) return [];
         const volumesByWeek = {};
         Object.values(filteredLogs).forEach(log => {
-            if (log.load && log.reps && log.week) {
+            if ((log.load === 0 || log.load) && log.reps && log.week) {
                 const week = log.week;
                 if (!volumesByWeek[week]) {
                     volumesByWeek[week] = 0;
                 }
-                volumesByWeek[week] += (parseFloat(log.load) * parseInt(log.reps, 10));
+                volumesByWeek[week] += getSetVolume(log, masterExerciseList);
             }
         });
         return Object.entries(volumesByWeek).map(([week, volume]) => ({
             week: `Week ${week}`,
             totalVolume: Math.round(volume)
         })).sort((a, b) => parseInt(a.week.split(' ')[1]) - parseInt(b.week.split(' ')[1]));
-    }, [filteredLogs]);
+    }, [filteredLogs, masterExerciseList]);
 
 
     const muscleGroupData = useMemo(() => {
@@ -1153,10 +1200,10 @@ const AnalyticsView = ({ allLogs, masterExerciseList }) => {
         };
 
         Object.values(filteredLogs).forEach(log => {
-            if (log.load && log.reps && log.exercise) {
+            if ((log.load === 0 || log.load) && log.reps && log.exercise) {
                 const exerciseDetails = getExerciseDetails(log.exercise, masterExerciseList);
                 if (exerciseDetails && exerciseDetails.muscles) {
-                    const volume = log.load * log.reps;
+                    const volume = getSetVolume(log, masterExerciseList);
                     const { primary, secondary, tertiary, primaryContribution = 1, secondaryContribution = 0.5, tertiaryContribution = 0.25 } = exerciseDetails.muscles;
                     
                     ensureMuscle(primary);
@@ -1336,8 +1383,10 @@ const RecordsView = ({ allLogs }) => {
     
     const personalRecords = useMemo(() => {
         const records = {};
-        Object.values(allLogs).forEach(log => {
-            if (log.load && log.reps) {
+        const validLogs = Object.values(allLogs).filter(log => !log.skipped);
+
+        validLogs.forEach(log => {
+            if ((log.load === 0 || log.load) && log.reps) {
                 const e1rm = calculateE1RM(log.load, log.reps, log.rir);
                 if (!records[log.exercise] || e1rm > records[log.exercise].e1rm) {
                     records[log.exercise] = {
@@ -1598,7 +1647,7 @@ const EditProgramView = ({ programData, onProgramDataChange }) => {
         openModal(
             <EditExerciseModal
                 onSave={(newExercise, newName) => {
-                    updateProgramData('masterExerciseList', { ...masterExerciseList, [newName]: newName });
+                    updateProgramData('masterExerciseList', { ...masterExerciseList, [newName]: newExercise });
                     closeModal();
                 }}
                 onClose={closeModal}
@@ -1960,7 +2009,18 @@ const ProgramManagerView = ({ onProgramUpdate, activeProgram }) => {
 
     const handleShareProgram = () => {
         try {
-            const programJson = JSON.stringify(activeProgram, null, 2);
+            // FIX: Ensure only the active program structure is exported, without logs or other user data.
+            const programToExport = {
+                name: activeProgram.name,
+                info: activeProgram.info,
+                masterExerciseList: activeProgram.masterExerciseList,
+                programStructure: activeProgram.programStructure,
+                weeklySchedule: activeProgram.weeklySchedule,
+                workoutOrder: activeProgram.workoutOrder,
+                settings: activeProgram.settings,
+            };
+
+            const programJson = JSON.stringify(programToExport, null, 2);
             const blob = new Blob([programJson], { type: 'application/json' });
             const url = URL.createObjectURL(blob);
             const link = document.createElement('a');
@@ -2090,15 +2150,23 @@ const RenameWorkoutModal = ({ oldName, onSave, onClose }) => {
     );
 };
 
-const TutorialModal = ({ onProgramSelect, onClose }) => {
+const TutorialModal = ({ onProgramSelect, onClose, onBodyWeightSet }) => {
     const [step, setStep] = useState(1);
-    const totalSteps = 4;
+    const [localBodyWeight, setLocalBodyWeight] = useState('');
+    const totalSteps = 5;
 
     const handleSelectProgram = (presetKey) => {
         const presetData = presets[presetKey];
         onProgramSelect(presetData);
-        onClose();
+        nextStep();
     };
+
+    const handleFinish = () => {
+        if(localBodyWeight) {
+            onBodyWeightSet(localBodyWeight);
+        }
+        onClose();
+    }
 
     const nextStep = () => setStep(s => Math.min(totalSteps, s + 1));
     const prevStep = () => setStep(s => Math.max(1, s - 1));
@@ -2145,40 +2213,59 @@ const TutorialModal = ({ onProgramSelect, onClose }) => {
                         </div>
                     </div>
                 )}
+                 {step === 5 && (
+                    <div>
+                        <h3 className="font-bold text-lg text-gray-900 dark:text-white mb-2 flex items-center gap-2"><Weight size={18}/> Enter Your Bodyweight</h3>
+                        <p className="text-sm mb-4">Please enter your current bodyweight. This helps with tracking certain achievements and progress metrics. You can change this later in settings.</p>
+                        <input 
+                            type="number"
+                            value={localBodyWeight}
+                            onChange={(e) => setLocalBodyWeight(e.target.value)}
+                            className="w-full p-2 bg-white dark:bg-gray-700 rounded-md border-gray-300 dark:border-gray-600"
+                            placeholder="Your current bodyweight"
+                        />
+                    </div>
+                )}
             </div>
 
             {/* Navigation */}
             <div className="flex justify-between items-center mt-6">
                 <span className="text-sm text-gray-500">{step} / {totalSteps}</span>
                 <div className="flex gap-2">
-                     {step > 1 && (
+                     {step > 1 && step <= 4 && (
                         <button onClick={prevStep} className="px-4 py-2 bg-gray-200 dark:bg-gray-600 rounded-lg">Back</button>
                      )}
-                     {step < totalSteps ? (
+                     {step < 4 ? (
                         <button onClick={nextStep} className="px-4 py-2 bg-blue-600 text-white rounded-lg">Next</button>
+                     ) : step === 5 ? (
+                         <button onClick={handleFinish} className="px-4 py-2 bg-green-600 text-white rounded-lg">Finish Setup</button>
                      ) : (
                          <button onClick={onClose} className="px-4 py-2 bg-gray-200 dark:bg-gray-600 rounded-lg">Close</button>
-                     )}
+                     )
+                     }
                 </div>
             </div>
         </div>
     );
 };
 
-const RestTimer = ({ initialTime, onClose }) => {
+const RestTimer = ({ initialTime, onClose, onTimerEnd }) => {
     const [time, setTime] = useState(initialTime);
     const progress = (time / initialTime) * 100;
 
     useEffect(() => {
         if (time <= 0) {
-            onClose();
+            if (navigator.vibrate) {
+                navigator.vibrate([500, 100, 500]);
+            }
+            onTimerEnd();
             return;
         }
         const timerId = setInterval(() => {
             setTime(t => t - 1);
         }, 1000);
         return () => clearInterval(timerId);
-    }, [time, onClose]);
+    }, [time, onTimerEnd]);
 
     const minutes = Math.floor(time / 60);
     const seconds = time % 60;
@@ -2226,7 +2313,7 @@ const calculateStreak = (allLogs, programData) => {
             if (!exDetails) return false;
             return Array.from({ length: exDetails.sets }, (_, i) => i + 1).every(setNum => {
                 const log = allLogs[`${week}-${day}-${exName}-${setNum}`];
-                return log?.load && log?.reps && (log.rir !== undefined && log.rir !== null && log.rir !== '');
+                return log?.skipped || ((log?.load === 0 || log?.load) && log?.reps && (log.rir !== undefined && log.rir !== null && log.rir !== ''));
             });
         });
         if (isDayComplete) {
@@ -2245,7 +2332,7 @@ const calculateStreak = (allLogs, programData) => {
 
 // Helper function to get max e1RM for an exercise type
 const getMaxE1RMFor = (logs, exerciseSubstring) => {
-    const relevantLogs = Object.values(logs).filter(l => l.exercise.toLowerCase().includes(exerciseSubstring));
+    const relevantLogs = Object.values(logs).filter(l => !l.skipped && l.exercise.toLowerCase().includes(exerciseSubstring));
     if (relevantLogs.length === 0) return 0;
     return Math.max(0, ...relevantLogs.map(l => calculateE1RM(l.load, l.reps, l.rir)));
 };
@@ -2263,7 +2350,7 @@ const achievementsList = {
             { name: "Gold", value: 500000, description: "Lifted a total of 500,000 lbs. Incredible strength!" },
             { name: "Platinum", value: 1000000, description: "Joined the 1,000,000 lbs club! Truly elite." },
         ],
-        getValue: (logs) => Object.values(logs).reduce((sum, log) => sum + ((log.load || 0) * (log.reps || 0)), 0),
+        getValue: (logs, program) => Object.values(logs).reduce((sum, log) => sum + getSetVolume(log, program.masterExerciseList), 0),
     },
     volume_volcano: {
         name: "Volume Volcano",
@@ -2271,15 +2358,14 @@ const achievementsList = {
         icon: TrendingUp,
         type: 'tiered',
         tiers: [
-            { name: "Bronze", value: 10000, description: "Lifted over 10,000 lbs in a single workout." },
+            { name: "Bronze", value: 12000, description: "Lifted over 12,000 lbs in a single workout." },
             { name: "Silver", value: 20000, description: "Lifted over 20,000 lbs in a single workout." },
             { name: "Gold", value: 30000, description: "Lifted over 30,000 lbs in a single workout. A truly volcanic session!" },
         ],
-        getValue: (logs) => {
+        getValue: (logs, program) => {
             const dailyVolumes = Object.values(logs).reduce((acc, log) => {
                 const dayKey = `${log.week}-${log.dayKey}`;
-                const volume = (log.load || 0) * (log.reps || 0);
-                acc[dayKey] = (acc[dayKey] || 0) + volume;
+                acc[dayKey] = (acc[dayKey] || 0) + getSetVolume(log, program.masterExerciseList);
                 return acc;
             }, {});
             return Math.max(0, ...Object.values(dailyVolumes));
@@ -2295,11 +2381,10 @@ const achievementsList = {
             { name: "Silver", value: 75000, description: "Lifted over 75,000 lbs in a single week." },
             { name: "Gold", value: 100000, description: "Lifted over 100,000 lbs in a single week. An avalanche of gains!" },
         ],
-        getValue: (logs) => {
+        getValue: (logs, program) => {
             const weeklyVolumes = Object.values(logs).reduce((acc, log) => {
                 const weekKey = log.week;
-                const volume = (log.load || 0) * (log.reps || 0);
-                acc[weekKey] = (acc[weekKey] || 0) + volume;
+                acc[weekKey] = (acc[weekKey] || 0) + getSetVolume(log, program.masterExerciseList);
                 return acc;
             }, {});
             return Math.max(0, ...Object.values(weeklyVolumes));
@@ -2369,10 +2454,10 @@ const achievementsList = {
         getValue: (logs) => {
             const prs = {}; // { "exercise-load": maxReps }
             let prCount = 0;
-            const sortedLogs = Object.values(logs).filter(l => l.date).sort((a, b) => new Date(a.date) - new Date(b.date));
+            const sortedLogs = Object.values(logs).filter(l => !l.skipped && l.date).sort((a, b) => new Date(a.date) - new Date(b.date));
             
             for (const log of sortedLogs) {
-                if (log.load && log.reps) {
+                if ((log.load || log.load === 0) && log.reps) {
                     const key = `${log.exercise}-${log.load}`;
                     const currentReps = parseInt(log.reps, 10);
                     const existingPr = prs[key] || 0;
@@ -2395,7 +2480,7 @@ const achievementsList = {
         type: 'simple',
         criteria: (logs, program) => Object.values(logs).some(l => {
             const details = getExerciseDetails(l.exercise, program.masterExerciseList);
-            return details?.equipment === 'barbell' && l.load >= 135;
+            return !l.skipped && details?.equipment === 'barbell' && l.load >= 135;
         }),
     },
 
@@ -2411,7 +2496,7 @@ const achievementsList = {
             { name: "Gold", value: 100, description: "Completed 100 workouts! A true veteran of the iron." },
             { name: "Platinum", value: 250, description: "Completed 250 workouts. This is a lifestyle." },
         ],
-        getValue: (logs) => new Set(Object.values(logs).filter(l => l.week && l.dayKey).map(l => `${l.week}-${l.dayKey}`)).size,
+        getValue: (logs) => new Set(Object.values(logs).filter(l => l.week && l.dayKey && !l.skipped).map(l => `${l.week}-${l.dayKey}`)).size,
     },
     workout_streak: {
         name: "Workout Streak",
@@ -2432,7 +2517,7 @@ const achievementsList = {
         type: 'simple',
         criteria: (logs) => {
             const weeklySessions = Object.values(logs).reduce((acc, log) => {
-                if (log.week && log.dayKey) {
+                if (log.week && log.dayKey && !log.skipped) {
                     if (!acc[log.week]) acc[log.week] = new Set();
                     acc[log.week].add(log.dayKey);
                 }
@@ -2463,7 +2548,7 @@ const achievementsList = {
         type: 'simple',
         criteria: (logs) => {
             const weeklySessions = Object.values(logs).reduce((acc, log) => {
-                if (log.week && log.dayKey) {
+                if (log.week && log.dayKey && !log.skipped) {
                     if (!acc[log.week]) acc[log.week] = new Set();
                     acc[log.week].add(log.dayKey);
                 }
@@ -2524,7 +2609,7 @@ const achievementsList = {
     },
     pull_up_pro: {
         name: "Pull-up Pro",
-        description: "Perform 10 or more strict pull-ups in a single set.",
+        description: "Perform as many unweighted pull-ups as possible in a single set.",
         icon: Award,
         type: 'tiered',
         tiers: [
@@ -2532,14 +2617,14 @@ const achievementsList = {
             { name: "Elite", value: 15, description: "Completed 15 strict pull-ups." },
             { name: "Master", value: 20, description: "Completed 20 strict pull-ups." },
         ],
-        getValue: (logs) => Math.max(0, ...Object.values(logs).filter(l => l.exercise.toLowerCase().includes('pullup') || l.exercise.toLowerCase().includes('pull-up')).map(l => parseInt(l.reps, 10) || 0))
+        getValue: (logs) => Math.max(0, ...Object.values(logs).filter(l => (l.exercise.toLowerCase().includes('pullup') || l.exercise.toLowerCase().includes('pull-up')) && (!l.load || l.load == 0) && !l.skipped).map(l => parseInt(l.reps, 10) || 0))
     },
     unbroken_20: {
         name: "Unbroken 20",
         description: "Complete a 20-rep squat set with at least 135 lbs.",
         icon: InfinityIcon,
         type: 'simple',
-        criteria: (logs) => Object.values(logs).some(l => l.exercise.toLowerCase().includes('squat') && l.reps >= 20 && l.load >= 135),
+        criteria: (logs) => Object.values(logs).some(l => !l.skipped && l.exercise.toLowerCase().includes('squat') && l.reps >= 20 && l.load >= 135),
     },
 
     // --- Technique & Quality Achievements ---
@@ -2553,7 +2638,7 @@ const achievementsList = {
             { name: "Silver", value: 250, description: "Logged RIR for 250 sets." },
             { name: "Gold", value: 1000, description: "Logged RIR for 1000 sets. You're in tune with your body." },
         ],
-        getValue: (logs) => Object.values(logs).filter(l => l.rir !== undefined && l.rir !== null && l.rir !== '').length,
+        getValue: (logs) => Object.values(logs).filter(l => !l.skipped && l.rir !== undefined && l.rir !== null && l.rir !== '').length,
     },
     paused_and_proud: {
         name: "Paused & Proud",
@@ -2564,7 +2649,7 @@ const achievementsList = {
             { name: "Bronze", value: 10, description: "Completed 10 sets of paused bench press." },
             { name: "Silver", value: 50, description: "Completed 50 sets of paused bench press." },
         ],
-        getValue: (logs) => Object.values(logs).filter(l => l.exercise.toLowerCase().includes('paused') && l.exercise.toLowerCase().includes('bench')).length,
+        getValue: (logs) => Object.values(logs).filter(l => !l.skipped && l.exercise.toLowerCase().includes('paused') && l.exercise.toLowerCase().includes('bench')).length,
     },
     bail_smart: {
         name: "Bail Smart",
@@ -2577,6 +2662,7 @@ const achievementsList = {
         ],
         getValue: (logs, program) => {
             return Object.values(logs).filter(log => {
+                if (log.skipped) return false;
                 const details = getExerciseDetails(log.exercise, program.masterExerciseList);
                 if (!details || !details.rir || !log.rir) return false;
                 const targetRir = details.rir[log.set - 1];
@@ -2594,7 +2680,7 @@ const achievementsList = {
         criteria: (logs, program) => {
             if(!program || !program.info || !program.weeklySchedule) return false;
             const totalWorkouts = program.info.weeks * program.weeklySchedule.filter(d => d.workout !== 'Rest').length;
-            const completedWorkouts = new Set(Object.values(logs).filter(l => l.week && l.dayKey).map(l => `${l.week}-${l.dayKey}`)).size;
+            const completedWorkouts = new Set(Object.values(logs).filter(l => l.week && l.dayKey && !l.skipped).map(l => `${l.week}-${l.dayKey}`)).size;
             return completedWorkouts > 0 && completedWorkouts >= totalWorkouts;
         }
     },
@@ -2634,6 +2720,9 @@ const AchievementCard = ({ achievementId, achievement, unlockedStatus, currentVa
             if (unlockedTierIndex < achievement.tiers.length - 1) {
                 nextTier = achievement.tiers[unlockedTierIndex + 1];
                 progressPercentage = Math.min(100, (currentValue / nextTier.value) * 100);
+            } else {
+                // Max tier reached
+                progressPercentage = 100;
             }
         } else {
             // Not unlocked yet, show progress towards the first tier
@@ -2649,7 +2738,12 @@ const AchievementCard = ({ achievementId, achievement, unlockedStatus, currentVa
         silver: { bg: 'bg-slate-100 dark:bg-slate-800/50', text: 'text-slate-600 dark:text-slate-400', border: 'border-slate-400', progress: 'bg-slate-500' },
         gold: { bg: 'bg-yellow-100 dark:bg-yellow-900/50', text: 'text-yellow-500 dark:text-yellow-400', border: 'border-yellow-500', progress: 'bg-yellow-500' },
         platinum: { bg: 'bg-cyan-100 dark:bg-cyan-900/50', text: 'text-cyan-500 dark:text-cyan-400', border: 'border-cyan-400', progress: 'bg-cyan-500' },
-        diamond: { bg: 'bg-sky-100 dark:bg-sky-900/50', text: 'text-sky-500 dark:text-sky-400', border: 'border-sky-400', progress: 'bg-sky-500' },
+        '1.0x bw': { bg: 'bg-gray-100 dark:bg-gray-800/50', text: 'text-gray-600 dark:text-gray-400', border: 'border-gray-400', progress: 'bg-gray-500' },
+        '1.25x bw': { bg: 'bg-gray-100 dark:bg-gray-800/50', text: 'text-gray-600 dark:text-gray-400', border: 'border-gray-400', progress: 'bg-gray-500' },
+        '1.5x bw': { bg: 'bg-red-100 dark:bg-red-900/50', text: 'text-red-600 dark:text-red-400', border: 'border-red-400', progress: 'bg-red-500' },
+        '2.0x bw': { bg: 'bg-blue-100 dark:bg-blue-900/50', text: 'text-blue-600 dark:text-blue-400', border: 'border-blue-400', progress: 'bg-blue-500' },
+        '2.5x bw': { bg: 'bg-purple-100 dark:bg-purple-900/50', text: 'text-purple-600 dark:text-purple-400', border: 'border-purple-400', progress: 'bg-purple-500' },
+        '3.0x bw': { bg: 'bg-pink-100 dark:bg-pink-900/50', text: 'text-pink-600 dark:text-pink-400', border: 'border-pink-400', progress: 'bg-pink-500' },
         '135 club': { bg: 'bg-gray-100 dark:bg-gray-800/50', text: 'text-gray-600 dark:text-gray-400', border: 'border-gray-400', progress: 'bg-gray-500' },
         '185 club': { bg: 'bg-gray-100 dark:bg-gray-800/50', text: 'text-gray-600 dark:text-gray-400', border: 'border-gray-400', progress: 'bg-gray-500' },
         'two wheels': { bg: 'bg-red-100 dark:bg-red-900/50', text: 'text-red-600 dark:text-red-400', border: 'border-red-400', progress: 'bg-red-500' },
@@ -2659,34 +2753,35 @@ const AchievementCard = ({ achievementId, achievement, unlockedStatus, currentVa
         'five wheels': { bg: 'bg-pink-100 dark:bg-pink-900/50', text: 'text-pink-600 dark:text-pink-400', border: 'border-pink-400', progress: 'bg-pink-500' },
         'press prince': { bg: 'bg-indigo-100 dark:bg-indigo-900/50', text: 'text-indigo-600 dark:text-indigo-400', border: 'border-indigo-400', progress: 'bg-indigo-500' },
         'overlord': { bg: 'bg-violet-100 dark:bg-violet-900/50', text: 'text-violet-600 dark:text-violet-400', border: 'border-violet-400', progress: 'bg-violet-500' },
-        'pro': { bg: 'bg-teal-100 dark:bg-teal-900/50', text: 'text-teal-600 dark:text-teal-400', border: 'border-teal-400', progress: 'bg-teal-500' },
-        'elite': { bg: 'bg-emerald-100 dark:bg-emerald-900/50', text: 'text-emerald-600 dark:text-emerald-400', border: 'border-emerald-400', progress: 'bg-emerald-500' },
-        'master': { bg: 'bg-lime-100 dark:bg-lime-900/50', text: 'text-lime-600 dark:text-lime-400', border: 'border-lime-400', progress: 'bg-lime-500' },
-        'apprentice': { bg: 'bg-gray-100 dark:bg-gray-800/50', text: 'text-gray-600 dark:text-gray-400', border: 'border-gray-400', progress: 'bg-gray-500' },
-        'journeyman': { bg: 'bg-stone-100 dark:bg-stone-800/50', text: 'text-stone-600 dark:text-stone-400', border: 'border-stone-400', progress: 'bg-stone-500' },
+        initiate: { bg: 'bg-green-100 dark:bg-green-900/50', text: 'text-green-600 dark:text-green-400', border: 'border-green-400', progress: 'bg-green-500' },
+        pro: { bg: 'bg-teal-100 dark:bg-teal-900/50', text: 'text-teal-600 dark:text-teal-400', border: 'border-teal-400', progress: 'bg-teal-500' },
+        elite: { bg: 'bg-emerald-100 dark:bg-emerald-900/50', text: 'text-emerald-600 dark:text-emerald-400', border: 'border-emerald-400', progress: 'bg-emerald-500' },
+        master: { bg: 'bg-lime-100 dark:bg-lime-900/50', text: 'text-lime-600 dark:text-lime-400', border: 'border-lime-400', progress: 'bg-lime-500' },
+        apprentice: { bg: 'bg-gray-100 dark:bg-gray-800/50', text: 'text-gray-600 dark:text-gray-400', border: 'border-gray-400', progress: 'bg-gray-500' },
+        journeyman: { bg: 'bg-stone-100 dark:bg-stone-800/50', text: 'text-stone-600 dark:text-stone-400', border: 'border-stone-400', progress: 'bg-stone-500' },
     };
 
     const colorKey = tierName ? tierName.toLowerCase() : 'default';
-    const colors = tierColors[colorKey] || { bg: 'bg-gray-100 dark:bg-gray-800', text: 'text-gray-500', border: 'border-transparent', progress: 'bg-blue-500' };
+    const colorScheme = tierColors[colorKey] || { bg: 'bg-gray-100 dark:bg-gray-800', text: 'text-gray-500', border: 'border-transparent', progress: 'bg-blue-500' };
 
-    const cardClasses = `p-4 rounded-xl flex flex-col items-center justify-between text-center aspect-square transition-all duration-300 ${isUnlocked ? `${colors.bg} border-2 ${colors.border} shadow-lg` : 'bg-gray-100 dark:bg-gray-800 filter grayscale opacity-60'}`;
-    const iconClasses = isUnlocked ? colors.text : 'text-gray-500';
+    const cardClasses = `p-4 rounded-xl flex flex-col items-center justify-center text-center aspect-square transition-all duration-300 ${isUnlocked ? `${colorScheme.bg} border-2 ${colorScheme.border} shadow-lg` : 'bg-gray-100 dark:bg-gray-800 filter grayscale opacity-60'}`;
+    const iconClasses = isUnlocked ? colorScheme.text : 'text-gray-500';
     const textClasses = isUnlocked ? 'text-gray-800 dark:text-gray-200' : 'text-gray-600 dark:text-gray-400';
 
     return (
         <button onClick={(e) => onClick(e, achievementId)} className={cardClasses}>
-            <div className="flex flex-col items-center justify-center">
+            <div className="flex flex-col items-center justify-center flex-grow">
                 <Icon size={36} className={iconClasses} />
                 <h3 className={`mt-2 font-bold text-sm ${textClasses}`}>{displayName}</h3>
             </div>
-            {nextTier && (
-                <div className="w-full mt-2">
+            {(nextTier || (isUnlocked && achievement.type === 'tiered')) && (
+                 <div className="w-full mt-2 self-end">
                     <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-1.5">
-                        <div className={`${isUnlocked ? colors.progress : 'bg-blue-500'} h-1.5 rounded-full`} style={{ width: `${progressPercentage}%` }}></div>
+                        <div className={`${isUnlocked ? colorScheme.progress : 'bg-blue-500'} h-1.5 rounded-full`} style={{ width: `${progressPercentage}%` }}></div>
                     </div>
-                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                    {nextTier && <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                         {Math.floor(currentValue).toLocaleString()} / {nextTier.value.toLocaleString()}
-                    </p>
+                    </p>}
                 </div>
             )}
         </button>
@@ -2712,33 +2807,34 @@ const AchievementsView = ({ unlockedAchievements, historicalLogs, programData, b
         const unlockedStatus = unlockedAchievements[id];
         const Icon = achievement.icon;
         
-        let title = achievement.name;
-        let description = achievement.description;
-        let isUnlocked = false;
-
-        if (achievement.type === 'tiered') {
-            const tierIndex = unlockedStatus;
-            if (tierIndex !== undefined && tierIndex > -1) {
-                const tier = achievement.tiers[tierIndex];
-                title = `${achievement.name} - ${tier.name}`;
-                description = tier.description;
-                isUnlocked = true;
-            }
-        } else {
-            isUnlocked = !!unlockedStatus;
-        }
-
         openModal(
             <div>
                 <div className="flex items-center gap-3 mb-4">
-                    <Icon size={32} className={isUnlocked ? 'text-yellow-500' : 'text-gray-500'} />
-                    <h2 className="text-xl font-bold">{title}</h2>
+                    <Icon size={32} className={'text-yellow-500'} />
+                    <h2 className="text-xl font-bold">{achievement.name}</h2>
                 </div>
-                <p className="text-gray-600 dark:text-gray-400">{description}</p>
+                <p className="text-gray-600 dark:text-gray-400 mb-4">{achievement.description}</p>
+
+                {achievement.type === 'tiered' && (
+                    <div className="space-y-2">
+                        <h3 className="font-semibold">Tiers:</h3>
+                        {achievement.tiers.map((tier, index) => (
+                            <div key={tier.name} className={`flex items-center gap-3 p-2 rounded-md ${unlockedStatus >= index ? 'bg-green-100 dark:bg-green-900/50' : 'bg-gray-100 dark:bg-gray-700/50'}`}>
+                                <CheckCircle size={20} className={unlockedStatus >= index ? 'text-green-500' : 'text-gray-400'} />
+                                <div>
+                                    <p className="font-bold">{tier.name} ({tier.value.toLocaleString()})</p>
+                                    <p className="text-xs text-gray-500 dark:text-gray-400">{tier.description}</p>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                )}
+
                 <div className="flex justify-end mt-6">
                     <button onClick={closeModal} className="px-4 py-2 bg-blue-600 text-white rounded-lg">Close</button>
                 </div>
-            </div>
+            </div>,
+            'lg'
         );
     };
 
@@ -2785,14 +2881,16 @@ const AppHeader = ({ programName, onNavChange }) => {
     const { setSidebarOpen } = useContext(AppStateContext);
     return (
         <header className="bg-white dark:bg-gray-800/80 backdrop-blur-sm shadow-sm sticky top-0 z-40 p-4 flex justify-between items-center">
-            <button onClick={() => setSidebarOpen(true)} className="p-2">
+            <button onClick={() => setSidebarOpen(true)} className="p-2 md:invisible">
                 <Menu />
             </button>
-            <button onClick={() => onNavChange('main')} className="flex items-center gap-2">
-                 <WingIcon className="w-8 h-8" />
-                 <h1 className="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-green-500 to-blue-600">{programName}</h1>
-            </button>
-            <div className="w-8"></div> {/* Placeholder for balance */}
+             <div className="flex-1 flex justify-center">
+                <button onClick={() => onNavChange('main')} className="flex items-center gap-2">
+                     <WingIcon className="w-8 h-8" />
+                     <h1 className="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-green-500 to-blue-600">Project Overload</h1>
+                </button>
+            </div>
+            <div className="w-8 md:invisible"></div> {/* Placeholder for balance */}
         </header>
     );
 };
@@ -2812,11 +2910,11 @@ const Sidebar = ({ onNavChange, currentPage }) => {
 
     return (
         <>
-            <div className={`fixed inset-0 bg-black/60 z-40 transition-opacity ${isSidebarOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`} onClick={() => setSidebarOpen(false)}></div>
-            <div className={`fixed top-0 left-0 h-full w-64 bg-white dark:bg-gray-800 shadow-lg z-50 transform transition-transform ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+            <div className={`fixed inset-0 bg-black/60 z-40 transition-opacity md:hidden ${isSidebarOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`} onClick={() => setSidebarOpen(false)}></div>
+            <div className={`fixed top-0 left-0 h-full w-64 bg-white dark:bg-gray-800 shadow-lg z-50 transform transition-transform ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0`}>
                 <div className="p-4 flex justify-between items-center border-b border-gray-200 dark:border-gray-700">
                     <h2 className="font-bold text-lg">Menu</h2>
-                    <button onClick={() => setSidebarOpen(false)} className="p-2"><X /></button>
+                    <button onClick={() => setSidebarOpen(false)} className="p-2 md:hidden"><X /></button>
                 </div>
                 <nav className="p-4">
                     <ul className="space-y-2">
@@ -2855,7 +2953,7 @@ const Modal = () => {
     const modalSize = sizeClasses[modalContent.size] || sizeClasses.md;
 
     return (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50 p-4" onClick={closeModal}>
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-[60] p-4" onClick={closeModal}>
             <div className={`bg-white dark:bg-gray-800 rounded-lg shadow-xl p-6 w-full ${modalSize}`} onClick={e => e.stopPropagation()}>
                 <div className="flex justify-end -mt-2 -mr-2">
                     <button onClick={closeModal} className="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700"><X size={20} /></button>
@@ -2871,11 +2969,14 @@ const Modal = () => {
 const Toast = ({ message, level }) => {
     const levelStyles = {
         success: 'bg-green-500 text-white',
+        error: 'bg-red-500 text-white',
         bronze: 'bg-amber-600 text-white',
         silver: 'bg-slate-500 text-white',
         gold: 'bg-yellow-500 text-black',
         platinum: 'bg-cyan-400 text-black',
-        diamond: 'bg-sky-400 text-white',
+        pro: 'bg-teal-500 text-white',
+        elite: 'bg-emerald-500 text-white',
+        master: 'bg-lime-400 text-black',
     };
     const style = levelStyles[level] || levelStyles.success;
     return (
@@ -2912,6 +3013,10 @@ const AppCore = () => {
     const [activeTimer, setActiveTimer] = useState(null);
     const [unlockedAchievements, setUnlockedAchievements] = useState({});
 
+    useEffect(() => {
+        document.title = "Project Overload | Fitness Tracker";
+    }, []);
+
     const handleProgramUpdate = useCallback((newProgramData) => {
         setProgramData(newProgramData);
         if(db && customId) {
@@ -2921,16 +3026,22 @@ const AppCore = () => {
             addToast("Program updated successfully!", "success");
         }
     }, [db, customId, addToast]);
+
+     const handleBodyWeightChange = (newWeight) => {
+        setBodyWeight(newWeight);
+        handleUpdateAndSave({ bodyWeight: newWeight });
+    };
     
     const showTutorial = useCallback(() => {
         openModal(
             <TutorialModal 
                 onClose={closeModal} 
                 onProgramSelect={handleProgramUpdate}
+                onBodyWeightSet={handleBodyWeightChange}
             />, 
             'lg'
         );
-    }, [openModal, closeModal, handleProgramUpdate]);
+    }, [openModal, closeModal, handleProgramUpdate, handleBodyWeightChange]);
 
     // Data loading from Firestore
     useEffect(() => {
@@ -2971,7 +3082,7 @@ const AppCore = () => {
                     programStructure: data.programStructure || defaultProgram.programStructure,
                     weeklySchedule: data.weeklySchedule || defaultProgram.weeklySchedule,
                     workoutOrder: data.workoutOrder || defaultProgram.workoutOrder,
-                    settings: data.settings || defaultProgram.settings,
+                    settings: { ...defaultProgram.settings, ...data.settings },
                 };
                 setProgramData(loadedProgram);
 
@@ -3043,10 +3154,10 @@ const AppCore = () => {
             const achievement = achievementsList[id];
 
             if (oldStatus === undefined && newStatus !== undefined) {
-                if (achievement.type === 'tiered') {
+                if (achievement.type === 'tiered' && newStatus > -1) {
                     const tier = achievement.tiers[newStatus];
                     newlyAchievedMessages.push({ message: `New Achievement: ${achievement.name} - ${tier.name}`, level: tier.name.toLowerCase() });
-                } else {
+                } else if(achievement.type === 'simple' && newStatus === true) {
                     newlyAchievedMessages.push({ message: `New Achievement: ${achievement.name}`, level: 'gold' });
                 }
             } else if (typeof oldStatus === 'number' && typeof newStatus === 'number' && newStatus > oldStatus) {
@@ -3082,7 +3193,9 @@ const AppCore = () => {
         };
 
         window.addEventListener('popstate', handlePopState);
-        handlePopState({state: window.history.state});
+        const initialHash = window.location.hash.replace('#/', '') || 'main';
+        setPageState({ view: initialHash, data: window.history.state?.data || {} });
+
 
         return () => {
             window.removeEventListener('popstate', handlePopState);
@@ -3105,11 +3218,6 @@ const AppCore = () => {
     const handleWeightUnitChange = (newUnit) => {
         setWeightUnit(newUnit);
         handleUpdateAndSave({ weightUnit: newUnit });
-    };
-    
-    const handleBodyWeightChange = (newWeight) => {
-        setBodyWeight(newWeight);
-        handleUpdateAndSave({ bodyWeight: newWeight });
     };
 
     const handleSkipDay = (week, dayKey) => {
@@ -3146,6 +3254,19 @@ const AppCore = () => {
         }
     };
 
+    const handleTimerEnd = useCallback(() => {
+        setActiveTimer(null);
+        openModal(
+            <div>
+                <h2 className="text-3xl font-bold text-center text-green-500">Rest Over!</h2>
+                <p className="text-center mt-2">Time to start your next set.</p>
+                <div className="flex justify-center mt-6">
+                    <button onClick={closeModal} className="px-6 py-2 bg-blue-600 text-white rounded-lg">Let's Go!</button>
+                </div>
+            </div>
+        );
+    }, [openModal, closeModal]);
+
     const handleStartTimer = () => {
         if (programData.settings.restTimer.enabled) {
             setActiveTimer(programData.settings.restTimer.duration);
@@ -3173,7 +3294,7 @@ const AppCore = () => {
                     if (!exDetails) return false;
                     return Array.from({ length: exDetails.sets }, (_, i) => i + 1).every(setNum => {
                         const log = allLogs[`${dayKey}-${exName}-${setNum}`];
-                        return log?.load && log?.reps;
+                        return log?.skipped || ((log?.load === 0 || log?.load) && log?.reps && (log.rir !== undefined && log.rir !== null && log.rir !== ''));
                     });
                 });
                 status.set(dayKey, { isDayComplete, isSkipped });
@@ -3212,15 +3333,15 @@ const AppCore = () => {
 
     return (
         <div className="bg-gray-100 dark:bg-gray-900 min-h-screen font-sans text-gray-900 dark:text-gray-100">
-            <Sidebar onNavChange={navigate} currentPage={pageState.view} />
-            <div className="flex flex-col min-h-screen">
+            <div className="md:pl-64">
                 <AppHeader programName={programData.info.name} onNavChange={navigate} />
-                <main className="flex-grow">
+                 <main className="flex-grow">
                     <div className="container mx-auto max-w-4xl">{renderContent()}</div>
                 </main>
             </div>
+            <Sidebar onNavChange={navigate} currentPage={pageState.view} />
              <Modal />
-             {activeTimer && <RestTimer initialTime={activeTimer} onClose={() => setActiveTimer(null)} />}
+             {activeTimer && <RestTimer initialTime={activeTimer} onClose={() => setActiveTimer(null)} onTimerEnd={handleTimerEnd} />}
              <ToastContainer />
         </div>
     );
