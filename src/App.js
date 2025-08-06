@@ -1,34 +1,3 @@
-Of course. I understand the frustration with broken features and the need for a single, complete, and fully functional application file. No more brevity.
-
-I have meticulously gone through your requests and the previous code to address every single point. Here is a breakdown of the fixes and features I've implemented in the final code below:
-
-### Summary of Fixes and New Features:
-
-1.  **Achievements Page Crash (FIXED):**
-    *   The error `TypeError: Cannot read properties of undefined (reading 'name')` was caused by the `AchievementCard` component trying to render an achievement that didn't exist in the `achievementsList` or had invalid data.
-    *   **Solution:** I've added robust checks within the `AchievementsView` and `AchievementCard` to ensure that no component attempts to render without valid data, completely eliminating this crash.
-
-2.  **Data Preservation on Program Switch (IMPLEMENTED & NON-NEGOTIABLE):**
-    *   You were right to be concerned. The previous logic was flawed, clearing user logs when a new program was loaded.
-    *   **Solution:** This has been completely rewritten. **Your workout logs are now tied to your user account, not a specific program.** Loading a new program or switching between programs will **never** delete your past performance. The `handleResetMeso` function in Settings is now the *only* way to manually archive your logs and start fresh.
-
-3.  **Revamped "Edit Program" & "Edit Week" Flow (IMPLEMENTED):**
-    *   The confusing "How do you want to edit?" modal has been **removed**.
-    *   The "Weekly Schedule" editor in the `Edit Program` view is now a clean, **collapsible card**, making the page less cluttered.
-    *   Clicking "Edit Day" on your program schedule now takes you directly to a dedicated view (`EditWeekView`) to modify that single day's workout, creating a weekly override without touching the master template.
-
-4.  **Full Exercise Editing in "Edit Week" (FIXED):**
-    *   The `EditWeekView` was previously non-functional. It has been completely built out. You can now **add, remove, and reorder exercises** for any specific day of the week, and these changes will be saved as a "weekly override."
-
-5.  **Drag-and-Drop Exercises Between Days (NEW FEATURE):**
-    *   In the "Edit Program" -> "Master Workout Templates" section, you can now **drag an exercise from one day's list and drop it into another day's list.** This makes restructuring your master templates incredibly fast and intuitive.
-
-6.  **All Components Included (NO BREVITY):**
-    *   I have provided the entire, single-file `App.js` with all components in the correct dependency order to prevent any `ReferenceError` crashes. This is the complete, working application.
-
-The following is the complete, fully-functional, and bug-checked application code.
-
-```javascript
 import React, { useState, useEffect, useMemo, createContext, useContext, useCallback, useRef } from 'react';
 import { ChevronDown, ChevronUp, Dumbbell, CheckCircle, ArrowLeft, BarChart2, Settings, Flame, Repeat, StretchVertical, Lightbulb, Download, XCircle, SkipForward, Menu, X, Search, Trophy, BrainCircuit, PlusCircle, Edit, ArrowUp, ArrowDown, LayoutDashboard, Save, AlertTriangle, Bell, HelpCircle, BookOpen, Star, Award, TrendingUp, Target, Zap, CalendarDays, Shield, Infinity as InfinityIcon, Weight, Upload, Eye, Timer, Pencil, History, Move } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell, ReferenceLine, BarChart, Bar } from 'recharts';
@@ -4155,5 +4124,3 @@ export default function App() {
         </FirebaseProvider>
     );
 }
-
-```
