@@ -3999,7 +3999,6 @@ const ToastContainer = () => {
         </div>
     );
 };
-// --- App Core (The main component, now defined after its children) ---
 
 const AppCore = () => {
     const [pageState, setPageState] = useState({ view: 'main', data: {} });
@@ -4224,8 +4223,12 @@ const AppCore = () => {
                 if (newTier !== oldTier) {
                     achievementsChanged = true;
                     if (newTier > oldTier) {
-                        const tier = achievement.tiers[newTier];
-                        addToast(`Achievement: ${achievement.name} - ${tier.name}!`, tier.name.toLowerCase());
+                        if (achievement.type === 'tiered') {
+                            const tier = achievement.tiers[newTier];
+                            addToast(`Achievement: ${achievement.name} - ${tier.name}!`, tier.name.toLowerCase());
+                        } else {
+                            addToast(`Achievement: ${achievement.name}!`, 'success');
+                        }
                     }
                 }
                 if (newTier > -1) {
@@ -4381,88 +4384,16 @@ const AppCore = () => {
     );
 }
 
-const EditWeekView = ({ week, dayKey, workoutName, programData, onProgramDataChange, onBack }) => {
-    const { openModal, closeModal } = useContext(AppStateContext);
-    const { masterExerciseList, workoutOrder } = programData;
+function App() {
+  return (
+    <FirebaseProvider>
+        <AppStateProvider>
+            <ThemeProvider>
+                <AppCore />
+            </ThemeProvider>
+        </AppStateProvider>
+    </FirebaseProvider>
+  );
+}
 
-    const [currentWorkoutName, setCurrentWorkoutName] = useState(workoutName);
-
-    const baseWorkout = useMemo(() => getWorkoutForWeek(programData, week, currentWorkoutName), [programData, week, currentWorkoutName]);
-    const [exercises, setExercises] = useState(baseWorkout?.exercises || []);
-
-    useEffect(() => {
-        setExercises(baseWorkout?.exercises || []);
-    }, [baseWorkout]);
-
-    const handleReorderExercise = (index, direction) => {
-        const newExercises = [...exercises];
-        const newIndex = index + direction;
-        if (newIndex < 0 || newIndex >= newExercises.length) return;
-        [newExercises[index], newExercises[newIndex]] = [newExercises[newIndex], newExercises[index]];
-        setExercises(newExercises);
-    };
-
-    const handleDeleteExercise = (exerciseIndex) => {
-        const newExercises = [...exercises];
-        newExercises.splice(exerciseIndex, 1);
-        setExercises(newExercises);
-    };
-
-    const handleAddExercise = () => {
-         openModal(
-            <AddExerciseToWorkoutModal 
-                masterExerciseList={masterExerciseList}
-                onAdd={(exerciseName) => {
-                    setExercises(prev => [...prev, exerciseName]);
-                    closeModal();
-                }}
-                onClose={closeModal}
-            />, 'lg'
-        )
-    };
-    
-    const handleEditExercise = (exerciseNameToEdit) => {
-        const exerciseDetails = programData.masterExerciseList[exerciseNameToEdit];
-        openModal(
-            <EditExerciseModal
-                exerciseName={exerciseNameToEdit}
-                exercise={exerciseDetails}
-                onSave={(newDetails, newName) => {
-                    const newMasterList = { ...programData.masterExerciseList };
-                    if (exerciseNameToEdit !== newName) {
-                        delete newMasterList[exerciseNameToEdit];
-                    }
-                    newMasterList[newName] = newDetails;
-
-                    const newProgramStructure = JSON.parse(JSON.stringify(programData.programStructure));
-                    Object.keys(newProgramStructure).forEach(key => {
-                        newProgramStructure[key].exercises = newProgramStructure[key].exercises.map(ex => ex === exerciseNameToEdit ? newName : ex);
-                    });
-
-                    const newWeeklyOverrides = JSON.parse(JSON.stringify(programData.weeklyOverrides || {}));
-                    Object.values(newWeeklyOverrides).forEach(weekOverride => {
-                        Object.values(weekOverride).forEach(workoutOverride => {
-                            workoutOverride.exercises = workoutOverride.exercises.map(ex => ex === exerciseNameToEdit ? newName : ex);
-                        });
-                    });
-
-                    setExercises(currentExercises => currentExercises.map(ex => ex === exerciseNameToEdit ? newName : ex));
-                    
-                    onProgramDataChange({ ...programData, masterExerciseList: newMasterList, programStructure: newProgramStructure, weeklyOverrides: newWeeklyOverrides });
-                    closeModal();
-                }}
-                onDelete={(nameToDelete) => {
-                    const newMasterList = { ...programData.masterExerciseList };
-                    delete newMasterList[nameToDelete];
-
-                    const newProgramStructure = JSON.parse(JSON.stringify(programData.programStructure));
-                    Object.keys(newProgramStructure).forEach(key => {
-                        newProgramStructure[key].exercises = newProgramStructure[key].exercises.filter(ex => ex !== nameToDelete);
-                    });
-
-                    const newWeeklyOverrides = JSON.parse(JSON.stringify(programData.weeklyOverrides || {}));
-                     Object.values(newWeeklyOverrides).forEach(weekOverride => {
-                        Object.values(weekOverride).forEach(workoutOverride => {
-                            workoutOverride.exercises = workoutOverride.exercises.filter(ex => ex !== nameToDelete);
-                        });
-                    });
+export default App;
