@@ -1217,8 +1217,10 @@ const SetRow = ({ setNumber, logData, onLogChange, lastSetData, exerciseDetails,
         }
     };
 
+    const isSkipped = logData.skipped;
+
     return (
-        <div className={`grid grid-cols-4 sm:grid-cols-7 gap-2 items-center py-2 px-3 rounded-md ${isDropSet ? 'bg-red-100 dark:bg-red-900/30' : 'bg-gray-50 dark:bg-gray-700/50'}`}>
+        <div className={`grid grid-cols-4 sm:grid-cols-7 gap-2 items-center py-2 px-3 rounded-md transition-all ${isSkipped ? 'bg-gray-200 dark:bg-gray-800 opacity-60' : (isDropSet ? 'bg-red-100 dark:bg-red-900/30' : 'bg-gray-50 dark:bg-gray-700/50')}`}>
             <div className="text-sm font-bold text-gray-800 dark:text-gray-200 col-span-4 sm:col-span-1">{displaySetNumber || `Set ${setNumber}`}</div>
             <div className="hidden sm:block text-sm text-center text-gray-600 dark:text-gray-400">{isDropSet ? 'AMRAP' : exerciseDetails.reps}</div>
             <div className="hidden sm:block text-sm text-center font-medium text-blue-600 dark:text-blue-400">{targetEffort}</div>
@@ -1227,22 +1229,29 @@ const SetRow = ({ setNumber, logData, onLogChange, lastSetData, exerciseDetails,
             </div>
             <div>
                 <label className="sm:hidden text-xs text-gray-500">Load</label>
-                <input id={`input-${exerciseName}-${logId}-load`} name="load" type="number" placeholder={placeholderWeight} value={logData.displayLoad || ''} onChange={(e) => onLogChange(logId, 'load', e.target.value)} onKeyDown={handleKeyDown} className="w-full p-1.5 text-sm bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 placeholder:text-gray-400 dark:placeholder:text-gray-500"/>
+                <input id={`input-${exerciseName}-${logId}-load`} name="load" type="number" placeholder={placeholderWeight} value={logData.displayLoad || ''} onChange={(e) => onLogChange(logId, 'load', e.target.value)} onKeyDown={handleKeyDown} disabled={isSkipped} className="w-full p-1.5 text-sm bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 placeholder:text-gray-400 dark:placeholder:text-gray-500 disabled:opacity-70"/>
             </div>
             <div>
                 <label className="sm:hidden text-xs text-gray-500">Reps</label>
-                <input id={`input-${exerciseName}-${logId}-reps`} name="reps" type="number" placeholder={lastSetData?.reps || "Reps"} value={logData.reps || ''} onChange={(e) => onLogChange(logId, 'reps', e.target.value)} onKeyDown={handleKeyDown} className="w-full p-1.5 text-sm bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 placeholder:text-gray-400 dark:placeholder:text-gray-500"/>
+                <input id={`input-${exerciseName}-${logId}-reps`} name="reps" type="number" placeholder={lastSetData?.reps || "Reps"} value={logData.reps || ''} onChange={(e) => onLogChange(logId, 'reps', e.target.value)} onKeyDown={handleKeyDown} disabled={isSkipped} className="w-full p-1.5 text-sm bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 placeholder:text-gray-400 dark:placeholder:text-gray-500 disabled:opacity-70"/>
             </div>
             <div>
                 <label className="sm:hidden text-xs text-gray-500">RIR</label>
                 <input id={`input-${exerciseName}-${logId}-rir`} name="rir" type="number" placeholder={isDropSet ? "0" : (lastSetData?.rir ?? "RIR")} value={logData.rir || ''}
                     onChange={(e) => onLogChange(logId, 'rir', e.target.value)}
                     onKeyDown={handleKeyDown}
-                    className="w-full p-1.5 text-sm bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 placeholder:text-gray-400 dark:placeholder:text-gray-500"
+                    disabled={isSkipped}
+                    className="w-full p-1.5 text-sm bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 placeholder:text-gray-400 dark:placeholder:text-gray-500 disabled:opacity-70"
                 />
             </div>
             <div className="sm:pl-2">
-                <button onClick={() => onLogChange(logId, 'skip', true)} className="text-xs p-1.5 w-full bg-gray-200 dark:bg-gray-600 hover:bg-gray-300 dark:hover:bg-gray-500 rounded-md transition-colors">Skip</button>
+                {isSkipped ? (
+                    <button onClick={() => onLogChange(logId, 'unskip', false)} className="text-xs p-1.5 w-full bg-yellow-500 text-white rounded-md transition-colors flex items-center justify-center gap-1">
+                        <XCircle size={14}/> Skipped
+                    </button>
+                ) : (
+                    <button onClick={() => onLogChange(logId, 'skip', true)} className="text-xs p-1.5 w-full bg-gray-200 dark:bg-gray-600 hover:bg-gray-300 dark:hover:bg-gray-500 rounded-md transition-colors">Skip</button>
+                )}
             </div>
         </div>
     );
@@ -1397,6 +1406,8 @@ const LiftingSession = ({ week, dayKey, onBack, allLogs, setAllLogs, onSkipDay, 
             newLogEntry.load = '';
             newLogEntry.reps = '';
             newLogEntry.rir = '';
+        } else if (field === 'unskip') {
+            newLogEntry.skipped = false;
         } else if (field === 'load') {
             newLogEntry.displayLoad = value;
             if (weightUnit === 'kg') {
@@ -1884,20 +1895,21 @@ const DashboardView = ({ allLogs, programData, bodyWeightHistory }) => {
 };
 
 
-const SettingsView = ({ allLogs, historicalLogs, weightUnit, onWeightUnitChange, onResetMeso, programData, onProgramDataChange, onShowTutorial, bodyWeight, onBodyWeightChange, onBack, onRestoreLogs }) => {
+const SettingsView = ({ allLogs, historicalLogs, weightUnit, onWeightUnitChange, onResetMeso, programData, onProgramDataChange, onShowTutorial, bodyWeight, onBodyWeightChange, onBack, onRestoreLogs, onProgramImport }) => {
     const { theme, toggleTheme } = useContext(ThemeContext);
     const { customId, handleSetCustomId } = useContext(FirebaseContext);
     const { openModal, closeModal } = useContext(AppStateContext);
     const [tempId, setTempId] = useState(customId);
     const [exportSelection, setExportSelection] = useState('all');
-    const fileInputRef = useRef(null);
+    const logFileInputRef = useRef(null);
+    const programFileInputRef = useRef(null);
     const [localBodyWeight, setLocalBodyWeight] = useState(bodyWeight || '');
 
     useEffect(() => {
         setLocalBodyWeight(bodyWeight || '');
     }, [bodyWeight]);
 
-    const handleFileImport = (event) => {
+    const handleLogFileImport = (event) => {
         const file = event.target.files[0];
         if (!file) return;
 
@@ -1909,8 +1921,19 @@ const SettingsView = ({ allLogs, historicalLogs, weightUnit, onWeightUnitChange,
         event.target.value = null; // Reset input
     };
 
-    const handleImportClick = () => {
-        fileInputRef.current?.click();
+    const handleProgramFileImport = (event) => {
+        const file = event.target.files[0];
+        if (!file) return;
+        onProgramImport(file);
+        event.target.value = null;
+    }
+
+    const handleLogImportClick = () => {
+        logFileInputRef.current?.click();
+    };
+
+    const handleProgramImportClick = () => {
+        programFileInputRef.current?.click();
     };
 
     const exportData = (logsToExport, filename) => {
@@ -2127,11 +2150,19 @@ const SettingsView = ({ allLogs, historicalLogs, weightUnit, onWeightUnitChange,
                         </div>
                          <div className="border-t border-gray-200 dark:border-gray-700"></div>
                         <div>
-                            <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">Restore workout history from a previously exported CSV file. This will overwrite all current logs.</p>
-                            <button onClick={handleImportClick} className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg shadow-md hover:bg-green-700 transition-colors">
-                                <Upload size={16} /> Import & Restore Logs
+                            <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">Import a program structure from a JSON or CSV file. This will add it as a new program in your Program Hub.</p>
+                            <button onClick={handleProgramImportClick} className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-teal-600 text-white rounded-lg shadow-md hover:bg-teal-700 transition-colors">
+                                <Upload size={16}/> Import Program from File
                             </button>
-                            <input type="file" ref={fileInputRef} onChange={handleFileImport} accept=".csv" style={{ display: 'none' }} />
+                            <input type="file" ref={programFileInputRef} onChange={handleProgramFileImport} accept=".json,.csv" style={{ display: 'none' }} />
+                        </div>
+                         <div className="border-t border-gray-200 dark:border-gray-700"></div>
+                        <div>
+                            <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">Restore workout history from a previously exported CSV file. This will overwrite all current logs.</p>
+                            <button onClick={handleLogImportClick} className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg shadow-md hover:bg-green-700 transition-colors">
+                                <Upload size={16} /> Import Workout History (CSV)
+                            </button>
+                            <input type="file" ref={logFileInputRef} onChange={handleLogFileImport} accept=".csv" style={{ display: 'none' }} />
                         </div>
                     </div>
                 </div>
@@ -2570,24 +2601,29 @@ const EditWeekCard = ({ week, program, onEditDay, onToggleRest }) => {
                                 <p className="text-xs text-gray-600 dark:text-gray-400 mb-2 truncate h-8 flex-grow flex items-center justify-center">
                                     {displayWorkoutName}
                                 </p>
-                                <div className="flex justify-center items-center gap-2 mt-1">
+                                <div className="flex items-center justify-center gap-1 mt-1 text-xs">
                                     <button
                                         onClick={() => onEditDay(week, day)}
-                                        className="p-1.5 rounded-md hover:bg-gray-200 dark:hover:bg-gray-600 disabled:opacity-50"
-                                        title="Edit Exercises"
+                                        className="flex items-center gap-1 p-1.5 rounded-md hover:bg-gray-200 dark:hover:bg-gray-600 disabled:opacity-50"
                                         disabled={isRest}
                                     >
-                                        <Pencil size={16} className={isRest ? "text-gray-400" : "text-blue-600 dark:text-blue-400"} />
+                                        <Pencil size={14} className={isRest ? "text-gray-400" : "text-blue-600 dark:text-blue-400"} />
+                                        <span className={isRest ? "text-gray-400" : "text-gray-700 dark:text-gray-300"}>Edit</span>
                                     </button>
                                     <button
                                         onClick={() => onToggleRest(week, day)}
-                                        className="p-1.5 rounded-md hover:bg-gray-200 dark:hover:bg-gray-600"
-                                        title={isRest ? "Set as Workout" : "Set as Rest"}
+                                        className="flex items-center gap-1 p-1.5 rounded-md hover:bg-gray-200 dark:hover:bg-gray-600"
                                     >
                                         {isRest ? (
-                                            <Dumbbell size={16} className="text-green-600 dark:text-green-400" />
+                                            <>
+                                                <Dumbbell size={14} className="text-green-600 dark:text-green-400" />
+                                                <span className="text-gray-700 dark:text-gray-300">Workout</span>
+                                            </>
                                         ) : (
-                                            <Shield size={16} className="text-indigo-600 dark:text-indigo-400" />
+                                            <>
+                                                <Shield size={14} className="text-indigo-600 dark:text-indigo-400" />
+                                                <span className="text-gray-700 dark:text-gray-300">Rest</span>
+                                            </>
                                         )}
                                     </button>
                                 </div>
@@ -2692,9 +2728,6 @@ const EditProgramView = ({ programData, onProgramDataChange, onBack, onNavigate 
         const template = newProgramStructure[workoutName];
         if (template) {
             template.isRest = !template.isRest;
-            if (template.isRest) {
-                template.exercises = [];
-            }
         }
         updateProgram({ programStructure: newProgramStructure });
     };
@@ -2756,12 +2789,24 @@ const EditProgramView = ({ programData, onProgramDataChange, onBack, onNavigate 
         const newOrder = [...program.workoutOrder];
         const [movedItem] = newOrder.splice(workoutIndex, 1);
         newOrder.splice(workoutIndex + direction, 0, movedItem);
-        updateProgram({ workoutOrder: newOrder });
-    };
 
-    const handleRemoveDayFromMaster = (indexToRemove) => {
-        const newWorkoutOrder = program.workoutOrder.filter((_, index) => index !== indexToRemove);
-        updateProgram({ workoutOrder: newWorkoutOrder });
+        const workoutDays = newOrder.filter(name => !program.programStructure[name]?.isRest);
+        if (workoutDays.length > 0) {
+            let workoutIndex = 0;
+            const newSchedule = program.weeklySchedule.map(day => {
+                const isOldWorkoutRest = program.programStructure[day.workout]?.isRest;
+                if (isOldWorkoutRest) {
+                    return day;
+                } else {
+                    const newWorkout = workoutDays[workoutIndex % workoutDays.length];
+                    workoutIndex++;
+                    return { ...day, workout: newWorkout };
+                }
+            });
+            updateProgram({ workoutOrder: newOrder, weeklySchedule: newSchedule });
+        } else {
+            updateProgram({ workoutOrder: newOrder });
+        }
     };
 
     const handleAddExerciseToWorkout = (workoutName) => {
@@ -3096,7 +3141,7 @@ const EditProgramView = ({ programData, onProgramDataChange, onBack, onNavigate 
                                                             <button onClick={() => handleToggleTemplateType(workoutName)} title={isRest ? "Convert to Workout Day" : "Convert to Rest Day"} className="p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full">
                                                                 {isRest ? <Dumbbell size={20} className="text-green-500" /> : <Shield size={20} className="text-indigo-500" />}
                                                             </button>
-                                                            <button onClick={() => handleRemoveDayFromMaster(workoutIndex)} className="p-1 hover:text-red-500"><XCircle size={20}/></button>
+                                                            <button onClick={() => handleDeleteWorkoutDay(workoutName)} className="p-1 hover:text-red-500"><XCircle size={20}/></button>
                                                         </div>
                                                     </div>
                                                     {!isRest && (
@@ -3526,7 +3571,6 @@ const RestoreProgramModal = ({ csvData, onRestore, onClose }) => {
 
 const ProgramManagerView = ({ onProgramUpdate, activeProgram, programInstances, onInstanceSwitch, onBack }) => {
     const { openModal, closeModal, addToast } = useContext(AppStateContext);
-    const fileInputRef = useRef(null);
 
     const handleShareProgram = () => {
         try {
@@ -3571,7 +3615,7 @@ const ProgramManagerView = ({ onProgramUpdate, activeProgram, programInstances, 
 
         weeklySchedule.forEach(({ day }) => {
             const workoutName = getWorkoutNameForDay(activeProgram.program, new Date().getWeek, day); // Simplified week, assuming for structure
-            if (workoutName !== 'Rest') {
+            if (!program.programStructure[workoutName]?.isRest) {
                 const workoutDetails = programStructure[workoutName];
                 if (workoutDetails) {
                     workoutDetails.exercises.forEach(exName => {
@@ -3598,44 +3642,6 @@ const ProgramManagerView = ({ onProgramUpdate, activeProgram, programInstances, 
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
-    };
-    
-    const handleImportClick = () => {
-        fileInputRef.current?.click();
-    };
-
-    const handleFileImport = (event) => {
-        const file = event.target.files[0];
-        if (!file) return;
-
-        const reader = new FileReader();
-        reader.onload = (e) => {
-            try {
-                if (file.name.endsWith('.csv')) {
-                    openModal(<RestoreProgramModal csvData={e.target.result} onRestore={onProgramUpdate} onClose={closeModal} />);
-                } else {
-                    const importedProgram = JSON.parse(e.target.result);
-                    if (
-                        importedProgram.name && typeof importedProgram.name === 'string' &&
-                        importedProgram.info && typeof importedProgram.info === 'object' &&
-                        importedProgram.masterExerciseList && typeof importedProgram.masterExerciseList === 'object' &&
-                        importedProgram.programStructure && typeof importedProgram.programStructure === 'object' &&
-                        importedProgram.weeklySchedule && Array.isArray(importedProgram.weeklySchedule) &&
-                        importedProgram.workoutOrder && Array.isArray(importedProgram.workoutOrder)
-                    ) {
-                        onProgramUpdate(importedProgram); // This will create a new instance
-                        addToast(`Program "${importedProgram.name}" imported successfully!`, 'success');
-                    } else {
-                        throw new Error("Invalid or incomplete program file structure.");
-                    }
-                }
-            } catch (error) {
-                console.error("Failed to import program:", error);
-                addToast(`Failed to import: ${error.message}`, 'error');
-            }
-        };
-        reader.readAsText(file);
-        event.target.value = null; // Reset input
     };
 
     const handlePreview = (programData) => {
@@ -3803,13 +3809,13 @@ const TutorialModal = ({ onProgramSelect, onClose, onBodyWeightSet, onSetSyncId,
                 {step === 2 && (
                     <div className="p-3 bg-gray-100 dark:bg-gray-700/50 rounded-lg">
                         <h3 className="font-bold text-lg text-gray-900 dark:text-white mb-1">Step 2: Logging a Workout</h3>
-                        <p>Inside a workout, enter your <span className="font-semibold">Load</span>, <span className="font-semibold">Reps</span>, and <span className="font-semibold">RIR</span> (Reps In Reserve). The app gives you an AI-powered <span className="font-semibold text-blue-500">Suggestion</span> based on your last performance to guide your progressive overload.</p>
+                        <p>Inside a workout, enter your <span className="font-semibold">Load</span>, <span className="font-semibold">Reps</span>, and <span className="font-semibold">RIR</span> (Reps In Reserve). The app gives you an AI-powered <span className="font-semibold text-blue-500">Suggestion</span> based on your last performance. You can also tap the <History size={14} className="inline-block" /> icon on any exercise to see your recent performance history.</p>
                     </div>
                 )}
                  {step === 3 && (
                     <div className="p-3 bg-gray-100 dark:bg-gray-700/50 rounded-lg">
                         <h3 className="font-bold text-lg text-gray-900 dark:text-white mb-1">Step 3: Customization</h3>
-                        <p>Use the <span className="font-semibold">Program Hub</span> to discover new presets, or even share and import programs. The <span className="font-semibold">Edit Program</span> view gives you full control to build your perfect routine from scratch.</p>
+                        <p>Use the <span className="font-semibold">Program Hub</span> to discover new presets or import programs. The <span className="font-semibold">Edit Program</span> view gives you full control. Here you can click a workout's name to rename it, or use the <Shield size={14} className="inline-block" /> icon to toggle it to a Rest Day.</p>
                     </div>
                 )}
                 {!isReview && step === 4 && (
@@ -4077,10 +4083,12 @@ const achievementsList = {
             { name: "1.5x BW", value: 1.5, description: () => "Benching 1.5x your bodyweight is seriously strong." },
             { name: "2.0x BW", value: 2.0, description: () => "Benching double your bodyweight is elite." },
         ],
-        getValue: (logs, program, bodyWeight) => {
+        getValue: (logs, program, bodyWeight, weightUnit) => {
             if (!bodyWeight || bodyWeight <= 0) return 0;
+            const bodyWeightInLbs = weightUnit === 'kg' ? bodyWeight * 2.20462 : bodyWeight;
             const maxBench = getMaxE1RMFor(logs, 'bench');
-            return maxBench / bodyWeight;
+            if (bodyWeightInLbs === 0) return 0;
+            return maxBench / bodyWeightInLbs;
         }
     },
     bodyweight_squat: {
@@ -4093,10 +4101,12 @@ const achievementsList = {
             { name: "2.0x BW", value: 2.0, description: () => "Squatting 2x your bodyweight. Strong foundation!" },
             { name: "2.5x BW", value: 2.5, description: () => "Squatting 2.5x your bodyweight. Powerful!" },
         ],
-        getValue: (logs, program, bodyWeight) => {
+        getValue: (logs, program, bodyWeight, weightUnit) => {
             if (!bodyWeight || bodyWeight <= 0) return 0;
+            const bodyWeightInLbs = weightUnit === 'kg' ? bodyWeight * 2.20462 : bodyWeight;
             const maxSquat = getMaxE1RMFor(logs, 'squat');
-            return maxSquat / bodyWeight;
+            if (bodyWeightInLbs === 0) return 0;
+            return maxSquat / bodyWeightInLbs;
         }
     },
      bodyweight_deadlift: {
@@ -4109,10 +4119,12 @@ const achievementsList = {
             { name: "2.5x BW", value: 2.5, description: () => "Deadlifting 2.5x your bodyweight. Powerful!" },
             { name: "3.0x BW", value: 3.0, description: () => "Deadlifting 3x your bodyweight. Incredible!" },
         ],
-        getValue: (logs, program, bodyWeight) => {
+        getValue: (logs, program, bodyWeight, weightUnit) => {
             if (!bodyWeight || bodyWeight <= 0) return 0;
+            const bodyWeightInLbs = weightUnit === 'kg' ? bodyWeight * 2.20462 : bodyWeight;
             const maxDeadlift = getMaxE1RMFor(logs, 'deadlift');
-            return maxDeadlift / bodyWeight;
+            if (bodyWeightInLbs === 0) return 0;
+            return maxDeadlift / bodyWeightInLbs;
         }
     },
     overhead_overlord: {
@@ -4234,8 +4246,8 @@ const achievementsList = {
             if (!program || !program.info) return 0;
             const { info, weeklySchedule, workoutOrder, settings } = program;
             const totalWorkouts = settings.useWeeklySchedule
-                ? info.weeks * weeklySchedule.filter(d => d.workout !== 'Rest').length
-                : info.weeks * workoutOrder.length;
+                ? info.weeks * weeklySchedule.filter(d => !program.programStructure[d.workout]?.isRest).length
+                : info.weeks * workoutOrder.filter(name => !program.programStructure[name]?.isRest).length;
 
             const completedWorkouts = new Set(Object.values(logs).filter(l => !l.skipped).map(l => `${l.week}-${l.dayKey}`));
             return completedWorkouts.size >= totalWorkouts ? 1 : 0;
@@ -4346,11 +4358,11 @@ const AchievementsView = ({ unlockedAchievements, historicalLogs, programData, b
         return Object.entries(achievementsList)
             .filter(([id, achievement]) => achievement && typeof achievement === 'object' && achievement.name && achievement.getValue)
             .map(([id, achievement]) => {
-                const currentValue = achievement.getValue(historicalLogs, programData, parseFloat(bodyWeight) || 0);
+                const currentValue = achievement.getValue(historicalLogs, programData, parseFloat(bodyWeight) || 0, weightUnit);
                 const unlockedStatus = unlockedAchievements[id];
                 return { id, achievement, currentValue, unlockedStatus };
             });
-    }, [historicalLogs, programData, bodyWeight, unlockedAchievements]);
+    }, [historicalLogs, programData, bodyWeight, unlockedAchievements, weightUnit]);
     
     const handleShowDescription = (e, achievementId) => {
         e.preventDefault();
@@ -4880,6 +4892,38 @@ const AppCore = () => {
         }
     };
 
+    const handleProgramImport = useCallback((file) => {
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            try {
+                if (file.name.endsWith('.csv')) {
+                    openModal(<RestoreProgramModal csvData={e.target.result} onRestore={handleProgramUpdate} onClose={closeModal} />);
+                } else {
+                    const importedProgram = JSON.parse(e.target.result);
+                    if (
+                        importedProgram.name && typeof importedProgram.name === 'string' &&
+                        importedProgram.info && typeof importedProgram.info === 'object' &&
+                        importedProgram.masterExerciseList && typeof importedProgram.masterExerciseList === 'object' &&
+                        importedProgram.programStructure && typeof importedProgram.programStructure === 'object' &&
+                        importedProgram.weeklySchedule && Array.isArray(importedProgram.weeklySchedule) &&
+                        importedProgram.workoutOrder && Array.isArray(importedProgram.workoutOrder)
+                    ) {
+                        handleProgramUpdate(importedProgram);
+                        addToast(`Program "${importedProgram.name}" imported successfully!`, 'success');
+                    } else {
+                        throw new Error("Invalid or incomplete program file structure.");
+                    }
+                }
+            } catch (error) {
+                console.error("Failed to import program:", error);
+                addToast(`Failed to import: ${error.message}`, 'error');
+            }
+        };
+        reader.readAsText(file);
+    }, [openModal, closeModal, handleProgramUpdate, addToast]);
+
     const handleRestoreLogs = useCallback((csvData) => {
         if (!csvData) {
             addToast('The selected file is empty.', 'error');
@@ -5031,7 +5075,7 @@ const AppCore = () => {
             case 'achievements': return <AchievementsView unlockedAchievements={unlockedAchievements} historicalLogs={historicalLogs} programData={programData} bodyWeight={bodyWeight} weightUnit={weightUnit} onBack={onBack} />;
             case 'programHub': return <ProgramManagerView onProgramUpdate={handleProgramUpdate} activeProgram={{...programData, id: activeInstanceId}} programInstances={programInstances} onInstanceSwitch={handleInstanceSwitch} onBack={onBack} />;
             case 'editProgram': return <EditProgramView programData={programData} onProgramDataChange={handleProgramDataChange} onBack={onBack} onNavigate={navigate} />;
-            case 'settings': return <SettingsView allLogs={allLogs} historicalLogs={historicalLogs} weightUnit={weightUnit} onWeightUnitChange={handleWeightUnitChange} onResetMeso={handleResetMeso} programData={programData} onProgramDataChange={handleProgramDataChange} onShowTutorial={() => showTutorial(true)} bodyWeight={bodyWeight} onBodyWeightChange={handleBodyWeightChange} onBack={onBack} onRestoreLogs={handleRestoreLogs} />;
+            case 'settings': return <SettingsView allLogs={allLogs} historicalLogs={historicalLogs} weightUnit={weightUnit} onWeightUnitChange={handleWeightUnitChange} onResetMeso={handleResetMeso} programData={programData} onProgramDataChange={handleProgramDataChange} onShowTutorial={() => showTutorial(true)} bodyWeight={bodyWeight} onBodyWeightChange={handleBodyWeightChange} onBack={onBack} onRestoreLogs={handleRestoreLogs} onProgramImport={handleProgramImport} />;
             default: return <MainView onSessionSelect={(week, day, type, seqIndex) => navigate(type, { week, dayKey: day, sequentialWorkoutIndex: seqIndex })} onEditProgram={() => navigate('editProgram')} completedDays={completedDays} onUnskipDay={handleUnskipDay} programData={programData} allLogs={allLogs} onNavigate={navigate} />;
         }
     };
