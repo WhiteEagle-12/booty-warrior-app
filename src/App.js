@@ -1014,6 +1014,84 @@ const InfoTooltip = ({ content }) => {
     );
 };
 
+const EditDayWorkoutModal = ({
+    workout,
+    workoutName,
+    onSave,
+    onClose,
+    onEditExercise,
+    onAddExercise,
+}) => {
+    const [editedWorkout, setEditedWorkout] = useState(workout);
+
+    useEffect(() => {
+        setEditedWorkout(workout);
+    }, [workout]);
+
+    const handleRemoveExercise = (exerciseIndex) => {
+        const newExercises = [...editedWorkout.exercises];
+        newExercises.splice(exerciseIndex, 1);
+        setEditedWorkout({ ...editedWorkout, exercises: newExercises });
+    };
+
+    const handleDragEnd = (result) => {
+        if (!result.destination) return;
+        const newExercises = Array.from(editedWorkout.exercises);
+        const [reorderedItem] = newExercises.splice(result.source.index, 1);
+        newExercises.splice(result.destination.index, 0, reorderedItem);
+        setEditedWorkout({ ...editedWorkout, exercises: newExercises });
+    };
+
+    const handleAddExerciseCallback = (exerciseName, exerciseDetails) => {
+        const newExercises = [...editedWorkout.exercises, exerciseName];
+        setEditedWorkout({ ...editedWorkout, exercises: newExercises });
+        // The parent component will handle adding the details to the master list if needed
+        // This is passed to onAddExercise which should handle the modal logic
+    };
+
+    return (
+        <DragDropContext onDragEnd={handleDragEnd}>
+            <div>
+                <h2 className="text-xl font-bold mb-4">Edit Day: {workoutName}</h2>
+                <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">Drag to reorder, or use the buttons to edit or remove exercises.</p>
+                <Droppable droppableId="day-workout-exercises">
+                    {(provided) => (
+                        <ul {...provided.droppableProps} ref={provided.innerRef} className="space-y-2 mb-3 min-h-[50px] max-h-60 overflow-y-auto pr-2">
+                            {editedWorkout.exercises.map((ex, index) => (
+                                <Draggable key={`${workoutName}-${ex}-${index}`} draggableId={`${workoutName}-${ex}-${index}`} index={index}>
+                                    {(provided) => (
+                                        <li ref={provided.innerRef} {...provided.draggableProps} {...provided.dragHandleProps} className="flex justify-between items-center p-2 bg-gray-50 dark:bg-gray-700/50 rounded-md group">
+                                            <div className="flex items-center gap-2">
+                                                <Move size={16} className="text-gray-400" />
+                                                <span className="font-medium">{ex}</span>
+                                            </div>
+                                            <div className="flex items-center gap-1 text-gray-500">
+                                                <button onClick={() => onEditExercise(ex)} className="p-1 opacity-0 group-hover:opacity-100 transition-opacity"><Pencil size={16}/></button>
+                                                <button onClick={() => handleRemoveExercise(index)} className="p-1 opacity-0 group-hover:opacity-100 transition-opacity"><XCircle size={16}/></button>
+                                            </div>
+                                        </li>
+                                    )}
+                                </Draggable>
+                            ))}
+                            {provided.placeholder}
+                        </ul>
+                    )}
+                </Droppable>
+                <button
+                    onClick={() => onAddExercise(handleAddExerciseCallback)}
+                    className="w-full flex items-center justify-center gap-2 p-2 rounded-lg bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300 hover:bg-blue-200 dark:hover:bg-blue-800/50"
+                >
+                    <PlusCircle size={16}/> Add Exercise
+                </button>
+                <div className="flex justify-end gap-2 mt-6">
+                    <button onClick={onClose} className="px-4 py-2 bg-gray-200 dark:bg-gray-600 rounded-lg">Cancel</button>
+                    <button onClick={() => onSave(workoutName, editedWorkout)} className="px-4 py-2 bg-blue-600 text-white rounded-lg">Save Changes</button>
+                </div>
+            </div>
+        </DragDropContext>
+    );
+};
+
 const IntensityTechnique = ({ technique }) => {
     if (!technique) return null;
     let icon = <Flame size={14} className="text-red-500" />;
@@ -2414,56 +2492,6 @@ const EditWeekCard = ({ week, program, onEditDay }) => {
 };
 
 
-const EditDayWorkoutModal = ({ workout, onSave, onClose }) => {
-    const [exercises, setExercises] = useState(workout.exercises);
-
-    const handleSave = () => {
-        onSave({ ...workout, exercises });
-        onClose();
-    };
-
-    const onDragEnd = (result) => {
-        if (!result.destination) return;
-        const newExercises = Array.from(exercises);
-        const [reorderedItem] = newExercises.splice(result.source.index, 1);
-        newExercises.splice(result.destination.index, 0, reorderedItem);
-        setExercises(newExercises);
-    };
-
-    return (
-        <DragDropContext onDragEnd={onDragEnd}>
-            <div>
-                <h2 className="text-xl font-bold mb-4">Edit Workout: {workout.label || 'Workout'}</h2>
-                <Droppable droppableId="modal-exercise-list" type="exercise">
-                    {(provided) => (
-                        <ul {...provided.droppableProps} ref={provided.innerRef} className="space-y-2 mb-3 max-h-60 overflow-y-auto pr-2">
-                            {exercises.map((ex, index) => (
-                                <Draggable key={`${workout.label}-${ex}-${index}`} draggableId={`${workout.label}-${ex}-${index}`} index={index}>
-                                    {(provided) => (
-                                        <li ref={provided.innerRef} {...provided.draggableProps} {...provided.dragHandleProps} className="flex justify-between items-center p-2 bg-gray-50 dark:bg-gray-700/50 rounded-md group">
-                                            <span className="font-medium">{ex}</span>
-                                            <button onClick={() => {
-                                                const newExercises = [...exercises];
-                                                newExercises.splice(index, 1);
-                                                setExercises(newExercises);
-                                            }} className="p-1 opacity-0 group-hover:opacity-100 transition-opacity"><XCircle size={16}/></button>
-                                        </li>
-                                    )}
-                                </Draggable>
-                            ))}
-                            {provided.placeholder}
-                        </ul>
-                    )}
-                </Droppable>
-                <div className="flex justify-end gap-2 mt-6">
-                    <button onClick={onClose} className="px-4 py-2 bg-gray-200 dark:bg-gray-600 rounded-lg">Cancel</button>
-                    <button onClick={handleSave} className="px-4 py-2 bg-blue-600 text-white rounded-lg">Save</button>
-                </div>
-            </div>
-        </DragDropContext>
-    );
-};
-
 const MasterScheduleEditor = ({ program, onProgramDataChange }) => {
     const [editingDay, setEditingDay] = useState(null);
 
@@ -2696,10 +2724,13 @@ const EditProgramView = ({ programData, onProgramDataChange, onBack, onNavigate 
         const { source, destination, type } = result;
     
         if (type === 'workoutDay') {
-            // Reordering workout days in the workoutOrder array
-            const newOrder = [...program.workoutOrder];
-            const [movedItem] = newOrder.splice(source.index, 1);
-            newOrder.splice(destination.index, 0, movedItem);
+            const reorderedMasterTemplates = Array.from(program.workoutOrder.filter(name => !name.includes('(Custom W')));
+            const [movedItem] = reorderedMasterTemplates.splice(source.index, 1);
+            reorderedMasterTemplates.splice(destination.index, 0, movedItem);
+
+            const customWorkouts = program.workoutOrder.filter(name => name.includes('(Custom W'));
+
+            const newOrder = [...reorderedMasterTemplates, ...customWorkouts];
             updateProgram({ workoutOrder: newOrder });
             return;
         }
@@ -2740,57 +2771,84 @@ const EditProgramView = ({ programData, onProgramDataChange, onBack, onNavigate 
 
     const handleEditDay = (week, dayKey) => {
         const baseWorkoutName = getWorkoutNameForDay(program, week, dayKey);
-        const customWorkoutName = `${baseWorkoutName === 'Rest' ? 'New Workout' : baseWorkoutName} (Custom W${week}-${dayKey})`;
+        const existingOverride = program.weeklyOverrides?.[week]?.[dayKey];
 
-        let workoutToEditName = program.weeklyOverrides?.[week]?.[dayKey];
-        let programToUpdate = { ...program };
+        const onSaveFromModal = (workoutName, updatedWorkout) => {
+            const newProgramStructure = {
+                ...program.programStructure,
+                [workoutName]: updatedWorkout,
+            };
+            updateProgram({ ...program, programStructure: newProgramStructure });
+            closeModal();
+        };
 
-        if (!workoutToEditName || !workoutToEditName.includes('(Custom')) {
-            workoutToEditName = customWorkoutName;
+        const onAddExerciseFromModal = (addExerciseCallback) => {
+            openModal(
+                <AddExerciseToWorkoutModal
+                    masterExerciseList={program.masterExerciseList}
+                    onAdd={(exerciseName, exerciseDetails) => {
+                        addExerciseCallback(exerciseName, exerciseDetails);
 
-            let newProgramStructure = JSON.parse(JSON.stringify(program.programStructure));
-            let newWorkoutOrder = [...program.workoutOrder];
+                        if (exerciseDetails && !program.masterExerciseList[exerciseName]) {
+                             const newMasterList = { ...program.masterExerciseList, [exerciseName]: exerciseDetails };
+                             updateProgram({ ...program, masterExerciseList: newMasterList });
+                        }
+
+                        closeModal();
+                    }}
+                    onClose={closeModal}
+                />, 'lg'
+            );
+        };
+
+        if (existingOverride) {
+            const workoutToEdit = program.programStructure[existingOverride];
+            openModal(
+                <EditDayWorkoutModal
+                    workout={workoutToEdit}
+                    workoutName={existingOverride}
+                    onSave={onSaveFromModal}
+                    onClose={closeModal}
+                    onEditExercise={handleEditExerciseDetails}
+                    onAddExercise={onAddExerciseFromModal}
+                />,
+                'lg'
+            );
+        } else {
+            const customWorkoutName = `${baseWorkoutName === 'Rest' ? 'New Workout' : baseWorkoutName} (Custom W${week}-${dayKey})`;
+
+            const baseWorkout = program.programStructure[baseWorkoutName];
+            const newCustomWorkout = baseWorkout ? JSON.parse(JSON.stringify(baseWorkout)) : { exercises: [], label: `Custom ${dayKey}` };
+
+            const newProgramStructure = { ...program.programStructure, [customWorkoutName]: newCustomWorkout };
+            const newWorkoutOrder = program.workoutOrder.includes(customWorkoutName) ? program.workoutOrder : [...program.workoutOrder, customWorkoutName];
             const newOverrides = JSON.parse(JSON.stringify(program.weeklyOverrides || {}));
-
-            if (!newProgramStructure[customWorkoutName]) {
-                const baseWorkout = newProgramStructure[baseWorkoutName] || { exercises: [], label: 'New' };
-                newProgramStructure[customWorkoutName] = JSON.parse(JSON.stringify(baseWorkout));
-                newProgramStructure[customWorkoutName].label = `Custom ${dayKey}`;
-            }
-
-            if (!newWorkoutOrder.includes(customWorkoutName)) {
-                newWorkoutOrder.push(customWorkoutName);
-            }
-
             if (!newOverrides[week]) {
                 newOverrides[week] = {};
             }
             newOverrides[week][dayKey] = customWorkoutName;
 
-            programToUpdate = {
+            const newProgramData = {
                 ...program,
                 programStructure: newProgramStructure,
                 workoutOrder: newWorkoutOrder,
                 weeklyOverrides: newOverrides,
             };
 
-            updateProgram(programToUpdate);
+            updateProgram(newProgramData);
+
+            openModal(
+                <EditDayWorkoutModal
+                    workout={newCustomWorkout}
+                    workoutName={customWorkoutName}
+                    onSave={onSaveFromModal}
+                    onClose={closeModal}
+                    onEditExercise={handleEditExerciseDetails}
+                    onAddExercise={onAddExerciseFromModal}
+                />,
+                'lg'
+            );
         }
-
-        const workoutToEdit = programToUpdate.programStructure[workoutToEditName];
-
-        openModal(
-            <EditDayWorkoutModal
-                workout={workoutToEdit}
-                onSave={(editedWorkout) => {
-                    const newStructure = { ...programToUpdate.programStructure, [workoutToEditName]: editedWorkout };
-                    updateProgram({ ...programToUpdate, programStructure: newStructure });
-                    closeModal();
-                }}
-                onClose={closeModal}
-            />,
-            'lg'
-        );
     };
 
     return (
@@ -2849,7 +2907,7 @@ const EditProgramView = ({ programData, onProgramDataChange, onBack, onNavigate 
                 <Droppable droppableId="all-workouts" direction="vertical" type="workoutDay">
                     {(provided) => (
                         <div {...provided.droppableProps} ref={provided.innerRef} className="space-y-4">
-                            {program.workoutOrder.filter(name => !name.includes('(Custom')).map((workoutName, workoutIndex) => {
+                            {program.workoutOrder.filter(name => !name.includes('(Custom W')).map((workoutName, workoutIndex) => {
                                 const workoutDetails = program.programStructure[workoutName];
                                 if (!workoutDetails) return null;
                                 return (
