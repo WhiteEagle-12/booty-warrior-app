@@ -1040,6 +1040,7 @@ const EditDayWorkoutModal = ({
     onClose,
     onEditExercise,
     onAddExercise,
+    onSetRest,
 }) => {
     const [editedWorkout, setEditedWorkout] = useState(workout);
 
@@ -1102,9 +1103,14 @@ const EditDayWorkoutModal = ({
                 >
                     <PlusCircle size={16}/> Add Exercise
                 </button>
-                <div className="flex justify-end gap-2 mt-6">
-                    <button onClick={onClose} className="px-4 py-2 bg-gray-200 dark:bg-gray-600 rounded-lg">Cancel</button>
-                    <button onClick={() => onSave(workoutName, editedWorkout)} className="px-4 py-2 bg-blue-600 text-white rounded-lg">Save Changes</button>
+                <div className="flex justify-between items-center mt-6">
+                    <button onClick={onSetRest} className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 flex items-center gap-2">
+                        <Shield size={16} /> Mark as Rest
+                    </button>
+                    <div className="flex gap-2">
+                        <button onClick={onClose} className="px-4 py-2 bg-gray-200 dark:bg-gray-600 rounded-lg">Cancel</button>
+                        <button onClick={() => onSave(workoutName, editedWorkout)} className="px-4 py-2 bg-blue-600 text-white rounded-lg">Save Changes</button>
+                    </div>
                 </div>
             </div>
         </DragDropContext>
@@ -2507,7 +2513,7 @@ const RecordsView = ({ allLogs, onBack }) => {
     );
 };
 
-const EditWeekCard = ({ week, program, onEditDay }) => {
+const EditWeekCard = ({ week, program, onEditDay, onToggleRest }) => {
     const [isOpen, setIsOpen] = useState(false);
 
     const hasOverrides = program.weeklyOverrides && program.weeklyOverrides[week];
@@ -2534,12 +2540,27 @@ const EditWeekCard = ({ week, program, onEditDay }) => {
                                 <p className="text-xs text-gray-600 dark:text-gray-400 mb-2 truncate h-8 flex-grow flex items-center justify-center">
                                     {displayWorkoutName}
                                 </p>
-                                <button
-                                    onClick={() => onEditDay(week, day)}
-                                    className="w-full text-xs p-1 rounded bg-blue-100 dark:bg-blue-800/50 text-blue-700 dark:text-blue-300 hover:bg-blue-200"
-                                >
-                                    Edit
-                                </button>
+                                <div className="flex justify-center items-center gap-2 mt-1">
+                                    <button
+                                        onClick={() => onEditDay(week, day)}
+                                        className="p-1.5 rounded-md hover:bg-gray-200 dark:hover:bg-gray-600 disabled:opacity-50"
+                                        title="Edit Exercises"
+                                        disabled={isRest}
+                                    >
+                                        <Pencil size={16} className={isRest ? "text-gray-400" : "text-blue-600 dark:text-blue-400"} />
+                                    </button>
+                                    <button
+                                        onClick={() => onToggleRest(week, day)}
+                                        className="p-1.5 rounded-md hover:bg-gray-200 dark:hover:bg-gray-600"
+                                        title={isRest ? "Set as Workout" : "Set as Rest"}
+                                    >
+                                        {isRest ? (
+                                            <Dumbbell size={16} className="text-green-600 dark:text-green-400" />
+                                        ) : (
+                                            <Shield size={16} className="text-indigo-600 dark:text-indigo-400" />
+                                        )}
+                                    </button>
+                                </div>
                             </div>
                         );
                     })}
@@ -2777,6 +2798,27 @@ const EditProgramView = ({ programData, onProgramDataChange, onBack, onNavigate 
         updateProgram({ programStructure: newProgramStructure });
     };
     
+    const handleToggleRestDay = (week, dayKey) => {
+        const currentWorkout = getWorkoutNameForDay(program, week, dayKey);
+
+        let newOverrides = JSON.parse(JSON.stringify(program.weeklyOverrides || {}));
+        if (!newOverrides[week]) {
+            newOverrides[week] = {};
+        }
+
+        if (currentWorkout !== 'Rest') {
+            newOverrides[week][dayKey] = 'Rest';
+        } else {
+            delete newOverrides[week][dayKey];
+        }
+
+        if (Object.keys(newOverrides[week]).length === 0) {
+            delete newOverrides[week];
+        }
+
+        updateProgram({ weeklyOverrides: newOverrides });
+    };
+
     const onDragEnd = (result) => {
         if (!result.destination) return;
         const { source, destination, type } = result;
@@ -2840,6 +2882,16 @@ const EditProgramView = ({ programData, onProgramDataChange, onBack, onNavigate 
             closeModal();
         };
 
+        const onSetRestFromModal = () => {
+            let newOverrides = JSON.parse(JSON.stringify(program.weeklyOverrides || {}));
+            if (!newOverrides[week]) {
+                newOverrides[week] = {};
+            }
+            newOverrides[week][dayKey] = 'Rest';
+            updateProgram({ weeklyOverrides: newOverrides });
+            closeModal();
+        };
+
         const onAddExerciseFromModal = (addExerciseCallback) => {
             openModal(
                 <AddExerciseToWorkoutModal
@@ -2869,6 +2921,7 @@ const EditProgramView = ({ programData, onProgramDataChange, onBack, onNavigate 
                     onClose={closeModal}
                     onEditExercise={handleEditExerciseDetails}
                     onAddExercise={onAddExerciseFromModal}
+                    onSetRest={onSetRestFromModal}
                 />,
                 'lg'
             );
@@ -2903,6 +2956,7 @@ const EditProgramView = ({ programData, onProgramDataChange, onBack, onNavigate 
                     onClose={closeModal}
                     onEditExercise={handleEditExerciseDetails}
                     onAddExercise={onAddExerciseFromModal}
+                    onSetRest={onSetRestFromModal}
                 />,
                 'lg'
             );
@@ -2953,6 +3007,7 @@ const EditProgramView = ({ programData, onProgramDataChange, onBack, onNavigate 
                                     week={week}
                                     program={program}
                                     onEditDay={handleEditDay}
+                                    onToggleRest={handleToggleRestDay}
                                 />
                             ))}
                         </div>
@@ -2974,12 +3029,13 @@ const EditProgramView = ({ programData, onProgramDataChange, onBack, onNavigate 
                                             <div ref={provided.innerRef} {...provided.draggableProps} id={`workout-day-editor-${workoutName}`}>
                                                 <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-4">
                                                     <div className="flex justify-between items-center mb-3 border-b border-gray-200 dark:border-gray-700 pb-3">
-                                                        <div {...provided.dragHandleProps} className="flex items-center gap-2 cursor-grab">
+                                                        <div {...provided.dragHandleProps} className="flex items-center gap-2 cursor-grab flex-grow">
                                                             <Move size={20} className="text-gray-400" />
-                                                            <h3 className="text-xl font-bold text-gray-800 dark:text-gray-200">{workoutName}</h3>
+                                                            <button onClick={() => startEditingName(workoutName)} className="text-xl font-bold text-gray-800 dark:text-gray-200 text-left hover:text-blue-500 dark:hover:text-blue-400 transition-colors">
+                                                                {workoutName}
+                                                            </button>
                                                         </div>
-                                                         <div className="flex items-center gap-1">
-                                                            {workoutName !== 'Rest' && <button onClick={() => startEditingName(workoutName)} className="p-1 hover:text-blue-500"><Edit size={20}/></button>}
+                                                        <div className="flex items-center gap-1">
                                                             <button onClick={() => handleRemoveDayFromMaster(workoutIndex)} className="p-1 hover:text-red-500"><XCircle size={20}/></button>
                                                         </div>
                                                     </div>
