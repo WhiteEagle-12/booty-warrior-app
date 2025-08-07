@@ -411,7 +411,7 @@ const presets = {
         }
       },
       "programStructure": {
-        "Upper (Strength Focus)": {
+        "Upper (Strength Focus)": { isRest: false,
           "exercises": [
             "Incline DB Press",
             "Pullups",
@@ -423,7 +423,7 @@ const presets = {
           ],
           "label": "Upper"
         },
-        "Lower (Strength Focus)": {
+        "Lower (Strength Focus)": { isRest: false,
           "exercises": [
             "Smith Machine Squat",
             "Hack Squat",
@@ -434,7 +434,7 @@ const presets = {
           ],
           "label": "Lower"
         },
-        "Push (Hypertrophy Focus)": {
+        "Push (Hypertrophy Focus)": { isRest: false,
           "exercises": [
             "Barbell Bench Press",
             "Incline DB Press",
@@ -444,7 +444,7 @@ const presets = {
           ],
           "label": "Push"
         },
-        "Legs (Hypertrophy Focus)": {
+        "Legs (Hypertrophy Focus)": { isRest: false,
           "exercises": [
             "DB Bulgarian Split Squat",
             "Barbell RDL",
@@ -454,7 +454,7 @@ const presets = {
           ],
           "label": "Legs"
         },
-        "Pull (Hypertrophy Focus)": {
+        "Pull (Hypertrophy Focus)": { isRest: false,
           "label": "Pull",
           "exercises": [
             "Pullups",
@@ -463,44 +463,25 @@ const presets = {
             "Preacher Curl",
             "Lat Pullovers"
           ]
-        }
+        },
+        "Rest Day": { isRest: true, exercises: [], label: "Rest" },
       },
       "weeklySchedule": [
-        {
-          "day": "Mon",
-          "workout": "Pull (Hypertrophy Focus)"
-        },
-        {
-          "workout": "Push (Hypertrophy Focus)",
-          "day": "Tue"
-        },
-        {
-          "workout": "Legs (Hypertrophy Focus)",
-          "day": "Wed"
-        },
-        {
-          "day": "Thu",
-          "workout": "Rest"
-        },
-        {
-          "day": "Fri",
-          "workout": "Upper (Strength Focus)"
-        },
-        {
-          "day": "Sat",
-          "workout": "Lower (Strength Focus)"
-        },
-        {
-          "day": "Sun",
-          "workout": "Rest"
-        }
+        { "day": "Mon", "workout": "Pull (Hypertrophy Focus)" },
+        { "day": "Tue", "workout": "Push (Hypertrophy Focus)" },
+        { "day": "Wed", "workout": "Legs (Hypertrophy Focus)" },
+        { "day": "Thu", "workout": "Rest Day" },
+        { "day": "Fri", "workout": "Upper (Strength Focus)" },
+        { "day": "Sat", "workout": "Lower (Strength Focus)" },
+        { "day": "Sun", "workout": "Rest Day" },
       ],
       "workoutOrder": [
         "Pull (Hypertrophy Focus)",
         "Push (Hypertrophy Focus)",
         "Legs (Hypertrophy Focus)",
         "Upper (Strength Focus)",
-        "Lower (Strength Focus)"
+        "Lower (Strength Focus)",
+        "Rest Day",
       ],
       "settings": {
         "restTimer": {
@@ -527,16 +508,17 @@ const presets = {
             'Triceps Pushdown': { sets: 2, reps: '10-15', rir: ['1','1'], rest: '1-2 min', equipment: 'machine', muscles: { primary: 'Triceps', secondary: null, primaryContribution: 1, secondaryContribution: 0 } },
         },
         programStructure: {
-            'Workout A': { exercises: ['Barbell Squat', 'Barbell Bench Press', 'Lat Pulldown', 'Lateral Raise', 'Triceps Pushdown'], label: 'A' },
-            'Workout B': { exercises: ['Leg Press', 'Seated Dumbbell Press', 'Dumbbell Row', 'Machine Chest Press', 'Dumbbell Curl'], label: 'B' },
+            'Workout A': { isRest: false, exercises: ['Barbell Squat', 'Barbell Bench Press', 'Lat Pulldown', 'Lateral Raise', 'Triceps Pushdown'], label: 'A' },
+            'Workout B': { isRest: false, exercises: ['Leg Press', 'Seated Dumbbell Press', 'Dumbbell Row', 'Machine Chest Press', 'Dumbbell Curl'], label: 'B' },
+            "Rest Day": { isRest: true, exercises: [], label: "Rest" },
         },
         weeklySchedule: [
-            { day: 'Mon', workout: 'Workout A' }, { day: 'Tue', workout: 'Rest' },
-            { day: 'Wed', workout: 'Workout B' }, { day: 'Thu', workout: 'Rest' },
-            { day: 'Fri', workout: 'Workout A' }, { day: 'Sat', workout: 'Rest' },
-            { day: 'Sun', workout: 'Rest' },
+            { day: 'Mon', workout: 'Workout A' }, { day: 'Tue', workout: 'Rest Day' },
+            { day: 'Wed', workout: 'Workout B' }, { day: 'Thu', workout: 'Rest Day' },
+            { day: 'Fri', workout: 'Workout A' }, { day: 'Sat', workout: 'Rest Day' },
+            { day: 'Sun', workout: 'Rest Day' },
         ],
-        workoutOrder: ['Workout A', 'Workout B'],
+        workoutOrder: ['Workout A', 'Workout B', 'Rest Day'],
         settings: { useWeeklySchedule: true, restTimer: { enabled: true, duration: 120 } },
         weeklyOverrides: {},
     },
@@ -559,18 +541,19 @@ const presets = {
             'Calf Raise': { sets: 4, reps: '10-15', rir: ['1','1','1','1'], rest: '1 min', equipment: 'machine', muscles: { primary: 'Calves', secondary: null, primaryContribution: 1, secondaryContribution: 0 } },
         },
         programStructure: {
-            'Upper Strength': { exercises: ['Barbell Bench Press', 'Barbell Row', 'Overhead Press (Barbell)', 'Barbell Curl', 'Skull Crusher'], label: 'U-Str' },
-            'Lower Strength': { exercises: ['Barbell Squat', 'Romanian Deadlift', 'Calf Raise'], label: 'L-Str' },
-            'Upper Hypertrophy': { exercises: ['Incline Dumbbell Press', 'Lat Pulldown', 'Lateral Raise', 'Barbell Curl', 'Skull Crusher'], label: 'U-Hyp' },
-            'Lower Hypertrophy': { exercises: ['Leg Press', 'Leg Curl', 'Calf Raise'], label: 'L-Hyp' },
+            'Upper Strength': { isRest: false, exercises: ['Barbell Bench Press', 'Barbell Row', 'Overhead Press (Barbell)', 'Barbell Curl', 'Skull Crusher'], label: 'U-Str' },
+            'Lower Strength': { isRest: false, exercises: ['Barbell Squat', 'Romanian Deadlift', 'Calf Raise'], label: 'L-Str' },
+            'Upper Hypertrophy': { isRest: false, exercises: ['Incline Dumbbell Press', 'Lat Pulldown', 'Lateral Raise', 'Barbell Curl', 'Skull Crusher'], label: 'U-Hyp' },
+            'Lower Hypertrophy': { isRest: false, exercises: ['Leg Press', 'Leg Curl', 'Calf Raise'], label: 'L-Hyp' },
+            "Rest Day": { isRest: true, exercises: [], label: "Rest" },
         },
         weeklySchedule: [
             { day: 'Mon', workout: 'Upper Strength' }, { day: 'Tue', workout: 'Lower Strength' },
-            { day: 'Wed', workout: 'Rest' }, { day: 'Thu', workout: 'Upper Hypertrophy' },
-            { day: 'Fri', workout: 'Lower Hypertrophy' }, { day: 'Sat', workout: 'Rest' },
-            { day: 'Sun', workout: 'Rest' },
+            { day: 'Wed', workout: 'Rest Day' }, { day: 'Thu', workout: 'Upper Hypertrophy' },
+            { day: 'Fri', workout: 'Lower Hypertrophy' }, { day: 'Sat', workout: 'Rest Day' },
+            { day: 'Sun', workout: 'Rest Day' },
         ],
-        workoutOrder: ['Upper Strength', 'Lower Strength', 'Upper Hypertrophy', 'Lower Hypertrophy'],
+        workoutOrder: ['Upper Strength', 'Lower Strength', 'Upper Hypertrophy', 'Lower Hypertrophy', 'Rest Day'],
         settings: { useWeeklySchedule: true, restTimer: { enabled: true, duration: 150 } },
         weeklyOverrides: {},
     },
@@ -587,16 +570,17 @@ const presets = {
             'Pull-ups': { sets: 3, reps: 'To Failure', rir: ['1','1','1'], rest: '2-3 min', equipment: 'bodyweight', muscles: { primary: 'Back', secondary: 'Biceps', primaryContribution: 1, secondaryContribution: 0.6 } },
         },
         programStructure: {
-            'Workout A': { exercises: ['Barbell Squat', 'Barbell Bench Press', 'Barbell Row', 'Dips'], label: 'A' },
-            'Workout B': { exercises: ['Barbell Squat', 'Overhead Press (Barbell)', 'Deadlift', 'Pull-ups'], label: 'B' },
+            'Workout A': { isRest: false, exercises: ['Barbell Squat', 'Barbell Bench Press', 'Barbell Row', 'Dips'], label: 'A' },
+            'Workout B': { isRest: false, exercises: ['Barbell Squat', 'Overhead Press (Barbell)', 'Deadlift', 'Pull-ups'], label: 'B' },
+            "Rest Day": { isRest: true, exercises: [], label: "Rest" },
         },
         weeklySchedule: [
-            { day: 'Mon', workout: 'Workout A' }, { day: 'Tue', workout: 'Rest' },
-            { day: 'Wed', workout: 'Workout B' }, { day: 'Thu', workout: 'Rest' },
-            { day: 'Fri', workout: 'Workout A' }, { day: 'Sat', workout: 'Rest' },
-            { day: 'Sun', workout: 'Rest' },
+            { day: 'Mon', workout: 'Workout A' }, { day: 'Tue', workout: 'Rest Day' },
+            { day: 'Wed', workout: 'Workout B' }, { day: 'Thu', workout: 'Rest Day' },
+            { day: 'Fri', workout: 'Workout A' }, { day: 'Sat', workout: 'Rest Day' },
+            { day: 'Sun', workout: 'Rest Day' },
         ],
-        workoutOrder: ['Workout A', 'Workout B'],
+        workoutOrder: ['Workout A', 'Workout B', 'Rest Day'],
         settings: { useWeeklySchedule: true, restTimer: { enabled: true, duration: 240 } },
         weeklyOverrides: {},
     },
@@ -623,17 +607,18 @@ const presets = {
             'Calf Raise': { sets: 5, reps: '10-15', rir: ['1','1','1','1','1'], rest: '1 min', equipment: 'machine', muscles: { primary: 'Calves', secondary: null, primaryContribution: 1, secondaryContribution: 0 } },
         },
         programStructure: {
-            'Push': { exercises: ['Barbell Bench Press', 'Incline Dumbbell Press', 'Seated Dumbbell Press', 'Lateral Raise', 'Triceps Pushdown', 'Overhead Triceps Extension (Cable)'], label: 'Push' },
-            'Pull': { exercises: ['Deadlift', 'Pull-ups', 'Barbell Row', 'Face Pull', 'Barbell Curl', 'Hammer Curl'], label: 'Pull' },
-            'Legs': { exercises: ['Barbell Squat', 'Romanian Deadlift', 'Leg Press', 'Leg Curl', 'Calf Raise'], label: 'Legs' },
+            'Push': { isRest: false, exercises: ['Barbell Bench Press', 'Incline Dumbbell Press', 'Seated Dumbbell Press', 'Lateral Raise', 'Triceps Pushdown', 'Overhead Triceps Extension (Cable)'], label: 'Push' },
+            'Pull': { isRest: false, exercises: ['Deadlift', 'Pull-ups', 'Barbell Row', 'Face Pull', 'Barbell Curl', 'Hammer Curl'], label: 'Pull' },
+            'Legs': { isRest: false, exercises: ['Barbell Squat', 'Romanian Deadlift', 'Leg Press', 'Leg Curl', 'Calf Raise'], label: 'Legs' },
+            "Rest Day": { isRest: true, exercises: [], label: "Rest" },
         },
         weeklySchedule: [
             { day: 'Mon', workout: 'Push' }, { day: 'Tue', workout: 'Pull' },
-            { day: 'Wed', workout: 'Legs' }, { day: 'Thu', workout: 'Rest' },
+            { day: 'Wed', workout: 'Legs' }, { day: 'Thu', workout: 'Rest Day' },
             { day: 'Fri', workout: 'Push' }, { day: 'Sat', workout: 'Pull' },
             { day: 'Sun', workout: 'Legs' },
         ],
-        workoutOrder: ['Push', 'Pull', 'Legs'],
+        workoutOrder: ['Push', 'Pull', 'Legs', 'Rest Day'],
         settings: { useWeeklySchedule: true, restTimer: { enabled: true, duration: 180 } },
         weeklyOverrides: {},
     },
@@ -686,14 +671,56 @@ const getExerciseDetails = (exerciseName, masterList) => masterList?.[exerciseNa
 
 const getWorkoutForWeek = (programData, week, workoutName) => {
     // This function now only retrieves the master template. Overrides are handled at the schedule level.
-    if (!workoutName || workoutName === 'Rest') return null;
+    if (!workoutName || programData.programStructure[workoutName]?.isRest) return null;
     return programData?.programStructure?.[workoutName] || null;
 };
 
 const getWorkoutNameForDay = (pData, week, dayKey) => {
     // Centralized function to get the correct workout name, respecting overrides.
-    return pData.weeklyOverrides?.[week]?.[dayKey] || pData.weeklySchedule.find(s => s.day === dayKey)?.workout || 'Rest';
+    return pData.weeklyOverrides?.[week]?.[dayKey] || pData.weeklySchedule.find(s => s.day === dayKey)?.workout || 'Rest Day';
 };
+
+const migrateProgramData = (program) => {
+    if (!program || !program.programStructure) return program;
+    const firstWorkoutKey = Object.keys(program.programStructure)[0];
+    if (firstWorkoutKey && program.programStructure[firstWorkoutKey].isRest !== undefined) {
+        return program;
+    }
+
+    let newProgram = JSON.parse(JSON.stringify(program));
+    let restTemplateName = "Rest Day";
+
+    for (const key in newProgram.programStructure) {
+        newProgram.programStructure[key].isRest = false;
+    }
+
+    if (!newProgram.programStructure[restTemplateName]) {
+        newProgram.programStructure[restTemplateName] = { exercises: [], label: "Rest", isRest: true };
+    }
+    if (!newProgram.workoutOrder.includes(restTemplateName)) {
+        newProgram.workoutOrder.push(restTemplateName);
+    }
+
+    newProgram.weeklySchedule = newProgram.weeklySchedule.map(day => {
+        if (day.workout === 'Rest') {
+            return { ...day, workout: restTemplateName };
+        }
+        return day;
+    });
+
+    if (newProgram.weeklyOverrides) {
+        for (const week in newProgram.weeklyOverrides) {
+            for (const dayKey in newProgram.weeklyOverrides[week]) {
+                if (newProgram.weeklyOverrides[week][dayKey] === 'Rest') {
+                    newProgram.weeklyOverrides[week][dayKey] = restTemplateName;
+                }
+            }
+        }
+    }
+
+    return newProgram;
+};
+
 
 const calculateE1RM = (weight, reps, rir) => {
     // Correctly use RIR in e1RM calculation
@@ -1462,7 +1489,7 @@ const WeekView = ({ week, completedDays, onSessionSelect, firstIncompleteWeek, o
                         const status = completedDays.get(dayKey);
                         const workoutName = getWorkoutNameForDay(programData, week, day.day);
                         const workoutDetails = getWorkoutForWeek(programData, week, workoutName);
-                        const isRestDay = !workoutName || workoutName === 'Rest';
+                        const isRestDay = !workoutName || programData.programStructure[workoutName]?.isRest;
                         
                         let dayClass = 'bg-gray-100 dark:bg-gray-700/50';
                         if (isRestDay) dayClass = 'bg-indigo-100 dark:bg-indigo-900/50';
@@ -1657,7 +1684,7 @@ const MainView = ({ onSessionSelect, onEditProgram, completedDays, onUnskipDay, 
         for (let w = 1; w <= info.weeks; w++) {
             const isWeekComplete = weeklySchedule.every(d => {
                 const workoutName = getWorkoutNameForDay(programData, w, d.day);
-                return workoutName === 'Rest' || completedDays.get(`${w}-${d.day}`)?.isDayComplete;
+                return programData.programStructure[workoutName]?.isRest || completedDays.get(`${w}-${d.day}`)?.isDayComplete;
             });
             if (!isWeekComplete) return w;
         }
@@ -1710,7 +1737,7 @@ const DashboardView = ({ allLogs, programData, bodyWeightHistory }) => {
         if (settings.useWeeklySchedule) {
             weeklySchedule.forEach(day => {
                 const workoutName = getWorkoutNameForDay(programData, 1, day.day);
-                if (workoutName !== 'Rest') {
+                if (workoutName && !programData.programStructure[workoutName]?.isRest) {
                     const workout = getWorkoutForWeek(programData, 1, workoutName);
                     if (workout) {
                         workout.exercises.forEach(exName => {
@@ -1741,7 +1768,7 @@ const DashboardView = ({ allLogs, programData, bodyWeightHistory }) => {
         for (let w = 1; w <= info.weeks; w++) {
              const isWeekComplete = weeklySchedule.every(day => {
                 const workoutName = getWorkoutNameForDay(programData, w, day.day);
-                if(workoutName === 'Rest') return true;
+                if(programData.programStructure[workoutName]?.isRest) return true;
                 const workout = getWorkoutForWeek(programData, w, workoutName);
                 if(!workout) return true;
                 return workout.exercises.every(ex => {
@@ -1764,7 +1791,7 @@ const DashboardView = ({ allLogs, programData, bodyWeightHistory }) => {
         const volumesByDay = {};
         weeklySchedule.forEach(d => {
             const workoutName = getWorkoutNameForDay(programData, firstIncompleteWeek, d.day);
-            if (workoutName !== 'Rest') volumesByDay[d.day] = 0;
+            if (workoutName && !programData.programStructure[workoutName]?.isRest) volumesByDay[d.day] = 0;
         });
 
         Object.values(allLogs).forEach(log => {
@@ -1774,7 +1801,10 @@ const DashboardView = ({ allLogs, programData, bodyWeightHistory }) => {
         });
         
         return weeklySchedule
-            .filter(d => getWorkoutNameForDay(programData, firstIncompleteWeek, d.day) !== 'Rest')
+            .filter(d => {
+                const workoutName = getWorkoutNameForDay(programData, firstIncompleteWeek, d.day);
+                return workoutName && !programData.programStructure[workoutName]?.isRest;
+            })
             .map(d => ({
                 day: d.day,
                 volume: Math.round(volumesByDay[d.day] || 0)
@@ -2531,8 +2561,8 @@ const EditWeekCard = ({ week, program, onEditDay, onToggleRest }) => {
                     {program.weeklySchedule.map(({ day }) => {
                         const workoutName = getWorkoutNameForDay(program, week, day);
                         const workoutDetails = getWorkoutForWeek(program, week, workoutName);
-                        const isRest = !workoutDetails || workoutName === 'Rest';
-                        const displayWorkoutName = isRest ? 'Rest' : (workoutDetails.label || workoutName);
+                        const isRest = !workoutDetails;
+                        const displayWorkoutName = isRest ? (program.programStructure[workoutName]?.label || 'Rest') : (workoutDetails.label || workoutName);
 
                         return (
                             <div key={`${week}-${day}`} className="bg-white dark:bg-gray-700 p-2 rounded-lg text-center flex flex-col justify-between">
@@ -2585,7 +2615,7 @@ const MasterScheduleEditor = ({ program, onProgramDataChange }) => {
         setEditingDay(null);
     };
 
-    const availableWorkouts = ['Rest', ...program.workoutOrder];
+    const availableWorkouts = [...program.workoutOrder];
 
     return (
         <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-4 mb-6">
@@ -2642,16 +2672,39 @@ const EditProgramView = ({ programData, onProgramDataChange, onBack, onNavigate 
 
     const handleAddWorkoutDay = () => {
         const newWorkoutName = `New Workout ${Object.keys(program.programStructure).length + 1}`;
-        const newProgramStructure = { ...program.programStructure, [newWorkoutName]: { exercises: [], label: 'New' } };
+        const newProgramStructure = { ...program.programStructure, [newWorkoutName]: { exercises: [], label: 'New', isRest: false } };
         const newWorkoutOrder = [...program.workoutOrder, newWorkoutName];
         updateProgram({ programStructure: newProgramStructure, workoutOrder: newWorkoutOrder });
     };
+
+    const handleAddNewRestDay = () => {
+        const newRestDayName = `Rest Day ${Object.values(program.programStructure).filter(p => p.isRest).length + 1}`;
+        const newProgramStructure = {
+            ...program.programStructure,
+            [newRestDayName]: { exercises: [], label: 'Rest', isRest: true }
+        };
+        const newWorkoutOrder = [...program.workoutOrder, newRestDayName];
+        updateProgram({ programStructure: newProgramStructure, workoutOrder: newWorkoutOrder });
+    };
+
+    const handleToggleTemplateType = (workoutName) => {
+        const newProgramStructure = JSON.parse(JSON.stringify(program.programStructure));
+        const template = newProgramStructure[workoutName];
+        if (template) {
+            template.isRest = !template.isRest;
+            if (template.isRest) {
+                template.exercises = [];
+            }
+        }
+        updateProgram({ programStructure: newProgramStructure });
+    };
     
     const handleDeleteWorkoutDay = (workoutNameToDelete) => {
+        const restTemplate = Object.keys(program.programStructure).find(name => program.programStructure[name]?.isRest) || 'Rest Day';
         openModal(
             <div>
                 <h2 className="text-xl font-bold mb-4">Confirm Deletion</h2>
-                <p className="text-gray-600 dark:text-gray-400">Are you sure you want to delete "{workoutNameToDelete}"? It will be removed from the program and replaced with a 'Rest' day in the weekly schedule.</p>
+                <p className="text-gray-600 dark:text-gray-400">Are you sure you want to delete "{workoutNameToDelete}"? It will be removed from the program and replaced with a '{restTemplate}' day in the weekly schedule.</p>
                 <div className="flex justify-end gap-2 mt-6">
                     <button onClick={closeModal} className="px-4 py-2 bg-gray-200 dark:bg-gray-600 rounded-lg">Cancel</button>
                     <button onClick={() => {
@@ -2660,7 +2713,7 @@ const EditProgramView = ({ programData, onProgramDataChange, onBack, onNavigate 
                         
                         const newWorkoutOrder = program.workoutOrder.filter(name => name !== workoutNameToDelete);
 
-                        const newSchedule = program.weeklySchedule.map(d => d.workout === workoutNameToDelete ? { ...d, workout: 'Rest' } : d);
+                        const newSchedule = program.weeklySchedule.map(d => d.workout === workoutNameToDelete ? { ...d, workout: restTemplate } : d);
 
                         updateProgram({
                             programStructure: newProgramStructure,
@@ -2806,8 +2859,9 @@ const EditProgramView = ({ programData, onProgramDataChange, onBack, onNavigate 
             newOverrides[week] = {};
         }
 
-        if (currentWorkout !== 'Rest') {
-            newOverrides[week][dayKey] = 'Rest';
+        if (!program.programStructure[currentWorkout]?.isRest) {
+            const restTemplate = Object.keys(program.programStructure).find(name => program.programStructure[name]?.isRest) || 'Rest Day';
+            newOverrides[week][dayKey] = restTemplate;
         } else {
             delete newOverrides[week][dayKey];
         }
@@ -2887,12 +2941,14 @@ const EditProgramView = ({ programData, onProgramDataChange, onBack, onNavigate 
             if (!newOverrides[week]) {
                 newOverrides[week] = {};
             }
-            newOverrides[week][dayKey] = 'Rest';
+            const restTemplate = Object.keys(program.programStructure).find(name => program.programStructure[name]?.isRest) || 'Rest Day';
+            newOverrides[week][dayKey] = restTemplate;
             updateProgram({ weeklyOverrides: newOverrides });
             closeModal();
         };
 
         const onAddExerciseFromModal = (addExerciseCallback) => {
+            const availableWorkouts = [...program.workoutOrder];
             openModal(
                 <AddExerciseToWorkoutModal
                     masterExerciseList={program.masterExerciseList}
@@ -2926,10 +2982,10 @@ const EditProgramView = ({ programData, onProgramDataChange, onBack, onNavigate 
                 'lg'
             );
         } else {
-            const customWorkoutName = `${baseWorkoutName === 'Rest' ? 'New Workout' : baseWorkoutName} (Custom W${week}-${dayKey})`;
+            const customWorkoutName = `${program.programStructure[baseWorkoutName]?.isRest ? 'New Workout' : baseWorkoutName} (Custom W${week}-${dayKey})`;
 
             const baseWorkout = program.programStructure[baseWorkoutName];
-            const newCustomWorkout = baseWorkout ? JSON.parse(JSON.stringify(baseWorkout)) : { exercises: [], label: `Custom ${dayKey}` };
+            const newCustomWorkout = baseWorkout ? JSON.parse(JSON.stringify(baseWorkout)) : { exercises: [], label: `Custom ${dayKey}`, isRest: false };
 
             const newProgramStructure = { ...program.programStructure, [customWorkoutName]: newCustomWorkout };
             const newWorkoutOrder = program.workoutOrder.includes(customWorkoutName) ? program.workoutOrder : [...program.workoutOrder, customWorkoutName];
@@ -3023,11 +3079,12 @@ const EditProgramView = ({ programData, onProgramDataChange, onBack, onNavigate 
                             {program.workoutOrder.filter(name => !name.includes('(Custom W')).map((workoutName, workoutIndex) => {
                                 const workoutDetails = program.programStructure[workoutName];
                                 if (!workoutDetails) return null;
+                                const isRest = workoutDetails.isRest;
                                 return (
                                     <Draggable key={workoutName} draggableId={workoutName} index={workoutIndex}>
                                         {(provided) => (
                                             <div ref={provided.innerRef} {...provided.draggableProps} id={`workout-day-editor-${workoutName}`}>
-                                                <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-4">
+                                                <div className={`rounded-xl shadow-md p-4 ${isRest ? 'bg-indigo-100 dark:bg-indigo-900/50' : 'bg-white dark:bg-gray-800'}`}>
                                                     <div className="flex justify-between items-center mb-3 border-b border-gray-200 dark:border-gray-700 pb-3">
                                                         <div {...provided.dragHandleProps} className="flex items-center gap-2 cursor-grab flex-grow">
                                                             <Move size={20} className="text-gray-400" />
@@ -3035,33 +3092,40 @@ const EditProgramView = ({ programData, onProgramDataChange, onBack, onNavigate 
                                                                 {workoutName}
                                                             </button>
                                                         </div>
-                                                        <div className="flex items-center gap-1">
+                                                        <div className="flex items-center gap-2">
+                                                            <button onClick={() => handleToggleTemplateType(workoutName)} title={isRest ? "Convert to Workout Day" : "Convert to Rest Day"} className="p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full">
+                                                                {isRest ? <Dumbbell size={20} className="text-green-500" /> : <Shield size={20} className="text-indigo-500" />}
+                                                            </button>
                                                             <button onClick={() => handleRemoveDayFromMaster(workoutIndex)} className="p-1 hover:text-red-500"><XCircle size={20}/></button>
                                                         </div>
                                                     </div>
-                                                    <Droppable droppableId={workoutName} type="exercise">
-                                                        {(provided) => (
-                                                            <ul {...provided.droppableProps} ref={provided.innerRef} className="space-y-2 mb-3 min-h-[50px]">
-                                                                {workoutDetails.exercises.map((ex, index) => (
-                                                                    <Draggable key={`${workoutName}-${ex}-${index}`} draggableId={`${workoutName}-${ex}-${index}`} index={index}>
-                                                                        {(provided) => (
-                                                                            <li ref={provided.innerRef} {...provided.draggableProps} {...provided.dragHandleProps} className="flex justify-between items-center p-2 bg-gray-50 dark:bg-gray-700/50 rounded-md group">
-                                                                                <span className="font-medium">{ex}</span>
-                                                                                 <div className="flex items-center gap-1 text-gray-500">
-                                                                                    <button onClick={() => handleEditExerciseDetails(ex)} className="p-1 opacity-0 group-hover:opacity-100 transition-opacity"><Pencil size={16}/></button>
-                                                                                    <button onClick={() => handleRemoveExerciseFromWorkout(workoutName, index)} className="p-1 opacity-0 group-hover:opacity-100 transition-opacity"><XCircle size={16}/></button>
-                                                                                 </div>
-                                                                            </li>
-                                                                        )}
-                                                                    </Draggable>
-                                                                ))}
-                                                                {provided.placeholder}
-                                                            </ul>
-                                                        )}
-                                                    </Droppable>
-                                                    <button onClick={() => handleAddExerciseToWorkout(workoutName)} className="w-full flex items-center justify-center gap-2 p-2 rounded-lg bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300 hover:bg-blue-200 dark:hover:bg-blue-800/50">
-                                                        <PlusCircle size={16}/> Add Exercise
-                                                    </button>
+                                                    {!isRest && (
+                                                        <>
+                                                            <Droppable droppableId={workoutName} type="exercise">
+                                                                {(provided) => (
+                                                                    <ul {...provided.droppableProps} ref={provided.innerRef} className="space-y-2 mb-3 min-h-[50px]">
+                                                                        {workoutDetails.exercises.map((ex, index) => (
+                                                                            <Draggable key={`${workoutName}-${ex}-${index}`} draggableId={`${workoutName}-${ex}-${index}`} index={index}>
+                                                                                {(provided) => (
+                                                                                    <li ref={provided.innerRef} {...provided.draggableProps} {...provided.dragHandleProps} className="flex justify-between items-center p-2 bg-gray-50 dark:bg-gray-700/50 rounded-md group">
+                                                                                        <span className="font-medium">{ex}</span>
+                                                                                        <div className="flex items-center gap-1 text-gray-500">
+                                                                                            <button onClick={() => handleEditExerciseDetails(ex)} className="p-1 opacity-0 group-hover:opacity-100 transition-opacity"><Pencil size={16}/></button>
+                                                                                            <button onClick={() => handleRemoveExerciseFromWorkout(workoutName, index)} className="p-1 opacity-0 group-hover:opacity-100 transition-opacity"><XCircle size={16}/></button>
+                                                                                        </div>
+                                                                                    </li>
+                                                                                )}
+                                                                            </Draggable>
+                                                                        ))}
+                                                                        {provided.placeholder}
+                                                                    </ul>
+                                                                )}
+                                                            </Droppable>
+                                                            <button onClick={() => handleAddExerciseToWorkout(workoutName)} className="w-full flex items-center justify-center gap-2 p-2 rounded-lg bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300 hover:bg-blue-200 dark:hover:bg-blue-800/50">
+                                                                <PlusCircle size={16}/> Add Exercise
+                                                            </button>
+                                                        </>
+                                                    )}
                                                 </div>
                                             </div>
                                         )}
@@ -3069,9 +3133,14 @@ const EditProgramView = ({ programData, onProgramDataChange, onBack, onNavigate 
                                 );
                             })}
                             {provided.placeholder}
-                             <button onClick={handleAddWorkoutDay} className="w-full flex items-center justify-center gap-2 p-3 rounded-xl bg-green-100 dark:bg-green-900/50 text-green-700 dark:text-green-300 hover:bg-green-200 dark:hover:bg-green-800/50 font-bold">
-                                <PlusCircle size={20}/> Add New Workout Day
-                            </button>
+                            <div className="flex gap-2">
+                                <button onClick={handleAddWorkoutDay} className="w-full flex items-center justify-center gap-2 p-3 rounded-xl bg-green-100 dark:bg-green-900/50 text-green-700 dark:text-green-300 hover:bg-green-200 dark:hover:bg-green-800/50 font-bold">
+                                    <PlusCircle size={20}/> Add Workout Day
+                                </button>
+                                <button onClick={handleAddNewRestDay} className="w-full flex items-center justify-center gap-2 p-3 rounded-xl bg-indigo-100 dark:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-200 dark:hover:bg-indigo-800/50 font-bold">
+                                    <Shield size={20}/> Add Rest Day
+                                </button>
+                            </div>
                         </div>
                     )}
                 </Droppable>
@@ -3909,7 +3978,7 @@ const calculateStreak = (allLogs, programData) => {
         for (let week = 1; week <= info.weeks; week++) {
             for (const day of weeklySchedule) {
                 const workoutName = getWorkoutNameForDay(programData, week, day.day);
-                if (workoutName !== 'Rest') {
+                if (workoutName && !programData.programStructure[workoutName]?.isRest) {
                     sortedDays.push({ week, day: day.day, workoutName });
                 }
             }
@@ -4626,7 +4695,16 @@ const AppCore = () => {
 
                 // Migration for program instances
                 if (data.programInstances && data.activeInstanceId) {
-                    setProgramInstances(data.programInstances);
+                    const migratedInstances = data.programInstances.map(instance => ({
+                        ...instance,
+                        program: migrateProgramData(instance.program)
+                    }));
+
+                    if (JSON.stringify(migratedInstances) !== JSON.stringify(data.programInstances)) {
+                        handleUpdateAndSave({ programInstances: migratedInstances });
+                    }
+
+                    setProgramInstances(migratedInstances);
                     setActiveInstanceId(data.activeInstanceId);
                 } else {
                     // One-time migration from old data structure
@@ -4641,9 +4719,10 @@ const AppCore = () => {
                         settings: { ...defaultProgram.settings, ...data.settings },
                         weeklyOverrides: data.weeklyOverrides || {},
                     };
+                    const migratedProgram = migrateProgramData(loadedProgram);
                     const initialInstance = {
                         id: crypto.randomUUID(),
-                        program: loadedProgram,
+                        program: migratedProgram,
                         createdAt: new Date().toISOString(),
                         lastModified: new Date().toISOString()
                     };
