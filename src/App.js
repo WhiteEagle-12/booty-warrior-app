@@ -1269,7 +1269,7 @@ const LiftingSession = ({ week, dayKey, onBack, allLogs, setAllLogs, onSkipDay, 
     );
 };
 
-const WeekView = ({ week, completedDays, onSessionSelect, firstIncompleteWeek, onUnskipDay, programData }) => {
+const WeekView = ({ week, completedDays, onSessionSelect, firstIncompleteWeek, onUnskipDay, programData, onNavigate }) => {
     const { weeklySchedule } = programData;
     const isWeekComplete = useMemo(() => weeklySchedule.every(day => {
         const workoutName = getWorkoutNameForDay(programData, week, day.day);
@@ -1304,7 +1304,14 @@ const WeekView = ({ week, completedDays, onSessionSelect, firstIncompleteWeek, o
 
                         return (
                             <div key={dayKey} className={`rounded-lg p-3 flex flex-col justify-between transition-all ${dayClass}`}>
-                                <div className="font-bold text-sm text-gray-800 dark:text-gray-200 mb-2">{day.day}</div>
+                                <div className="flex justify-between items-center mb-2">
+                                    <div className="font-bold text-sm text-gray-800 dark:text-gray-200">{day.day}</div>
+                                    {onNavigate && programData.settings.useWeeklySchedule && (
+                                        <button onClick={() => onNavigate('editWeek', { week, dayKey: day.day, backTo: 'main' })} className="p-1 text-gray-400 hover:text-blue-500">
+                                            <Pencil size={14} />
+                                        </button>
+                                    )}
+                                </div>
                                 <div className="space-y-2 flex-grow flex flex-col justify-end">
                                     {isRestDay ? (
                                         <div className="text-center text-xs font-semibold text-indigo-700 dark:text-indigo-300 h-7 flex items-center justify-center">Rest Day</div>
@@ -1477,7 +1484,7 @@ const StreakCounter = ({ streak }) => {
 };
 
 
-const MainView = ({ onSessionSelect, onEditProgram, completedDays, onUnskipDay, programData, allLogs }) => {
+const MainView = ({ onSessionSelect, onEditProgram, completedDays, onUnskipDay, programData, allLogs, onNavigate }) => {
     const { info, weeklySchedule } = programData;
     const weeks = Array.from({ length: info.weeks }, (_, i) => i + 1);
     
@@ -1516,6 +1523,7 @@ const MainView = ({ onSessionSelect, onEditProgram, completedDays, onUnskipDay, 
                             firstIncompleteWeek={firstIncompleteWeek} 
                             onUnskipDay={onUnskipDay} 
                             programData={programData}
+                            onNavigate={onNavigate}
                         />
                     ))
                 ) : (
@@ -1682,12 +1690,29 @@ const DashboardView = ({ allLogs, programData, bodyWeightHistory }) => {
 };
 
 
-const SettingsView = ({ allLogs, historicalLogs, weightUnit, onWeightUnitChange, onResetMeso, programData, onProgramDataChange, onShowTutorial, bodyWeight, onBodyWeightChange, onBack }) => {
+const SettingsView = ({ allLogs, historicalLogs, weightUnit, onWeightUnitChange, onResetMeso, programData, onProgramDataChange, onShowTutorial, bodyWeight, onBodyWeightChange, onBack, onRestoreLogs }) => {
     const { theme, toggleTheme } = useContext(ThemeContext);
     const { customId, handleSetCustomId } = useContext(FirebaseContext);
     const { openModal, closeModal } = useContext(AppStateContext);
     const [tempId, setTempId] = useState(customId);
     const [exportSelection, setExportSelection] = useState('all');
+    const fileInputRef = useRef(null);
+
+    const handleFileImport = (event) => {
+        const file = event.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            onRestoreLogs(e.target.result);
+        };
+        reader.readAsText(file);
+        event.target.value = null; // Reset input
+    };
+
+    const handleImportClick = () => {
+        fileInputRef.current?.click();
+    };
 
     const exportData = (logsToExport, filename) => {
         const validLogs = Object.values(logsToExport).filter(log => !log.skipped && log.exercise);
@@ -1900,6 +1925,14 @@ const SettingsView = ({ allLogs, historicalLogs, weightUnit, onWeightUnitChange,
                             <button onClick={handleExport} disabled={!hasLogs} className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg shadow-md hover:bg-blue-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed">
                                 <Download size={16} /> Export CSV
                             </button>
+                        </div>
+                         <div className="border-t border-gray-200 dark:border-gray-700"></div>
+                        <div>
+                            <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">Restore workout history from a previously exported CSV file. This will overwrite all current logs.</p>
+                            <button onClick={handleImportClick} className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg shadow-md hover:bg-green-700 transition-colors">
+                                <Upload size={16} /> Import & Restore Logs
+                            </button>
+                            <input type="file" ref={fileInputRef} onChange={handleFileImport} accept=".csv" style={{ display: 'none' }} />
                         </div>
                     </div>
                 </div>
@@ -2426,6 +2459,64 @@ const EditWeekView = ({ week, dayKey, programData, onProgramDataChange, onBack }
                         </button>
                     ))}
                 </div>
+                <div className="border-t border-gray-200 dark:border-gray-700 mt-4 pt-4">
+                    <button
+                        onClick={() => handleWorkoutChange('Rest')}
+                        className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg shadow-md hover:bg-indigo-700 transition-colors"
+                    >
+                        <Zap size={16} /> Mark as Rest Day
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+const MasterScheduleEditor = ({ program, onProgramDataChange }) => {
+    const [editingDay, setEditingDay] = useState(null);
+
+    const handleScheduleChange = (day, newWorkout) => {
+        const newSchedule = program.weeklySchedule.map(d => {
+            if (d.day === day) {
+                return { ...d, workout: newWorkout };
+            }
+            return d;
+        });
+        onProgramDataChange({ ...program, weeklySchedule: newSchedule });
+        setEditingDay(null);
+    };
+
+    const availableWorkouts = ['Rest', ...program.workoutOrder];
+
+    return (
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-4 mb-6">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">Master Weekly Schedule</h3>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">Set the default workout for each day of the week.</p>
+            <div className="space-y-2">
+                {program.weeklySchedule.map(({ day, workout }) => (
+                    <div key={day} className="bg-gray-50 dark:bg-gray-900/50 p-3 rounded-lg">
+                        <div className="flex justify-between items-center">
+                            <span className="font-bold">{day}</span>
+                            <span className="truncate pr-2">{program.programStructure[workout]?.label || workout}</span>
+                            <button onClick={() => setEditingDay(editingDay === day ? null : day)} className="text-sm text-blue-600 dark:text-blue-400 hover:underline flex-shrink-0">
+                                {editingDay === day ? 'Cancel' : 'Change'}
+                            </button>
+                        </div>
+                        {editingDay === day && (
+                            <div className="mt-3 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
+                                {availableWorkouts.map(woName => (
+                                    <button
+                                        key={woName}
+                                        onClick={() => handleScheduleChange(day, woName)}
+                                        className={`p-2 text-sm rounded-md ${woName === workout ? 'bg-blue-600 text-white' : 'bg-white dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600'}`}
+                                    >
+                                        {program.programStructure[woName]?.label || woName}
+                                    </button>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                ))}
             </div>
         </div>
     );
@@ -2677,6 +2768,8 @@ const EditProgramView = ({ programData, onProgramDataChange, onBack, onNavigate 
                         </div>
                     </div>
                 </div>
+
+                <MasterScheduleEditor program={program} onProgramDataChange={updateProgram} />
 
                 {/* Weekly Schedule Editor - Collapsible */}
                 <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-4 mb-6">
@@ -3210,7 +3303,7 @@ const ProgramManagerView = ({ onProgramUpdate, activeProgram, programInstances, 
         reader.onload = (e) => {
             try {
                 if (file.name.endsWith('.csv')) {
-                    openModal(<ImportProgramCSVModal csvData={e.target.result} onRestore={onProgramUpdate} onClose={closeModal} />);
+                    openModal(<RestoreProgramModal csvData={e.target.result} onRestore={onProgramUpdate} onClose={closeModal} />);
                 } else {
                     const importedProgram = JSON.parse(e.target.result);
                     if (
@@ -4461,6 +4554,83 @@ const AppCore = () => {
         }
     };
 
+    const handleRestoreLogs = useCallback((csvData) => {
+        if (!csvData) {
+            addToast('The selected file is empty.', 'error');
+            return;
+        }
+
+        try {
+            const lines = csvData.trim().split('\n');
+            if (lines.length < 2) {
+                throw new Error("CSV is empty or has only a header.");
+            }
+            const headers = lines[0].split(',').map(h => h.trim());
+
+            const requiredHeaders = ['Week', 'Day', 'Exercise', 'Set', 'Load (lbs)', 'Reps'];
+            if (!requiredHeaders.every(h => headers.includes(h))) {
+                throw new Error("Invalid CSV format. Missing required headers like 'Week', 'Day', 'Exercise', etc.");
+            }
+
+            const newLogs = {};
+            lines.slice(1).forEach((line, index) => {
+                const values = line.match(/(".*?"|[^",]+)(?=\s*,|\s*$)/g).map(v => v.replace(/"/g, ''));
+
+                const logData = headers.reduce((obj, header, i) => {
+                    obj[header] = values[i] ? values[i].trim() : '';
+                    return obj;
+                }, {});
+
+                const { Week, Day, Exercise, Set } = logData;
+                if (!Week || !Day || !Exercise || !Set) {
+                    console.warn(`Skipping invalid row ${index + 2} in CSV.`);
+                    return;
+                }
+
+                const logId = `${Week}-${Day}-${Exercise}-${Set}`;
+
+                newLogs[logId] = {
+                    week: parseInt(Week, 10),
+                    dayKey: Day,
+                    session: logData['Session'] || 'Restored Session',
+                    exercise: Exercise,
+                    set: parseInt(Set, 10),
+                    load: parseFloat(logData['Load (lbs)']),
+                    reps: logData['Reps'],
+                    rir: logData['RIR'] || '',
+                    date: new Date().toISOString(),
+                };
+            });
+
+            if (Object.keys(newLogs).length === 0) {
+                throw new Error("No valid log entries found in the CSV file.");
+            }
+
+            openModal(
+                <div>
+                    <h2 className="text-xl font-bold mb-4">Confirm Restore</h2>
+                    <p className="text-gray-600 dark:text-gray-400">
+                        This will replace all your current workout logs with the data from the CSV file.
+                        Found {Object.keys(newLogs).length} log entries to restore. This action cannot be undone.
+                    </p>
+                    <div className="flex justify-end gap-2 mt-6">
+                        <button onClick={closeModal} className="px-4 py-2 bg-gray-200 dark:bg-gray-600 rounded-lg">Cancel</button>
+                        <button onClick={() => {
+                            setAllLogs(newLogs);
+                            handleUpdateAndSave({ logs: newLogs });
+                            addToast('Data restored successfully!', 'success');
+                            closeModal();
+                        }} className="px-4 py-2 bg-red-600 text-white rounded-lg">Confirm & Restore</button>
+                    </div>
+                </div>
+            );
+
+        } catch (error) {
+            console.error("Error restoring from CSV:", error);
+            addToast(`Import Failed: ${error.message}`, 'error');
+        }
+    }, [openModal, closeModal, addToast, handleUpdateAndSave]);
+
     const handleTimerEnd = useCallback(() => {
         setActiveTimer(null);
          openModal(
@@ -4535,9 +4705,9 @@ const AppCore = () => {
             case 'achievements': return <AchievementsView unlockedAchievements={unlockedAchievements} historicalLogs={historicalLogs} programData={programData} bodyWeight={bodyWeight} weightUnit={weightUnit} onBack={onBack} />;
             case 'programHub': return <ProgramManagerView onProgramUpdate={handleProgramUpdate} activeProgram={{...programData, id: activeInstanceId}} programInstances={programInstances} onInstanceSwitch={handleInstanceSwitch} onBack={onBack} />;
             case 'editProgram': return <EditProgramView programData={programData} onProgramDataChange={handleProgramDataChange} onBack={onBack} onNavigate={navigate} />;
-            case 'editWeek': return <EditWeekView {...pageState.data} programData={programData} onProgramDataChange={handleProgramDataChange} onBack={() => navigate('editProgram')} />;
-            case 'settings': return <SettingsView allLogs={allLogs} historicalLogs={historicalLogs} weightUnit={weightUnit} onWeightUnitChange={handleWeightUnitChange} onResetMeso={handleResetMeso} programData={programData} onProgramDataChange={handleProgramDataChange} onShowTutorial={showTutorial} bodyWeight={bodyWeight} onBodyWeightChange={handleBodyWeightChange} onBack={onBack} />;
-            default: return <MainView onSessionSelect={(week, day, type, seqIndex) => navigate(type, { week, dayKey: day, sequentialWorkoutIndex: seqIndex })} onEditProgram={() => navigate('editProgram')} completedDays={completedDays} onUnskipDay={handleUnskipDay} programData={programData} allLogs={allLogs} />;
+            case 'editWeek': return <EditWeekView {...pageState.data} programData={programData} onProgramDataChange={handleProgramDataChange} onBack={() => navigate(pageState.data.backTo || 'editProgram')} />;
+            case 'settings': return <SettingsView allLogs={allLogs} historicalLogs={historicalLogs} weightUnit={weightUnit} onWeightUnitChange={handleWeightUnitChange} onResetMeso={handleResetMeso} programData={programData} onProgramDataChange={handleProgramDataChange} onShowTutorial={showTutorial} bodyWeight={bodyWeight} onBodyWeightChange={handleBodyWeightChange} onBack={onBack} onRestoreLogs={handleRestoreLogs} />;
+            default: return <MainView onSessionSelect={(week, day, type, seqIndex) => navigate(type, { week, dayKey: day, sequentialWorkoutIndex: seqIndex })} onEditProgram={() => navigate('editProgram')} completedDays={completedDays} onUnskipDay={handleUnskipDay} programData={programData} allLogs={allLogs} onNavigate={navigate} />;
         }
     };
 
