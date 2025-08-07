@@ -2004,40 +2004,23 @@ const SettingsView = ({ allLogs, historicalLogs, weightUnit, onWeightUnitChange,
     );
 };
 
-const MuscleGroupDetailModal = ({ muscleName, programData, onClose }) => {
+const MuscleGroupDetailModal = ({ muscleName, exerciseData, onClose }) => {
     const contributingExercises = useMemo(() => {
-        const exercises = {};
-        const { programStructure, masterExerciseList } = programData;
-
-        if (!programStructure || !masterExerciseList) return [];
-
-        Object.values(programStructure).forEach(workout => {
-            if (!workout.exercises) return;
-            workout.exercises.forEach(exName => {
-                const details = getExerciseDetails(exName, masterExerciseList);
-                if (details?.muscles?.primary === muscleName ||
-                    details?.muscles?.secondary === muscleName ||
-                    details?.muscles?.tertiary === muscleName) {
-
-                    if (!exercises[exName]) {
-                        exercises[exName] = { sets: 0 };
-                    }
-                    exercises[exName].sets += Number(details.sets) || 0;
-                }
-            });
-        });
-        return Object.entries(exercises).sort(([,a],[,b]) => b.sets - a.sets);
-    }, [muscleName, programData]);
+        if (!exerciseData) return [];
+        return Object.entries(exerciseData)
+            .map(([name, volume]) => ({ name, volume: Math.round(volume) }))
+            .sort((a, b) => b.volume - a.volume);
+    }, [exerciseData]);
 
     return (
         <div>
-            <h2 className="text-xl font-bold mb-4">Set Breakdown for {muscleName}</h2>
+            <h2 className="text-xl font-bold mb-4">Volume Breakdown for {muscleName}</h2>
             <div className="max-h-60 overflow-y-auto pr-2">
                 <ul className="space-y-2">
-                    {contributingExercises.map(([name, data]) => (
+                    {contributingExercises.map(({ name, volume }) => (
                         <li key={name} className="flex justify-between items-center p-2 bg-gray-100 dark:bg-gray-700/50 rounded-md">
                             <span className="font-semibold">{name}</span>
-                            <span>{data.sets} sets</span>
+                            <span>{volume.toLocaleString()} lbs</span>
                         </li>
                     ))}
                 </ul>
@@ -2126,48 +2109,57 @@ const AnalyticsView = ({ allLogs, programData, onBack }) => {
 
     const muscleGroupData = useMemo(() => {
         const dataByMuscle = {};
-        const { programStructure, masterExerciseList } = programData;
 
-        if (!programStructure || !masterExerciseList) return [];
+        if (!allLogs || !masterExerciseList) return [];
 
         const ensureMuscle = (muscle) => {
             if (muscle && !dataByMuscle[muscle]) {
-                dataByMuscle[muscle] = { sets: 0 };
+                dataByMuscle[muscle] = { volume: 0, exercises: {} };
             }
         };
 
-        Object.values(programStructure).forEach(workout => {
-            if (!workout.exercises) return;
-            workout.exercises.forEach(exerciseName => {
-                const exerciseDetails = getExerciseDetails(exerciseName, masterExerciseList);
-                if (exerciseDetails && exerciseDetails.muscles) {
-                    const { primary, secondary, tertiary } = exerciseDetails.muscles;
-                    const sets = Number(exerciseDetails.sets) || 0;
-                    
-                    ensureMuscle(primary);
-                    if(primary) dataByMuscle[primary].sets += sets;
+        Object.values(allLogs).forEach(log => {
+            if (!log.skipped && (log.load || log.load === 0) && log.reps) {
+                const exerciseDetails = getExerciseDetails(log.exercise, masterExerciseList);
+                if (exerciseDetails?.muscles) {
+                    const setVolume = getSetVolume(log, masterExerciseList);
+                    const { primary, secondary, tertiary, primaryContribution, secondaryContribution, tertiaryContribution } = exerciseDetails.muscles;
 
-                    ensureMuscle(secondary);
-                    if(secondary) dataByMuscle[secondary].sets += sets;
-
-                    ensureMuscle(tertiary);
-                    if(tertiary) dataByMuscle[tertiary].sets += sets;
+                    if (primary) {
+                        ensureMuscle(primary);
+                        const contributedVolume = setVolume * (primaryContribution || 1);
+                        dataByMuscle[primary].volume += contributedVolume;
+                        dataByMuscle[primary].exercises[log.exercise] = (dataByMuscle[primary].exercises[log.exercise] || 0) + contributedVolume;
+                    }
+                    if (secondary) {
+                        ensureMuscle(secondary);
+                        const contributedVolume = setVolume * (secondaryContribution || 0.5);
+                        dataByMuscle[secondary].volume += contributedVolume;
+                        dataByMuscle[secondary].exercises[log.exercise] = (dataByMuscle[secondary].exercises[log.exercise] || 0) + contributedVolume;
+                    }
+                    if (tertiary) {
+                        ensureMuscle(tertiary);
+                        const contributedVolume = setVolume * (tertiaryContribution || 0.25);
+                        dataByMuscle[tertiary].volume += contributedVolume;
+                        dataByMuscle[tertiary].exercises[log.exercise] = (dataByMuscle[tertiary].exercises[log.exercise] || 0) + contributedVolume;
+                    }
                 }
-            });
+            }
         });
 
-        const totalSets = Object.values(dataByMuscle).reduce((sum, d) => sum + d.sets, 0);
+        const totalVolume = Object.values(dataByMuscle).reduce((sum, d) => sum + d.volume, 0);
 
         return Object.entries(dataByMuscle).map(([name, data]) => ({
             name,
-            sets: data.sets,
-            setsPercentage: totalSets > 0 ? Math.round((data.sets / totalSets) * 100) : 0,
-        })).sort((a,b) => b.sets - a.sets);
-    }, [programData]);
+            volume: Math.round(data.volume),
+            volumePercentage: totalVolume > 0 ? Math.round((data.volume / totalVolume) * 100) : 0,
+            exercises: data.exercises,
+        })).sort((a, b) => b.volume - a.volume);
+    }, [allLogs, masterExerciseList]);
 
     const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#AF19FF', '#FF42A1', '#42A1FF'];
     const RADIAN = Math.PI / 180;
-    const renderCustomizedLabel = ({ cx, cy, midAngle, outerRadius, percent, name, setsPercentage }) => {
+    const renderCustomizedLabel = ({ cx, cy, midAngle, outerRadius, name, setsPercentage }) => {
         const radius = outerRadius + 30;
         const x = cx + radius * Math.cos(-midAngle * RADIAN);
         const y = cy + radius * Math.sin(-midAngle * RADIAN);
@@ -2261,24 +2253,24 @@ const AnalyticsView = ({ allLogs, programData, onBack }) => {
                 </div>
 
                 <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-4">
-                    <h3 className="font-semibold dark:text-gray-200 mb-2">Muscle Group Distribution (All Time)</h3>
+                    <h3 className="font-semibold dark:text-gray-200 mb-2">Muscle Group Volume Distribution (All Time)</h3>
                     {muscleGroupData.length > 0 ? (
                         <div className="grid md:grid-cols-2 gap-8 items-center">
                             <div className="w-full aspect-square">
                                <ResponsiveContainer>
                                     <PieChart margin={{ top: 40, right: 40, left: 40, bottom: 40 }}>
-                                        <Pie data={muscleGroupData} dataKey="sets" nameKey="name" cx="50%" cy="50%" outerRadius="70%" fill="#8884d8" labelLine={false} label={renderCustomizedLabel}>
+                                        <Pie data={muscleGroupData} dataKey="volume" nameKey="name" cx="50%" cy="50%" outerRadius="70%" fill="#8884d8" labelLine={false} label={({ cx, cy, midAngle, outerRadius, name, volumePercentage }) => renderCustomizedLabel({ cx, cy, midAngle, outerRadius, name, setsPercentage: volumePercentage })}>
                                             {muscleGroupData.map((entry, index) => (
                                                 <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                                             ))}
                                         </Pie>
-                                        <Tooltip formatter={(value, name, props) => [`${props.payload.setsPercentage}%`, 'Sets']} />
+                                        <Tooltip formatter={(value, name, props) => [`${props.payload.volume.toLocaleString()} lbs (${props.payload.volumePercentage}%)`, 'Total Volume']} />
                                         <Legend />
                                     </PieChart>
                                 </ResponsiveContainer>
                             </div>
                             <div className="text-sm">
-                                <h4 className="font-bold text-lg mb-2">Sets Per Muscle Group</h4>
+                                <h4 className="font-bold text-lg mb-2">Volume Per Muscle Group</h4>
                                 <input
                                     type="text"
                                     placeholder="Search muscle groups..."
@@ -2291,9 +2283,9 @@ const AnalyticsView = ({ allLogs, programData, onBack }) => {
                                         .filter(d => d.name.toLowerCase().includes(muscleSearchTerm.toLowerCase()))
                                         .map(d => (
                                         <li key={d.name}>
-                                            <button onClick={() => openModal(<MuscleGroupDetailModal muscleName={d.name} programData={programData} onClose={closeModal}/>)} className="w-full flex justify-between items-center bg-gray-50 dark:bg-gray-700/50 p-2 rounded-md hover:bg-gray-200 dark:hover:bg-gray-600 text-left">
+                                            <button onClick={() => openModal(<MuscleGroupDetailModal muscleName={d.name} exerciseData={d.exercises} onClose={closeModal}/>)} className="w-full flex justify-between items-center bg-gray-50 dark:bg-gray-700/50 p-2 rounded-md hover:bg-gray-200 dark:hover:bg-gray-600 text-left">
                                                 <span className="font-semibold">{d.name}</span>
-                                                <span>{d.sets} sets ({d.setsPercentage}%)</span>
+                                                <span>{d.volume.toLocaleString()} lbs ({d.volumePercentage}%)</span>
                                             </button>
                                         </li>
                                     ))}
@@ -2426,82 +2418,6 @@ const EditWeekCard = ({ week, program, onEditDay }) => {
     );
 };
 
-const EditWeekView = ({ week, dayKey, programData, onProgramDataChange, onBack }) => {
-    const { programStructure, weeklySchedule, weeklyOverrides } = programData;
-
-    // This function determines the actual workout name for a given day, considering overrides.
-    const getWorkoutNameForDay = (pData, w, d) => {
-        return pData.weeklyOverrides?.[w]?.[d] || pData.weeklySchedule.find(s => s.day === d)?.workout || 'Rest';
-    };
-
-    const currentWorkoutName = getWorkoutNameForDay(programData, week, dayKey);
-
-    const handleWorkoutChange = (newWorkoutName) => {
-        const newOverrides = JSON.parse(JSON.stringify(weeklyOverrides || {}));
-
-        if (!newOverrides[week]) {
-            newOverrides[week] = {};
-        }
-
-        const baseWorkoutName = programData.weeklySchedule.find(d => d.day === dayKey)?.workout || 'Rest';
-
-        if (newWorkoutName === baseWorkoutName) {
-            // If we are setting it back to the original schedule, we can remove the override
-            delete newOverrides[week][dayKey];
-            if (Object.keys(newOverrides[week]).length === 0) {
-                delete newOverrides[week]; // Clean up empty week objects
-            }
-        } else {
-            // Otherwise, set the new workout name as an override for that specific day
-            newOverrides[week][dayKey] = newWorkoutName;
-        }
-
-        onProgramDataChange({ ...programData, weeklyOverrides: newOverrides });
-        onBack(); // Go back to the previous view after making a selection
-    };
-
-    const availableWorkouts = ['Rest', ...Object.keys(programStructure)];
-    const currentWorkoutDetails = programData.programStructure[currentWorkoutName];
-
-    return (
-        <div className="p-4 md:p-6 pb-24">
-            <button onClick={onBack} className="flex items-center gap-2 text-sm font-medium text-blue-600 dark:text-blue-400 hover:underline mb-4">
-                <ArrowLeft size={16}/> Back to Edit Program
-            </button>
-            <div className="text-center mb-6">
-                <h1 className="text-3xl font-bold dark:text-white">Editing Week {week}: {dayKey}</h1>
-                <p className="text-lg text-gray-600 dark:text-gray-400">Current: {currentWorkoutDetails?.label || currentWorkoutName}</p>
-            </div>
-
-            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-4">
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">Select New Workout</h3>
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                    {availableWorkouts.map(name => (
-                        <button
-                            key={name}
-                            onClick={() => handleWorkoutChange(name)}
-                            className={`p-4 rounded-lg text-center transition-colors font-semibold
-                                ${name === currentWorkoutName
-                                    ? 'bg-blue-600 text-white shadow-lg ring-2 ring-blue-400'
-                                    : 'bg-gray-100 dark:bg-gray-700 hover:bg-blue-100 dark:hover:bg-blue-900/50'}`
-                            }
-                        >
-                            {programStructure[name]?.label || name}
-                        </button>
-                    ))}
-                </div>
-                <div className="border-t border-gray-200 dark:border-gray-700 mt-4 pt-4">
-                    <button
-                        onClick={() => handleWorkoutChange('Rest')}
-                        className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg shadow-md hover:bg-indigo-700 transition-colors"
-                    >
-                        <Zap size={16} /> Mark as Rest Day
-                    </button>
-                </div>
-            </div>
-        </div>
-    );
-};
 
 const MasterScheduleEditor = ({ program, onProgramDataChange }) => {
     const [editingDay, setEditingDay] = useState(null);
@@ -2765,9 +2681,57 @@ const EditProgramView = ({ programData, onProgramDataChange, onBack, onNavigate 
         }
     };
     
+    const scrollToWorkout = (workoutName) => {
+        const element = document.getElementById(`workout-day-editor-${workoutName}`);
+        if (element) {
+            element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            element.style.transition = 'background-color 0.5s ease-in-out';
+            element.style.backgroundColor = 'rgba(59, 130, 246, 0.2)';
+            setTimeout(() => {
+                element.style.backgroundColor = '';
+            }, 1500);
+        }
+    };
+
     const handleEditDay = (week, dayKey) => {
-        // No need to pass workoutName, the view will determine it
-        onNavigate('editWeek', { week, dayKey });
+        const baseWorkoutName = getWorkoutNameForDay(program, week, dayKey);
+        const customWorkoutName = `${baseWorkoutName === 'Rest' ? 'New Workout' : baseWorkoutName} (Custom W${week}-${dayKey})`;
+
+        const currentOverride = program.weeklyOverrides?.[week]?.[dayKey];
+        if (currentOverride && currentOverride.includes(`(Custom W${week}-${dayKey})`)) {
+            scrollToWorkout(currentOverride);
+            return;
+        }
+
+        let newProgramStructure = JSON.parse(JSON.stringify(program.programStructure));
+        let newWorkoutOrder = [...program.workoutOrder];
+        const newOverrides = JSON.parse(JSON.stringify(program.weeklyOverrides || {}));
+
+        if (!newProgramStructure[customWorkoutName]) {
+            const baseWorkout = newProgramStructure[baseWorkoutName];
+            if (!baseWorkout) {
+                newProgramStructure[customWorkoutName] = { exercises: [], label: `Custom ${dayKey}` };
+            } else {
+                newProgramStructure[customWorkoutName] = JSON.parse(JSON.stringify(baseWorkout));
+            }
+        }
+
+        if (!newWorkoutOrder.includes(customWorkoutName)) {
+            newWorkoutOrder.push(customWorkoutName);
+        }
+
+        if (!newOverrides[week]) {
+            newOverrides[week] = {};
+        }
+        newOverrides[week][dayKey] = customWorkoutName;
+
+        updateProgram({
+            programStructure: newProgramStructure,
+            workoutOrder: newWorkoutOrder,
+            weeklyOverrides: newOverrides,
+        });
+
+        setTimeout(() => scrollToWorkout(customWorkoutName), 100);
     };
 
     return (
@@ -3119,7 +3083,7 @@ const AddExerciseToWorkoutModal = ({ masterExerciseList, onAdd, onClose }) => {
     );
 };
 
-const ProgramPreviewModal = ({ program, onClose, onLoad }) => {
+const SharedProgramPreview = ({ program, onBack, onSelect, backButtonText = "Back", selectButtonText = "Select Program" }) => {
     return (
         <div>
             <h2 className="text-2xl font-bold mb-2">{program.name}</h2>
@@ -3127,25 +3091,41 @@ const ProgramPreviewModal = ({ program, onClose, onLoad }) => {
                 <span><CalendarDays size={14} className="inline-block mr-1"/>{program.info.weeks} Weeks</span>
                 <span><Zap size={14} className="inline-block mr-1"/>{program.info.split}</span>
             </div>
-            <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-2">
-                {program.workoutOrder.map(workoutName => (
-                    <div key={workoutName} className="bg-gray-50 dark:bg-gray-700/50 p-3 rounded-lg">
-                        <h3 className="font-bold text-lg text-gray-900 dark:text-white mb-2">{workoutName}</h3>
-                        <ul className="list-disc list-inside space-y-1 text-sm">
-                            {program.programStructure[workoutName].exercises.map(ex => (
-                                <li key={ex}>{ex}</li>
-                            ))}
-                        </ul>
-                    </div>
-                ))}
+            <div className="space-y-4 max-h-[50vh] overflow-y-auto pr-2">
+                {(program.workoutOrder || []).map(workoutName => {
+                    const workoutDetails = program.programStructure[workoutName];
+                    if (!workoutDetails) return null;
+                    return (
+                        <div key={workoutName} className="bg-gray-50 dark:bg-gray-700/50 p-3 rounded-lg">
+                            <h3 className="font-bold text-lg text-gray-900 dark:text-white mb-2">{workoutName}</h3>
+                            <ul className="list-disc list-inside space-y-1 text-sm">
+                                {(workoutDetails.exercises || []).map(ex => (
+                                    <li key={ex}>{ex}</li>
+                                ))}
+                            </ul>
+                        </div>
+                    );
+                })}
             </div>
-            <div className="flex justify-end gap-2 mt-6">
-                <button onClick={onClose} className="px-4 py-2 bg-gray-200 dark:bg-gray-600 rounded-lg">Cancel</button>
-                <button onClick={() => { onLoad(); onClose(); }} className="px-4 py-2 bg-blue-600 text-white rounded-lg flex items-center gap-2">
-                    <Download size={16}/> Load Program
+            <div className="flex justify-between items-center mt-6">
+                <button onClick={onBack} className="px-4 py-2 bg-gray-200 dark:bg-gray-600 rounded-lg">{backButtonText}</button>
+                <button onClick={onSelect} className="px-4 py-2 bg-blue-600 text-white rounded-lg flex items-center gap-2">
+                    <Download size={16}/> {selectButtonText}
                 </button>
             </div>
         </div>
+    );
+};
+
+const ProgramPreviewModal = ({ program, onClose, onLoad }) => {
+    return (
+        <SharedProgramPreview
+            program={program}
+            onBack={onClose}
+            onSelect={() => { onLoad(); onClose(); }}
+            backButtonText="Cancel"
+            selectButtonText="Load Program"
+        />
     );
 };
 
@@ -3498,37 +3478,12 @@ const TutorialModal = ({ onProgramSelect, onClose, onBodyWeightSet, onSetSyncId 
     const prevStep = () => setStep(s => Math.max(1, s - 1));
 
     if (previewingProgram) {
-        const program = previewingProgram;
         return (
-            <div>
-                <h2 className="text-2xl font-bold mb-2">{program.name}</h2>
-                <div className="flex gap-4 text-sm text-gray-600 dark:text-gray-400 mb-4">
-                    <span><CalendarDays size={14} className="inline-block mr-1"/>{program.info.weeks} Weeks</span>
-                    <span><Zap size={14} className="inline-block mr-1"/>{program.info.split}</span>
-                </div>
-                <div className="space-y-4 max-h-[40vh] overflow-y-auto pr-2">
-                    {(program.workoutOrder || []).map(workoutName => {
-                        const workoutDetails = program.programStructure[workoutName];
-                        if (!workoutDetails) return null;
-                        return (
-                            <div key={workoutName} className="bg-gray-50 dark:bg-gray-700/50 p-3 rounded-lg">
-                                <h3 className="font-bold text-lg text-gray-900 dark:text-white mb-2">{workoutName}</h3>
-                                <ul className="list-disc list-inside space-y-1 text-sm">
-                                    {(workoutDetails.exercises || []).map(ex => (
-                                        <li key={ex}>{ex}</li>
-                                    ))}
-                                </ul>
-                            </div>
-                        );
-                    })}
-                </div>
-                <div className="flex justify-between items-center mt-6">
-                    <button onClick={() => setPreviewingProgram(null)} className="px-4 py-2 bg-gray-200 dark:bg-gray-600 rounded-lg">Back</button>
-                    <button onClick={() => handleSelectProgram(program.key)} className="px-4 py-2 bg-blue-600 text-white rounded-lg flex items-center gap-2">
-                        <Download size={16}/> Select Program
-                    </button>
-                </div>
-            </div>
+            <SharedProgramPreview
+                program={previewingProgram}
+                onBack={() => setPreviewingProgram(null)}
+                onSelect={() => handleSelectProgram(previewingProgram.key)}
+            />
         );
     }
 
@@ -4734,7 +4689,6 @@ const AppCore = () => {
             case 'achievements': return <AchievementsView unlockedAchievements={unlockedAchievements} historicalLogs={historicalLogs} programData={programData} bodyWeight={bodyWeight} weightUnit={weightUnit} onBack={onBack} />;
             case 'programHub': return <ProgramManagerView onProgramUpdate={handleProgramUpdate} activeProgram={{...programData, id: activeInstanceId}} programInstances={programInstances} onInstanceSwitch={handleInstanceSwitch} onBack={onBack} />;
             case 'editProgram': return <EditProgramView programData={programData} onProgramDataChange={handleProgramDataChange} onBack={onBack} onNavigate={navigate} />;
-            case 'editWeek': return <EditWeekView {...pageState.data} programData={programData} onProgramDataChange={handleProgramDataChange} onBack={() => navigate(pageState.data.backTo || 'editProgram')} />;
             case 'settings': return <SettingsView allLogs={allLogs} historicalLogs={historicalLogs} weightUnit={weightUnit} onWeightUnitChange={handleWeightUnitChange} onResetMeso={handleResetMeso} programData={programData} onProgramDataChange={handleProgramDataChange} onShowTutorial={showTutorial} bodyWeight={bodyWeight} onBodyWeightChange={handleBodyWeightChange} onBack={onBack} onRestoreLogs={handleRestoreLogs} />;
             default: return <MainView onSessionSelect={(week, day, type, seqIndex) => navigate(type, { week, dayKey: day, sequentialWorkoutIndex: seqIndex })} onEditProgram={() => navigate('editProgram')} completedDays={completedDays} onUnskipDay={handleUnskipDay} programData={programData} allLogs={allLogs} onNavigate={navigate} />;
         }
