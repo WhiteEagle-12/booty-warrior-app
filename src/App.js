@@ -1332,11 +1332,6 @@ const WeekView = ({ week, completedDays, onSessionSelect, firstIncompleteWeek, o
                             <div key={dayKey} className={`rounded-lg p-3 flex flex-col justify-between transition-all ${dayClass}`}>
                                 <div className="flex justify-between items-center mb-2">
                                     <div className="font-bold text-sm text-gray-800 dark:text-gray-200">{day.day}</div>
-                                    {onNavigate && programData.settings.useWeeklySchedule && (
-                                        <button onClick={() => onNavigate('editWeek', { week, dayKey: day.day, backTo: 'main' })} className="p-1 text-gray-400 hover:text-blue-500">
-                                            <Pencil size={14} />
-                                        </button>
-                                    )}
                                 </div>
                                 <div className="space-y-2 flex-grow flex flex-col justify-end">
                                     {isRestDay ? (
@@ -2419,6 +2414,56 @@ const EditWeekCard = ({ week, program, onEditDay }) => {
 };
 
 
+const EditDayWorkoutModal = ({ workout, onSave, onClose }) => {
+    const [exercises, setExercises] = useState(workout.exercises);
+
+    const handleSave = () => {
+        onSave({ ...workout, exercises });
+        onClose();
+    };
+
+    const onDragEnd = (result) => {
+        if (!result.destination) return;
+        const newExercises = Array.from(exercises);
+        const [reorderedItem] = newExercises.splice(result.source.index, 1);
+        newExercises.splice(result.destination.index, 0, reorderedItem);
+        setExercises(newExercises);
+    };
+
+    return (
+        <DragDropContext onDragEnd={onDragEnd}>
+            <div>
+                <h2 className="text-xl font-bold mb-4">Edit Workout: {workout.label || 'Workout'}</h2>
+                <Droppable droppableId="modal-exercise-list" type="exercise">
+                    {(provided) => (
+                        <ul {...provided.droppableProps} ref={provided.innerRef} className="space-y-2 mb-3 max-h-60 overflow-y-auto pr-2">
+                            {exercises.map((ex, index) => (
+                                <Draggable key={`${workout.label}-${ex}-${index}`} draggableId={`${workout.label}-${ex}-${index}`} index={index}>
+                                    {(provided) => (
+                                        <li ref={provided.innerRef} {...provided.draggableProps} {...provided.dragHandleProps} className="flex justify-between items-center p-2 bg-gray-50 dark:bg-gray-700/50 rounded-md group">
+                                            <span className="font-medium">{ex}</span>
+                                            <button onClick={() => {
+                                                const newExercises = [...exercises];
+                                                newExercises.splice(index, 1);
+                                                setExercises(newExercises);
+                                            }} className="p-1 opacity-0 group-hover:opacity-100 transition-opacity"><XCircle size={16}/></button>
+                                        </li>
+                                    )}
+                                </Draggable>
+                            ))}
+                            {provided.placeholder}
+                        </ul>
+                    )}
+                </Droppable>
+                <div className="flex justify-end gap-2 mt-6">
+                    <button onClick={onClose} className="px-4 py-2 bg-gray-200 dark:bg-gray-600 rounded-lg">Cancel</button>
+                    <button onClick={handleSave} className="px-4 py-2 bg-blue-600 text-white rounded-lg">Save</button>
+                </div>
+            </div>
+        </DragDropContext>
+    );
+};
+
 const MasterScheduleEditor = ({ program, onProgramDataChange }) => {
     const [editingDay, setEditingDay] = useState(null);
 
@@ -2697,41 +2742,55 @@ const EditProgramView = ({ programData, onProgramDataChange, onBack, onNavigate 
         const baseWorkoutName = getWorkoutNameForDay(program, week, dayKey);
         const customWorkoutName = `${baseWorkoutName === 'Rest' ? 'New Workout' : baseWorkoutName} (Custom W${week}-${dayKey})`;
 
-        const currentOverride = program.weeklyOverrides?.[week]?.[dayKey];
-        if (currentOverride && currentOverride.includes(`(Custom W${week}-${dayKey})`)) {
-            scrollToWorkout(currentOverride);
-            return;
-        }
+        let workoutToEditName = program.weeklyOverrides?.[week]?.[dayKey];
+        let programToUpdate = { ...program };
 
-        let newProgramStructure = JSON.parse(JSON.stringify(program.programStructure));
-        let newWorkoutOrder = [...program.workoutOrder];
-        const newOverrides = JSON.parse(JSON.stringify(program.weeklyOverrides || {}));
+        if (!workoutToEditName || !workoutToEditName.includes('(Custom')) {
+            workoutToEditName = customWorkoutName;
 
-        if (!newProgramStructure[customWorkoutName]) {
-            const baseWorkout = newProgramStructure[baseWorkoutName];
-            if (!baseWorkout) {
-                newProgramStructure[customWorkoutName] = { exercises: [], label: `Custom ${dayKey}` };
-            } else {
+            let newProgramStructure = JSON.parse(JSON.stringify(program.programStructure));
+            let newWorkoutOrder = [...program.workoutOrder];
+            const newOverrides = JSON.parse(JSON.stringify(program.weeklyOverrides || {}));
+
+            if (!newProgramStructure[customWorkoutName]) {
+                const baseWorkout = newProgramStructure[baseWorkoutName] || { exercises: [], label: 'New' };
                 newProgramStructure[customWorkoutName] = JSON.parse(JSON.stringify(baseWorkout));
+                newProgramStructure[customWorkoutName].label = `Custom ${dayKey}`;
             }
+
+            if (!newWorkoutOrder.includes(customWorkoutName)) {
+                newWorkoutOrder.push(customWorkoutName);
+            }
+
+            if (!newOverrides[week]) {
+                newOverrides[week] = {};
+            }
+            newOverrides[week][dayKey] = customWorkoutName;
+
+            programToUpdate = {
+                ...program,
+                programStructure: newProgramStructure,
+                workoutOrder: newWorkoutOrder,
+                weeklyOverrides: newOverrides,
+            };
+
+            updateProgram(programToUpdate);
         }
 
-        if (!newWorkoutOrder.includes(customWorkoutName)) {
-            newWorkoutOrder.push(customWorkoutName);
-        }
+        const workoutToEdit = programToUpdate.programStructure[workoutToEditName];
 
-        if (!newOverrides[week]) {
-            newOverrides[week] = {};
-        }
-        newOverrides[week][dayKey] = customWorkoutName;
-
-        updateProgram({
-            programStructure: newProgramStructure,
-            workoutOrder: newWorkoutOrder,
-            weeklyOverrides: newOverrides,
-        });
-
-        setTimeout(() => scrollToWorkout(customWorkoutName), 100);
+        openModal(
+            <EditDayWorkoutModal
+                workout={workoutToEdit}
+                onSave={(editedWorkout) => {
+                    const newStructure = { ...programToUpdate.programStructure, [workoutToEditName]: editedWorkout };
+                    updateProgram({ ...programToUpdate, programStructure: newStructure });
+                    closeModal();
+                }}
+                onClose={closeModal}
+            />,
+            'lg'
+        );
     };
 
     return (
@@ -2790,7 +2849,7 @@ const EditProgramView = ({ programData, onProgramDataChange, onBack, onNavigate 
                 <Droppable droppableId="all-workouts" direction="vertical" type="workoutDay">
                     {(provided) => (
                         <div {...provided.droppableProps} ref={provided.innerRef} className="space-y-4">
-                            {program.workoutOrder.map((workoutName, workoutIndex) => {
+                            {program.workoutOrder.filter(name => !name.includes('(Custom')).map((workoutName, workoutIndex) => {
                                 const workoutDetails = program.programStructure[workoutName];
                                 if (!workoutDetails) return null;
                                 return (
