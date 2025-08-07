@@ -2764,23 +2764,46 @@ const EditProgramView = ({ programData, onProgramDataChange, onBack, onNavigate 
 };
 
 const EditExerciseModal = ({ exercise, exerciseName, onSave, onClose, onDelete, isNew }) => {
-    const [details, setDetails] = useState({
-        name: exerciseName || '',
-        sets: exercise?.sets || 3,
-        reps: exercise?.reps || '8-12',
-        rir: Array.isArray(exercise?.rir) ? exercise.rir : Array(exercise?.sets || 3).fill('1-2'),
-        rest: exercise?.rest || '2-3 min',
-        lastSetTechnique: exercise?.lastSetTechnique || '',
-        equipment: exercise?.equipment || 'barbell',
-        muscles: {
-            primary: exercise?.muscles?.primary || '',
-            secondary: exercise?.muscles?.secondary || '',
-            tertiary: exercise?.muscles?.tertiary || '',
-            primaryContribution: exercise?.muscles?.primaryContribution ?? 1,
-            secondaryContribution: exercise?.muscles?.secondaryContribution ?? 0.5,
-            tertiaryContribution: exercise?.muscles?.tertiaryContribution ?? 0.25,
+    const getInitialState = () => {
+        if (isNew) {
+            return {
+                name: '',
+                sets: '',
+                reps: '',
+                rir: [],
+                rest: '',
+                lastSetTechnique: '',
+                equipment: 'barbell',
+                muscles: {
+                    primary: '',
+                    secondary: '',
+                    tertiary: '',
+                    primaryContribution: 1,
+                    secondaryContribution: 0.5,
+                    tertiaryContribution: 0.25,
+                }
+            };
         }
-    });
+        return {
+            name: exerciseName || '',
+            sets: exercise?.sets || 3,
+            reps: exercise?.reps || '8-12',
+            rir: Array.isArray(exercise?.rir) ? exercise.rir : Array(exercise?.sets || 3).fill('1-2'),
+            rest: exercise?.rest || '2-3 min',
+            lastSetTechnique: exercise?.lastSetTechnique || '',
+            equipment: exercise?.equipment || 'barbell',
+            muscles: {
+                primary: exercise?.muscles?.primary || '',
+                secondary: exercise?.muscles?.secondary || '',
+                tertiary: exercise?.muscles?.tertiary || '',
+                primaryContribution: exercise?.muscles?.primaryContribution ?? 1,
+                secondaryContribution: exercise?.muscles?.secondaryContribution ?? 0.5,
+                tertiaryContribution: exercise?.muscles?.tertiaryContribution ?? 0.25,
+            }
+        };
+    };
+
+    const [details, setDetails] = useState(getInitialState);
 
     useEffect(() => {
         const numSets = parseInt(details.sets, 10) || 0;
