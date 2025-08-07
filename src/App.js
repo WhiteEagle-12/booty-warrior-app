@@ -829,6 +829,28 @@ const getProgressionSuggestion = (exerciseName, lastPerformanceData, masterList)
     return `Last: ${lastWeight}x${lastReps}. Aim for the ${minReps}-${maxReps} rep range.`;
 };
 
+const getSessionInfoFromSequentialIndex = (index, programData) => {
+    const { weeklySchedule, info } = programData;
+    if (!info || !weeklySchedule) return null;
+    let workoutCounter = -1;
+    for (let w = 1; w <= info.weeks; w++) {
+        for (const day of weeklySchedule) {
+            const workoutName = getWorkoutNameForDay(programData, w, day.day);
+            if (workoutName && workoutName !== 'Rest') {
+                workoutCounter++;
+                if (workoutCounter === index) {
+                    return {
+                        week: w,
+                        dayKey: day.day,
+                        workoutName: workoutName
+                    };
+                }
+            }
+        }
+    }
+    return null;
+};
+
 
 // --- App State Context ---
 const AppStateContext = createContext();
@@ -852,9 +874,6 @@ const AppStateProvider = ({ children }) => {
     const closeModal = useCallback(() => {
         setModalContent(null);
     }, []);
-
-    // Removed popstate handling to prevent back button from closing app.
-    // This means back button will no longer close modals.
 
     useEffect(() => {
         if (modalContent === null) {
@@ -1100,6 +1119,44 @@ const IntensityTechnique = ({ technique }) => {
     if (technique.includes('Stretch')) icon = <StretchVertical size={14} className="text-green-500" />;
     return (<div className="mt-2 flex items-center gap-2 text-xs text-gray-600 dark:text-gray-400 bg-gray-100 dark:bg-gray-700/50 px-2 py-1 rounded-md">{icon}<div><span className="font-semibold">Intensity:</span> {technique}</div></div>);
 };
+
+const ExerciseHistoryModal = ({ exerciseName, allLogs }) => {
+    // To get all historical logs, we can pass a future week number.
+    const { historicalSessions } = useMemo(() => findLastPerformanceLogs(exerciseName, 999, 'Sun', allLogs), [exerciseName, allLogs]);
+
+    if (!historicalSessions || historicalSessions.length === 0) {
+        return (
+            <div>
+                <h2 className="text-xl font-bold mb-4">History for {exerciseName}</h2>
+                <p className="text-gray-600 dark:text-gray-400">No past performance data found for this exercise.</p>
+            </div>
+        );
+    }
+
+    return (
+        <div>
+            <h2 className="text-xl font-bold mb-4">History for {exerciseName}</h2>
+            <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-2">
+                {historicalSessions.map((session, index) => (
+                    <div key={index} className="bg-gray-50 dark:bg-gray-700/50 p-3 rounded-lg">
+                        <h3 className="font-semibold text-md text-gray-800 dark:text-gray-200 mb-2">
+                            Week {session.week}, {session.dayKey}
+                        </h3>
+                        <ul className="space-y-1 text-sm">
+                            {session.logs.map((log, logIndex) => (
+                                <li key={logIndex} className="flex justify-between">
+                                    <span>Set {log.set}:</span>
+                                    <span className="font-mono">{log.load || 0} lbs x {log.reps || 0} @ {log.rir === '' ? 'N/A' : log.rir} RIR</span>
+                                </li>
+                            ))}
+                        </ul>
+                    </div>
+                ))}
+            </div>
+        </div>
+    );
+};
+
 
 const SetRow = ({ setNumber, logData, onLogChange, lastSetData, exerciseDetails, weightUnit, exerciseName, totalSets, displaySetNumber, isDropSet, setIdentifier }) => {
     const logId = setIdentifier || setNumber;
@@ -1476,49 +1533,51 @@ const SequentialWeekView = ({ weekNumber, sessions, onSessionSelect, isInitially
 };
 
 const SequentialView = ({ onSessionSelect, allLogs, programData }) => {
-    const { info, workoutOrder, programStructure, masterExerciseList } = programData;
+    const { workoutOrder, masterExerciseList } = programData;
 
     if (!workoutOrder || workoutOrder.length === 0) {
         return <div className="text-center p-8">This program has no workouts defined.</div>;
     }
 
-    const totalWorkoutsInCycle = workoutOrder.length;
-    const totalSessions = info.weeks * totalWorkoutsInCycle;
-
     const sessionData = useMemo(() => {
-        return Array.from({ length: totalSessions }, (_, i) => {
-            const weekForProgram = Math.floor(i / totalWorkoutsInCycle) + 1;
-            const workoutName = workoutOrder[i % totalWorkoutsInCycle];
-            // Sequential view doesn't use weekly schedule, so getWorkoutForWeek is appropriate here without overrides.
-            const workout = getWorkoutForWeek(programData, weekForProgram, workoutName);
-            const dayKey = `workout-${i}`;
+        const sessions = [];
+        let i = 0;
+        while (true) {
+            const sessionInfo = getSessionInfoFromSequentialIndex(i, programData);
+            if (!sessionInfo) break;
 
-            if (!workout) return null;
+            const { week, dayKey, workoutName } = sessionInfo;
+            const workout = getWorkoutForWeek(programData, week, workoutName);
+            if (!workout) {
+                i++;
+                continue;
+            }
 
             const isComplete = workout.exercises.every(exName => {
                 const exDetails = getExerciseDetails(exName, masterExerciseList);
                 if (!exDetails) return false;
                 return Array.from({ length: Number(exDetails.sets) }, (_, setIdx) => setIdx + 1).every(setNum => {
-                    const log = allLogs[`${weekForProgram}-${dayKey}-${exName}-${setNum}`];
+                    const log = allLogs[`${week}-${dayKey}-${exName}-${setNum}`];
                     return isSetLogComplete(log);
                 });
             });
 
-            return {
+            sessions.push({
                 sessionIndex: i,
-                weekForProgram,
-                dayKey,
-                workoutName,
+                weekForProgram: week,
+                dayKey: dayKey,
                 workoutLabel: workout.label || workoutName,
                 isComplete,
-            };
-        }).filter(Boolean);
-    }, [totalSessions, totalWorkoutsInCycle, workoutOrder, programData, allLogs, masterExerciseList]);
+            });
+            i++;
+        }
+        return sessions;
+    }, [programData, allLogs, masterExerciseList]);
 
     const firstIncompleteIndex = useMemo(() => {
         const incompleteSession = sessionData.find(s => !s.isComplete);
-        return incompleteSession ? incompleteSession.sessionIndex : totalSessions;
-    }, [sessionData, totalSessions]);
+        return incompleteSession ? incompleteSession.sessionIndex : sessionData.length;
+    }, [sessionData]);
 
     const sessionsByWeek = useMemo(() => {
         const weeks = [];
@@ -2081,19 +2140,19 @@ const MuscleGroupDetailModal = ({ muscleName, exerciseData, onClose }) => {
     const contributingExercises = useMemo(() => {
         if (!exerciseData) return [];
         return Object.entries(exerciseData)
-            .map(([name, volume]) => ({ name, volume: Math.round(volume) }))
+            .map(([name, volume]) => ({ name, volume: parseFloat(volume.toFixed(1)) }))
             .sort((a, b) => b.volume - a.volume);
     }, [exerciseData]);
 
     return (
         <div>
-            <h2 className="text-xl font-bold mb-4">Volume Breakdown for {muscleName}</h2>
+            <h2 className="text-xl font-bold mb-4">Set Contribution for {muscleName}</h2>
             <div className="max-h-60 overflow-y-auto pr-2">
                 <ul className="space-y-2">
                     {contributingExercises.map(({ name, volume }) => (
                         <li key={name} className="flex justify-between items-center p-2 bg-gray-100 dark:bg-gray-700/50 rounded-md">
                             <span className="font-semibold">{name}</span>
-                            <span>{volume.toLocaleString()} lbs</span>
+                            <span>{volume.toLocaleString()} sets</span>
                         </li>
                     ))}
                 </ul>
@@ -2187,7 +2246,7 @@ const AnalyticsView = ({ allLogs, programData, onBack }) => {
 
         const ensureMuscle = (muscle) => {
             if (muscle && !dataByMuscle[muscle]) {
-                dataByMuscle[muscle] = { volume: 0, exercises: {} };
+                dataByMuscle[muscle] = { sets: 0, exercises: {} };
             }
         };
 
@@ -2195,39 +2254,38 @@ const AnalyticsView = ({ allLogs, programData, onBack }) => {
             if (!log.skipped && (log.load || log.load === 0) && log.reps) {
                 const exerciseDetails = getExerciseDetails(log.exercise, masterExerciseList);
                 if (exerciseDetails?.muscles) {
-                    const setVolume = getSetVolume(log, masterExerciseList);
                     const { primary, secondary, tertiary, primaryContribution, secondaryContribution, tertiaryContribution } = exerciseDetails.muscles;
 
                     if (primary) {
                         ensureMuscle(primary);
-                        const contributedVolume = setVolume * (primaryContribution || 1);
-                        dataByMuscle[primary].volume += contributedVolume;
-                        dataByMuscle[primary].exercises[log.exercise] = (dataByMuscle[primary].exercises[log.exercise] || 0) + contributedVolume;
+                        const contributedSets = primaryContribution || 1;
+                        dataByMuscle[primary].sets += contributedSets;
+                        dataByMuscle[primary].exercises[log.exercise] = (dataByMuscle[primary].exercises[log.exercise] || 0) + contributedSets;
                     }
                     if (secondary) {
                         ensureMuscle(secondary);
-                        const contributedVolume = setVolume * (secondaryContribution || 0.5);
-                        dataByMuscle[secondary].volume += contributedVolume;
-                        dataByMuscle[secondary].exercises[log.exercise] = (dataByMuscle[secondary].exercises[log.exercise] || 0) + contributedVolume;
+                        const contributedSets = secondaryContribution || 0.5;
+                        dataByMuscle[secondary].sets += contributedSets;
+                        dataByMuscle[secondary].exercises[log.exercise] = (dataByMuscle[secondary].exercises[log.exercise] || 0) + contributedSets;
                     }
                     if (tertiary) {
                         ensureMuscle(tertiary);
-                        const contributedVolume = setVolume * (tertiaryContribution || 0.25);
-                        dataByMuscle[tertiary].volume += contributedVolume;
-                        dataByMuscle[tertiary].exercises[log.exercise] = (dataByMuscle[tertiary].exercises[log.exercise] || 0) + contributedVolume;
+                        const contributedSets = tertiaryContribution || 0.25;
+                        dataByMuscle[tertiary].sets += contributedSets;
+                        dataByMuscle[tertiary].exercises[log.exercise] = (dataByMuscle[tertiary].exercises[log.exercise] || 0) + contributedSets;
                     }
                 }
             }
         });
 
-        const totalVolume = Object.values(dataByMuscle).reduce((sum, d) => sum + d.volume, 0);
+        const totalSets = Object.values(dataByMuscle).reduce((sum, d) => sum + d.sets, 0);
 
         return Object.entries(dataByMuscle).map(([name, data]) => ({
             name,
-            volume: Math.round(data.volume),
-            volumePercentage: totalVolume > 0 ? Math.round((data.volume / totalVolume) * 100) : 0,
+            sets: parseFloat(data.sets.toFixed(1)),
+            setsPercentage: totalSets > 0 ? Math.round((data.sets / totalSets) * 100) : 0,
             exercises: data.exercises,
-        })).sort((a, b) => b.volume - a.volume);
+        })).sort((a, b) => b.sets - a.sets);
     }, [allLogs, masterExerciseList]);
 
     const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#AF19FF', '#FF42A1', '#42A1FF'];
@@ -2326,24 +2384,24 @@ const AnalyticsView = ({ allLogs, programData, onBack }) => {
                 </div>
 
                 <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-4">
-                    <h3 className="font-semibold dark:text-gray-200 mb-2">Muscle Group Volume Distribution (All Time)</h3>
+                    <h3 className="font-semibold dark:text-gray-200 mb-2">Muscle Group Set Distribution (All Time)</h3>
                     {muscleGroupData.length > 0 ? (
                         <div className="grid md:grid-cols-2 gap-8 items-center">
                             <div className="w-full aspect-square">
                                <ResponsiveContainer>
                                     <PieChart margin={{ top: 40, right: 40, left: 40, bottom: 40 }}>
-                                        <Pie data={muscleGroupData} dataKey="volume" nameKey="name" cx="50%" cy="50%" outerRadius="70%" fill="#8884d8" labelLine={false} label={({ cx, cy, midAngle, outerRadius, name, volumePercentage }) => renderCustomizedLabel({ cx, cy, midAngle, outerRadius, name, setsPercentage: volumePercentage })}>
+                                        <Pie data={muscleGroupData} dataKey="sets" nameKey="name" cx="50%" cy="50%" outerRadius="70%" fill="#8884d8" labelLine={false} label={({ cx, cy, midAngle, outerRadius, name, setsPercentage }) => renderCustomizedLabel({ cx, cy, midAngle, outerRadius, name, setsPercentage: setsPercentage })}>
                                             {muscleGroupData.map((entry, index) => (
                                                 <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                                             ))}
                                         </Pie>
-                                        <Tooltip formatter={(value, name, props) => [`${props.payload.volume.toLocaleString()} lbs (${props.payload.volumePercentage}%)`, 'Total Volume']} />
+                                        <Tooltip formatter={(value, name, props) => [`${props.payload.sets.toLocaleString()} sets (${props.payload.setsPercentage}%)`, 'Total Sets']} />
                                         <Legend />
                                     </PieChart>
                                 </ResponsiveContainer>
                             </div>
                             <div className="text-sm">
-                                <h4 className="font-bold text-lg mb-2">Volume Per Muscle Group</h4>
+                                <h4 className="font-bold text-lg mb-2">Sets Per Muscle Group</h4>
                                 <input
                                     type="text"
                                     placeholder="Search muscle groups..."
@@ -2358,7 +2416,7 @@ const AnalyticsView = ({ allLogs, programData, onBack }) => {
                                         <li key={d.name}>
                                             <button onClick={() => openModal(<MuscleGroupDetailModal muscleName={d.name} exerciseData={d.exercises} onClose={closeModal}/>)} className="w-full flex justify-between items-center bg-gray-50 dark:bg-gray-700/50 p-2 rounded-md hover:bg-gray-200 dark:hover:bg-gray-600 text-left">
                                                 <span className="font-semibold">{d.name}</span>
-                                                <span>{d.volume.toLocaleString()} lbs ({d.volumePercentage}%)</span>
+                                                <span>{d.sets.toLocaleString()} sets ({d.setsPercentage}%)</span>
                                             </button>
                                         </li>
                                     ))}
@@ -3562,17 +3620,17 @@ const RenameWorkoutModal = ({ oldName, onSave, onClose }) => {
     );
 };
 
-const TutorialModal = ({ onProgramSelect, onClose, onBodyWeightSet, onSetSyncId }) => {
+const TutorialModal = ({ onProgramSelect, onClose, onBodyWeightSet, onSetSyncId, isReview }) => {
     const [step, setStep] = useState(1);
     const [localBodyWeight, setLocalBodyWeight] = useState('');
     const [tempId, setTempId] = useState('');
     const [previewingProgram, setPreviewingProgram] = useState(null);
-    const totalSteps = 6;
+    const totalSteps = isReview ? 3 : 6;
 
     const handleSelectProgram = (presetKey) => {
         const presetData = presets[presetKey];
         onProgramSelect(presetData);
-        nextStep();
+        if(!isReview) nextStep();
     };
 
     const handleSetId = () => {
@@ -3594,7 +3652,7 @@ const TutorialModal = ({ onProgramSelect, onClose, onBodyWeightSet, onSetSyncId 
     const nextStep = () => setStep(s => Math.min(totalSteps, s + 1));
     const prevStep = () => setStep(s => Math.max(1, s - 1));
 
-    if (previewingProgram) {
+    if (previewingProgram && !isReview) {
         return (
             <SharedProgramPreview
                 program={previewingProgram}
@@ -3606,7 +3664,9 @@ const TutorialModal = ({ onProgramSelect, onClose, onBodyWeightSet, onSetSyncId 
 
     return (
         <div>
-            <h2 className="text-2xl font-bold mb-4 flex items-center gap-2"><Lightbulb size={24} className="text-blue-500" /> Welcome to Project Overload!</h2>
+            <h2 className="text-2xl font-bold mb-4 flex items-center gap-2">
+                <Lightbulb size={24} className="text-blue-500" /> {isReview ? 'App Refresher' : 'Welcome to Project Overload!'}
+            </h2>
             
             <div className="space-y-4 min-h-[300px] text-gray-600 dark:text-gray-300">
                 {step === 1 && (
@@ -3627,7 +3687,7 @@ const TutorialModal = ({ onProgramSelect, onClose, onBodyWeightSet, onSetSyncId 
                         <p>Use the <span className="font-semibold">Program Hub</span> to discover new presets, or even share and import programs. The <span className="font-semibold">Edit Program</span> view gives you full control to build your perfect routine from scratch.</p>
                     </div>
                 )}
-                {step === 4 && (
+                {!isReview && step === 4 && (
                      <div>
                         <h3 className="font-bold text-lg text-gray-900 dark:text-white mb-2">Step 4: Create a Sync ID</h3>
                         <p className="text-sm mb-4">Create a unique ID to sync your data across devices and browsers. Make it memorable!</p>
@@ -3640,7 +3700,7 @@ const TutorialModal = ({ onProgramSelect, onClose, onBodyWeightSet, onSetSyncId 
                         />
                     </div>
                 )}
-                {step === 5 && (
+                {!isReview && step === 5 && (
                     <div>
                         <h3 className="font-bold text-lg text-gray-900 dark:text-white mb-2">Step 5: Select Your Starting Program</h3>
                         <p className="text-sm mb-4">Choose a preset to begin. You can always change or customize it later in the Program Hub.</p>
@@ -3660,7 +3720,7 @@ const TutorialModal = ({ onProgramSelect, onClose, onBodyWeightSet, onSetSyncId 
                         </div>
                     </div>
                 )}
-                 {step === 6 && (
+                 {!isReview && step === 6 && (
                     <div>
                         <h3 className="font-bold text-lg text-gray-900 dark:text-white mb-2">Step 6: Enter Your Bodyweight</h3>
                         <p className="text-sm mb-4">Please enter your current bodyweight. This helps with tracking certain achievements and progress metrics. You can change this later in settings.</p>
@@ -3679,21 +3739,29 @@ const TutorialModal = ({ onProgramSelect, onClose, onBodyWeightSet, onSetSyncId 
             <div className="flex justify-between items-center mt-6">
                 <span className="text-sm text-gray-500">{step} / {totalSteps}</span>
                 <div className="flex gap-2">
-                     {step > 1 && step < 5 && (
+                    {step > 1 && (
                         <button onClick={prevStep} className="px-4 py-2 bg-gray-200 dark:bg-gray-600 rounded-lg">Back</button>
-                     )}
-                     {step < 4 ? (
-                        <button onClick={nextStep} className="px-4 py-2 bg-blue-600 text-white rounded-lg">Next</button>
-                     ) : step === 4 ? (
-                        <button onClick={handleSetId} className="px-4 py-2 bg-blue-600 text-white rounded-lg">Set ID & Continue</button>
-                     ): step === 6 ? (
-                         <button onClick={handleFinish} className="px-4 py-2 bg-green-600 text-white rounded-lg">Finish Setup</button>
-                     ) : step === 5 ? (
-                        null
-                     ) : (
-                         <button onClick={onClose} className="px-4 py-2 bg-gray-200 dark:bg-gray-600 rounded-lg">Close</button>
-                     )
-                     }
+                    )}
+
+                    {isReview ? (
+                        step < totalSteps ? (
+                            <button onClick={nextStep} className="px-4 py-2 bg-blue-600 text-white rounded-lg">Next</button>
+                        ) : (
+                            <button onClick={onClose} className="px-4 py-2 bg-green-600 text-white rounded-lg">Finish</button>
+                        )
+                    ) : (
+                         step < 4 ? (
+                            <button onClick={nextStep} className="px-4 py-2 bg-blue-600 text-white rounded-lg">Next</button>
+                         ) : step === 4 ? (
+                            <button onClick={handleSetId} className="px-4 py-2 bg-blue-600 text-white rounded-lg">Set ID & Continue</button>
+                         ): step === 6 ? (
+                             <button onClick={handleFinish} className="px-4 py-2 bg-green-600 text-white rounded-lg">Finish Setup</button>
+                         ) : step === 5 ? (
+                            null
+                         ) : (
+                             <button onClick={onClose} className="px-4 py-2 bg-gray-200 dark:bg-gray-600 rounded-lg">Close</button>
+                         )
+                    )}
                 </div>
             </div>
         </div>
@@ -4458,9 +4526,14 @@ const AppCore = () => {
         }
     }, [handleUpdateAndSave, addToast]);
     
-    const showTutorial = useCallback(() => {
+    const showTutorial = useCallback((isReview = false) => {
+        if (!isReview && customId) {
+            console.log("User already has a custom ID, skipping tutorial.");
+            return;
+        }
         openModal(
             <TutorialModal 
+                isReview={isReview}
                 onClose={closeModal} 
                 onProgramSelect={handleProgramUpdate}
                 onBodyWeightSet={handleBodyWeightChange}
@@ -4468,7 +4541,7 @@ const AppCore = () => {
             />, 
             'lg'
         );
-    }, [openModal, closeModal, handleProgramUpdate, handleBodyWeightChange, handleSetCustomId]);
+    }, [openModal, closeModal, handleProgramUpdate, handleBodyWeightChange, handleSetCustomId, customId]);
 
     useEffect(() => {
         if (!user || !db) {
@@ -4477,7 +4550,7 @@ const AppCore = () => {
         }
         if (!customId) {
             setIsDataLoading(false);
-            showTutorial();
+            showTutorial(false);
             return;
         }
 
@@ -4612,9 +4685,26 @@ const AppCore = () => {
         verifyAchievements();
     }, [isDataLoading, historicalLogs, programData, bodyWeight, addToast, unlockedAchievements, handleUpdateAndSave]);
 
-    const navigate = (view, data = {}) => {
-        setPageState({ view, data });
-    };
+    const navigate = useCallback((view, data = {}) => {
+        const newPageState = { view, data };
+        if (pageState.view === newPageState.view && JSON.stringify(pageState.data) === JSON.stringify(newPageState.data)) {
+            return;
+        }
+        window.history.pushState(newPageState, '', window.location.pathname);
+        setPageState(newPageState);
+    }, [pageState]);
+
+    useEffect(() => {
+        window.history.replaceState(pageState, '', window.location.pathname);
+
+        const handlePopState = (event) => {
+            if (event.state) {
+                setPageState(event.state);
+            }
+        };
+        window.addEventListener('popstate', handlePopState);
+        return () => window.removeEventListener('popstate', handlePopState);
+    }, []); // Empty dependency array ensures this runs only once.
 
     const handleWeightUnitChange = (newUnit) => {
         setWeightUnit(newUnit);
@@ -4806,7 +4896,7 @@ const AppCore = () => {
             case 'achievements': return <AchievementsView unlockedAchievements={unlockedAchievements} historicalLogs={historicalLogs} programData={programData} bodyWeight={bodyWeight} weightUnit={weightUnit} onBack={onBack} />;
             case 'programHub': return <ProgramManagerView onProgramUpdate={handleProgramUpdate} activeProgram={{...programData, id: activeInstanceId}} programInstances={programInstances} onInstanceSwitch={handleInstanceSwitch} onBack={onBack} />;
             case 'editProgram': return <EditProgramView programData={programData} onProgramDataChange={handleProgramDataChange} onBack={onBack} onNavigate={navigate} />;
-            case 'settings': return <SettingsView allLogs={allLogs} historicalLogs={historicalLogs} weightUnit={weightUnit} onWeightUnitChange={handleWeightUnitChange} onResetMeso={handleResetMeso} programData={programData} onProgramDataChange={handleProgramDataChange} onShowTutorial={showTutorial} bodyWeight={bodyWeight} onBodyWeightChange={handleBodyWeightChange} onBack={onBack} onRestoreLogs={handleRestoreLogs} />;
+            case 'settings': return <SettingsView allLogs={allLogs} historicalLogs={historicalLogs} weightUnit={weightUnit} onWeightUnitChange={handleWeightUnitChange} onResetMeso={handleResetMeso} programData={programData} onProgramDataChange={handleProgramDataChange} onShowTutorial={() => showTutorial(true)} bodyWeight={bodyWeight} onBodyWeightChange={handleBodyWeightChange} onBack={onBack} onRestoreLogs={handleRestoreLogs} />;
             default: return <MainView onSessionSelect={(week, day, type, seqIndex) => navigate(type, { week, dayKey: day, sequentialWorkoutIndex: seqIndex })} onEditProgram={() => navigate('editProgram')} completedDays={completedDays} onUnskipDay={handleUnskipDay} programData={programData} allLogs={allLogs} onNavigate={navigate} />;
         }
     };
