@@ -846,27 +846,15 @@ const AppStateProvider = ({ children }) => {
         document.body.style.width = '100%';
         document.body.style.overflowY = 'scroll';
         
-        if (!window.history.state?.modal) {
-            window.history.pushState({ modal: true }, '');
-        }
         setModalContent({ content, size });
     }, []);
 
     const closeModal = useCallback(() => {
-        if (window.history.state?.modal) {
-            window.history.back();
-        } else {
-            setModalContent(null);
-        }
+        setModalContent(null);
     }, []);
 
-    useEffect(() => {
-        const handlePopState = () => {
-            setModalContent(null);
-        };
-        window.addEventListener('popstate', handlePopState);
-        return () => window.removeEventListener('popstate', handlePopState);
-    }, []);
+    // Removed popstate handling to prevent back button from closing app.
+    // This means back button will no longer close modals.
 
     useEffect(() => {
         if (modalContent === null) {
@@ -1035,9 +1023,10 @@ const IntensityTechnique = ({ technique }) => {
     return (<div className="mt-2 flex items-center gap-2 text-xs text-gray-600 dark:text-gray-400 bg-gray-100 dark:bg-gray-700/50 px-2 py-1 rounded-md">{icon}<div><span className="font-semibold">Intensity:</span> {technique}</div></div>);
 };
 
-const SetRow = ({ setNumber, logData, onLogChange, lastSetData, exerciseDetails, weightUnit, exerciseName, totalSets }) => {
-    const targetRir = (exerciseDetails.rir && Array.isArray(exerciseDetails.rir) && exerciseDetails.rir[setNumber - 1]) || 'N/A';
-    const targetEffort = `~${targetRir} RIR`;
+const SetRow = ({ setNumber, logData, onLogChange, lastSetData, exerciseDetails, weightUnit, exerciseName, totalSets, displaySetNumber, isDropSet, setIdentifier }) => {
+    const logId = setIdentifier || setNumber;
+    const targetRir = (exerciseDetails.rir && Array.isArray(exerciseDetails.rir) && setNumber > 0 && exerciseDetails.rir[setNumber - 1]) || 'N/A';
+    const targetEffort = isDropSet ? `To Failure` : `~${targetRir} RIR`;
     const placeholderWeight = lastSetData?.load ? (weightUnit === 'kg' ? (lastSetData.load / 2.20462).toFixed(1) : lastSetData.load) : `Weight (${weightUnit})`;
 
     const handleKeyDown = (e) => {
@@ -1045,50 +1034,47 @@ const SetRow = ({ setNumber, logData, onLogChange, lastSetData, exerciseDetails,
             e.preventDefault();
             const currentField = e.target.name;
             let nextField;
-            let nextSet = setNumber;
 
             if (currentField === 'load') {
                 nextField = 'reps';
             } else if (currentField === 'reps') {
                 nextField = 'rir';
-            } else if (currentField === 'rir') {
-                if (setNumber < totalSets) {
-                    nextField = 'load';
-                    nextSet = setNumber + 1;
-                } else {
-                    e.target.blur();
-                    return;
-                }
+            } else {
+                e.target.blur();
+                return;
             }
             
-            const nextInputId = `input-${exerciseName}-${nextSet}-${nextField}`;
+            const nextInputId = `input-${exerciseName}-${logId}-${nextField}`;
             document.getElementById(nextInputId)?.focus();
         }
     };
 
     return (
-        <div className="grid grid-cols-4 sm:grid-cols-7 gap-2 items-center py-2 px-3 bg-gray-50 dark:bg-gray-700/50 rounded-md">
-            <div className="text-sm font-bold text-gray-800 dark:text-gray-200 col-span-4 sm:col-span-1">Set {setNumber}</div>
-            <div className="hidden sm:block text-sm text-center text-gray-600 dark:text-gray-400">{exerciseDetails.reps}</div>
+        <div className={`grid grid-cols-4 sm:grid-cols-7 gap-2 items-center py-2 px-3 rounded-md ${isDropSet ? 'bg-red-100 dark:bg-red-900/30' : 'bg-gray-50 dark:bg-gray-700/50'}`}>
+            <div className="text-sm font-bold text-gray-800 dark:text-gray-200 col-span-4 sm:col-span-1">{displaySetNumber || `Set ${setNumber}`}</div>
+            <div className="hidden sm:block text-sm text-center text-gray-600 dark:text-gray-400">{isDropSet ? 'AMRAP' : exerciseDetails.reps}</div>
             <div className="hidden sm:block text-sm text-center font-medium text-blue-600 dark:text-blue-400">{targetEffort}</div>
+            <div className="sm:hidden col-span-4 text-xs text-center text-gray-500 dark:text-gray-400 -mt-1 mb-1">
+                Target: <span className="font-medium text-gray-700 dark:text-gray-300">{isDropSet ? 'As many reps as possible' : `${exerciseDetails.reps} reps, ${targetEffort}`}</span>
+            </div>
             <div>
                 <label className="sm:hidden text-xs text-gray-500">Load</label>
-                <input id={`input-${exerciseName}-${setNumber}-load`} name="load" type="number" placeholder={placeholderWeight} value={logData.displayLoad || ''} onChange={(e) => onLogChange(setNumber, 'load', e.target.value)} onKeyDown={handleKeyDown} className="w-full p-1.5 text-sm bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 placeholder:text-gray-400 dark:placeholder:text-gray-500"/>
+                <input id={`input-${exerciseName}-${logId}-load`} name="load" type="number" placeholder={placeholderWeight} value={logData.displayLoad || ''} onChange={(e) => onLogChange(logId, 'load', e.target.value)} onKeyDown={handleKeyDown} className="w-full p-1.5 text-sm bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 placeholder:text-gray-400 dark:placeholder:text-gray-500"/>
             </div>
             <div>
                 <label className="sm:hidden text-xs text-gray-500">Reps</label>
-                <input id={`input-${exerciseName}-${setNumber}-reps`} name="reps" type="number" placeholder={lastSetData?.reps || "Reps"} value={logData.reps || ''} onChange={(e) => onLogChange(setNumber, 'reps', e.target.value)} onKeyDown={handleKeyDown} className="w-full p-1.5 text-sm bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 placeholder:text-gray-400 dark:placeholder:text-gray-500"/>
+                <input id={`input-${exerciseName}-${logId}-reps`} name="reps" type="number" placeholder={lastSetData?.reps || "Reps"} value={logData.reps || ''} onChange={(e) => onLogChange(logId, 'reps', e.target.value)} onKeyDown={handleKeyDown} className="w-full p-1.5 text-sm bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 placeholder:text-gray-400 dark:placeholder:text-gray-500"/>
             </div>
             <div>
                 <label className="sm:hidden text-xs text-gray-500">RIR</label>
-                <input id={`input-${exerciseName}-${setNumber}-rir`} name="rir" type="number" placeholder={lastSetData?.rir ?? "RIR"} value={logData.rir || ''} 
-                    onChange={(e) => onLogChange(setNumber, 'rir', e.target.value)} 
+                <input id={`input-${exerciseName}-${logId}-rir`} name="rir" type="number" placeholder={isDropSet ? "0" : (lastSetData?.rir ?? "RIR")} value={logData.rir || ''}
+                    onChange={(e) => onLogChange(logId, 'rir', e.target.value)}
                     onKeyDown={handleKeyDown}
                     className="w-full p-1.5 text-sm bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 placeholder:text-gray-400 dark:placeholder:text-gray-500"
                 />
             </div>
             <div className="sm:pl-2">
-                <button onClick={() => onLogChange(setNumber, 'skip', true)} className="text-xs p-1.5 w-full bg-gray-200 dark:bg-gray-600 hover:bg-gray-300 dark:hover:bg-gray-500 rounded-md transition-colors">Skip</button>
+                <button onClick={() => onLogChange(logId, 'skip', true)} className="text-xs p-1.5 w-full bg-gray-200 dark:bg-gray-600 hover:bg-gray-300 dark:hover:bg-gray-500 rounded-md transition-colors">Skip</button>
             </div>
         </div>
     );
@@ -1099,6 +1085,19 @@ const ExerciseCard = ({ exerciseName, week, dayKey, allLogs, onLogChange, master
     const { openModal } = useContext(AppStateContext);
     const exercise = getExerciseDetails(exerciseName, masterExerciseList);
     const sets = Array.from({ length: Number(exercise?.sets) || 0 }, (_, i) => i + 1);
+    const [numDropSets, setNumDropSets] = useState(0);
+
+    useEffect(() => {
+        let count = 0;
+        while(allLogs[`${week}-${dayKey}-${exerciseName}-d${count + 1}`]) {
+            count++;
+        }
+        setNumDropSets(count);
+    }, []); // Only on mount
+
+    const handleAddDropSet = () => {
+        setNumDropSets(n => n + 1);
+    };
 
     const isCompleted = useMemo(() => {
         return sets.every(setNumber => {
@@ -1158,8 +1157,9 @@ const ExerciseCard = ({ exerciseName, week, dayKey, allLogs, onLogChange, master
                                 <SetRow 
                                     key={setNumber} 
                                     setNumber={setNumber}
+                                    setIdentifier={`${setNumber}`}
                                     logData={allLogs[`${week}-${dayKey}-${exerciseName}-${setNumber}`] || {}} 
-                                    onLogChange={(s, f, v) => onLogChange(exerciseName, s, f, v)}
+                                    onLogChange={(id, f, v) => onLogChange(exerciseName, id, f, v, false)}
                                     lastSetData={lastPerformanceData.lastSession ? lastPerformanceData.lastSession[setNumber] : null}
                                     exerciseDetails={exercise}
                                     weightUnit={weightUnit}
@@ -1167,9 +1167,35 @@ const ExerciseCard = ({ exerciseName, week, dayKey, allLogs, onLogChange, master
                                     totalSets={Number(exercise.sets)}
                                 />
                             ))}
+                            {Array.from({ length: numDropSets }).map((_, index) => {
+                                const setIdentifier = `d${index + 1}`;
+                                return (
+                                    <SetRow
+                                        key={setIdentifier}
+                                        setIdentifier={setIdentifier}
+                                        setNumber={sets.length + index + 1}
+                                        displaySetNumber={`Drop ${index + 1}`}
+                                        isDropSet={true}
+                                        logData={allLogs[`${week}-${dayKey}-${exerciseName}-${setIdentifier}`] || {}}
+                                        onLogChange={(id, field, value) => onLogChange(exerciseName, id, field, value, true)}
+                                        lastSetData={null}
+                                        exerciseDetails={exercise}
+                                        weightUnit={weightUnit}
+                                        exerciseName={exerciseName}
+                                        totalSets={sets.length + numDropSets}
+                                    />
+                                );
+                            })}
                         </div>
                     </div>
-                    {exercise.lastSetTechnique && <IntensityTechnique technique={exercise.lastSetTechnique} />}
+                    {exercise.lastSetTechnique && !exercise.lastSetTechnique.toLowerCase().includes('drop') && <IntensityTechnique technique={exercise.lastSetTechnique} />}
+                    {isCompleted && exercise.lastSetTechnique?.toLowerCase().includes('drop') && (
+                        <div className="p-4 pt-0">
+                            <button onClick={handleAddDropSet} className="w-full flex items-center justify-center gap-2 p-2 rounded-lg bg-red-100 dark:bg-red-900/50 text-red-700 dark:text-red-300 hover:bg-red-200 dark:hover:bg-red-800/50 font-semibold">
+                                <PlusCircle size={16}/> Add Drop Set
+                            </button>
+                        </div>
+                    )}
                 </div>
             )}
         </div>
@@ -1190,7 +1216,7 @@ const LiftingSession = ({ week, dayKey, onBack, allLogs, setAllLogs, onSkipDay, 
 
     const workout = getWorkoutForWeek(programData, week, workoutName);
 
-    const handleLogChange = (exerciseName, setNumber, field, value) => {
+    const handleLogChange = (exerciseName, setNumber, field, value, isDropSet = false) => {
         const logId = `${week}-${dayKey}-${exerciseName}-${setNumber}`;
         const currentLog = allLogs[logId] || { week, dayKey, session: workoutName, exercise: exerciseName, set: setNumber, date: new Date().toISOString() };
         
@@ -1223,7 +1249,7 @@ const LiftingSession = ({ week, dayKey, onBack, allLogs, setAllLogs, onSkipDay, 
             updateDoc(userDocRef, { [`logs.${logId}`]: newLogEntry });
         }
         
-        if (!wasCompleteBefore && isCompleteNow && !newLogEntry.skipped) {
+        if (!isDropSet && !wasCompleteBefore && isCompleteNow && !newLogEntry.skipped) {
             onStartTimer();
         }
     };
@@ -1697,6 +1723,11 @@ const SettingsView = ({ allLogs, historicalLogs, weightUnit, onWeightUnitChange,
     const [tempId, setTempId] = useState(customId);
     const [exportSelection, setExportSelection] = useState('all');
     const fileInputRef = useRef(null);
+    const [localBodyWeight, setLocalBodyWeight] = useState(bodyWeight || '');
+
+    useEffect(() => {
+        setLocalBodyWeight(bodyWeight || '');
+    }, [bodyWeight]);
 
     const handleFileImport = (event) => {
         const file = event.target.files[0];
@@ -1863,8 +1894,8 @@ const SettingsView = ({ allLogs, historicalLogs, weightUnit, onWeightUnitChange,
                         <div className="flex justify-between items-center">
                             <label htmlFor="bodyWeight" className="font-semibold dark:text-gray-200">Body Weight ({weightUnit})</label>
                             <div className="flex items-center gap-2">
-                                <input id="bodyWeight" type="number" value={bodyWeight} onChange={(e) => onBodyWeightChange(e.target.value, false)} className="w-24 p-2 bg-white dark:bg-gray-700 rounded-md border-gray-300 dark:border-gray-600 shadow-sm" />
-                                <button onClick={() => onBodyWeightChange(bodyWeight, true)} className="px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">Log</button>
+                                <input id="bodyWeight" type="number" value={localBodyWeight} onChange={(e) => setLocalBodyWeight(e.target.value)} className="w-24 p-2 bg-white dark:bg-gray-700 rounded-md border-gray-300 dark:border-gray-600 shadow-sm" />
+                                <button onClick={() => onBodyWeightChange(localBodyWeight, true)} className="px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">Log</button>
                             </div>
                         </div>
                         <div className="flex justify-between items-center">
@@ -2769,8 +2800,6 @@ const EditProgramView = ({ programData, onProgramDataChange, onBack, onNavigate 
                     </div>
                 </div>
 
-                <MasterScheduleEditor program={program} onProgramDataChange={updateProgram} />
-
                 {/* Weekly Schedule Editor - Collapsible */}
                 <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-4 mb-6">
                     <button onClick={() => setScheduleOpen(!isScheduleOpen)} className="w-full flex justify-between items-center text-left">
@@ -3588,7 +3617,7 @@ const TutorialModal = ({ onProgramSelect, onClose, onBodyWeightSet, onSetSyncId 
                      ): step === 6 ? (
                          <button onClick={handleFinish} className="px-4 py-2 bg-green-600 text-white rounded-lg">Finish Setup</button>
                      ) : step === 5 ? (
-                        <button onClick={onClose} className="px-4 py-2 bg-gray-200 dark:bg-gray-600 rounded-lg">Skip for Now</button>
+                        null
                      ) : (
                          <button onClick={onClose} className="px-4 py-2 bg-gray-200 dark:bg-gray-600 rounded-lg">Close</button>
                      )
