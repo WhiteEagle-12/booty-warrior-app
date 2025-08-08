@@ -1931,11 +1931,20 @@ const SettingsView = ({ allLogs, historicalLogs, weightUnit, onWeightUnitChange,
     const [tempId, setTempId] = useState(customId);
     const [exportSelection, setExportSelection] = useState('all');
     const fileInputRef = useRef(null);
-    const [localBodyWeight, setLocalBodyWeight] = useState(bodyWeight || '');
+    const [localBodyWeight, setLocalBodyWeight] = useState('');
 
     useEffect(() => {
-        setLocalBodyWeight(bodyWeight || '');
-    }, [bodyWeight]);
+        const bwInLbs = parseFloat(bodyWeight);
+        if (!isNaN(bwInLbs) && bwInLbs > 0) {
+            if (weightUnit === 'kg') {
+                setLocalBodyWeight((bwInLbs / 2.20462).toFixed(1));
+            } else {
+                setLocalBodyWeight(Math.round(bwInLbs).toString());
+            }
+        } else {
+            setLocalBodyWeight('');
+        }
+    }, [bodyWeight, weightUnit]);
 
     const handleFileImport = (event) => {
         const file = event.target.files[0];
@@ -2715,17 +2724,6 @@ const EditProgramView = ({ programData, onProgramDataChange, onBack, onNavigate 
         onProgramDataChange(newProgram);
     };
 
-    const regenerateWeeklySchedule = (newWorkoutOrder, programStructure) => {
-        if (!newWorkoutOrder || newWorkoutOrder.length === 0) {
-            const restDayName = Object.keys(programStructure).find(key => programStructure[key].isRest) || 'Rest Day';
-            return ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map(d => ({ day: d, workout: restDayName }));
-        }
-
-        return ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((day, index) => {
-            return { day, workout: newWorkoutOrder[index % newWorkoutOrder.length] };
-        });
-    };
-
     const handleInfoChange = (field, value) => {
         updateProgram({ info: { ...program.info, [field]: value } });
     };
@@ -2734,8 +2732,7 @@ const EditProgramView = ({ programData, onProgramDataChange, onBack, onNavigate 
         const newWorkoutName = `New Workout ${Object.keys(program.programStructure).length + 1}`;
         const newProgramStructure = { ...program.programStructure, [newWorkoutName]: { exercises: [], label: 'New', isRest: false } };
         const newWorkoutOrder = [...program.workoutOrder, newWorkoutName];
-        const newSchedule = regenerateWeeklySchedule(newWorkoutOrder.filter(name => !name.includes('(Custom W)')), newProgramStructure);
-        updateProgram({ programStructure: newProgramStructure, workoutOrder: newWorkoutOrder, weeklySchedule: newSchedule });
+        updateProgram({ programStructure: newProgramStructure, workoutOrder: newWorkoutOrder });
     };
 
     const handleAddNewRestDay = () => {
@@ -2745,8 +2742,7 @@ const EditProgramView = ({ programData, onProgramDataChange, onBack, onNavigate 
             [newRestDayName]: { exercises: [], label: 'Rest', isRest: true }
         };
         const newWorkoutOrder = [...program.workoutOrder, newRestDayName];
-        const newSchedule = regenerateWeeklySchedule(newWorkoutOrder.filter(name => !name.includes('(Custom W)')), newProgramStructure);
-        updateProgram({ programStructure: newProgramStructure, workoutOrder: newWorkoutOrder, weeklySchedule: newSchedule });
+        updateProgram({ programStructure: newProgramStructure, workoutOrder: newWorkoutOrder });
     };
 
     const handleToggleTemplateType = (workoutName) => {
@@ -2796,11 +2792,10 @@ const EditProgramView = ({ programData, onProgramDataChange, onBack, onNavigate 
                             }
                         }
 
-                        const finalSchedule = regenerateWeeklySchedule(newWorkoutOrder.filter(name => !name.includes('(Custom W)')), newProgramStructure);
                         updateProgram({
                             programStructure: newProgramStructure,
                             workoutOrder: newWorkoutOrder,
-                            weeklySchedule: finalSchedule,
+                            weeklySchedule: newSchedule,
                             weeklyOverrides: newOverrides,
                         });
                         closeModal();
@@ -2978,9 +2973,18 @@ const EditProgramView = ({ programData, onProgramDataChange, onBack, onNavigate 
             const [movedItem] = reorderedMasterTemplates.splice(source.index, 1);
             reorderedMasterTemplates.splice(destination.index, 0, movedItem);
 
+            const mapping = {};
+            masterTemplates.forEach((oldName, index) => {
+                mapping[oldName] = reorderedMasterTemplates[index];
+            });
+
+            const newSchedule = program.weeklySchedule.map(day => ({
+                ...day,
+                workout: mapping[day.workout] || day.workout
+            }));
+
             const customWorkouts = program.workoutOrder.filter(name => name.includes('(Custom W'));
             const newOrder = [...reorderedMasterTemplates, ...customWorkouts];
-            const newSchedule = regenerateWeeklySchedule(reorderedMasterTemplates, program.programStructure);
 
             updateProgram({ workoutOrder: newOrder, weeklySchedule: newSchedule });
             return;
@@ -3851,7 +3855,7 @@ const TutorialModal = ({ onProgramSelect, onClose, onBodyWeightSet, onSetSyncId,
 
     const handleFinish = () => {
         if(localBodyWeight) {
-            onBodyWeightSet(localBodyWeight);
+        onBodyWeightSet(localBodyWeight, true);
         }
         onClose();
     }
@@ -4097,7 +4101,7 @@ const getMaxE1RMFor = (logs, exerciseSubstring) => {
     return Math.max(0, ...relevantLogs.map(l => calculateE1RM(l.load, l.reps, l.rir)));
 };
 
-const getBodyweightRatioFor = (logs, exerciseSubstring, bodyWeightHistory, weightUnit) => {
+const getBodyweightRatioFor = (logs, exerciseSubstring, bodyWeightHistory) => {
     const exerciseLogs = Object.values(logs).filter(
         l => !l.skipped && l.exercise.toLowerCase().includes(exerciseSubstring) && l.date && (l.load || l.load === 0) && l.reps
     );
@@ -4106,6 +4110,7 @@ const getBodyweightRatioFor = (logs, exerciseSubstring, bodyWeightHistory, weigh
         return 0;
     }
 
+    // Bodyweight history is stored with weight in lbs
     const sortedBwHistory = [...bodyWeightHistory]
         .map(e => ({ ...e, date: new Date(e.date) }))
         .sort((a, b) => a.date - b.date);
@@ -4117,12 +4122,12 @@ const getBodyweightRatioFor = (logs, exerciseSubstring, bodyWeightHistory, weigh
     for (const log of exerciseLogs) {
         const logDate = new Date(log.date);
 
+        // Find the most recent bodyweight entry on or before the log date
         const suitableBwEntry = sortedBwHistory.filter(bw => bw.date <= logDate).pop();
 
         if (suitableBwEntry && suitableBwEntry.weight > 0) {
             const e1rm = calculateE1RM(log.load, log.reps, log.rir);
-            // The bodyweight in history is stored as a number. We assume the unit system is consistent.
-            const bodyWeightInLbs = weightUnit === 'kg' ? suitableBwEntry.weight * 2.20462 : suitableBwEntry.weight;
+            const bodyWeightInLbs = suitableBwEntry.weight; // Guaranteed to be in lbs
 
             if (bodyWeightInLbs > 0) {
                 const ratio = e1rm / bodyWeightInLbs;
@@ -4142,6 +4147,7 @@ const achievementsList = {
         description: "Cumulative weight lifted across all exercises. This is your career tonnage.",
         icon: Weight,
         type: 'tiered',
+        unit: 'weight',
         tiers: [
             { name: "Bronze", value: 10000, description: (v, u) => `Lifted a total of ${formatWeight(v, u)}! The journey begins.` },
             { name: "Silver", value: 100000, description: (v, u) => `Lifted a total of ${formatWeight(v, u)}. That's some serious weight!` },
@@ -4156,6 +4162,7 @@ const achievementsList = {
         description: "Achieve new e1RM milestones in any bench press variation.",
         icon: Trophy,
         type: 'tiered',
+        unit: 'weight',
         tiers: [
             { name: "135 Club", value: 135, description: (v, u) => `Achieved an e1RM of ${formatWeight(v, u)} (a plate!) on bench press.` },
             { name: "Two Wheels", value: 225, description: (v, u) => `Achieved an e1RM of ${formatWeight(v, u)} (two plates!) on bench press.` },
@@ -4168,6 +4175,7 @@ const achievementsList = {
         description: "Achieve new e1RM milestones in any squat variation.",
         icon: Trophy,
         type: 'tiered',
+        unit: 'weight',
         tiers: [
              { name: "Two Wheels", value: 225, description: (v, u) => `Achieved an e1RM of ${formatWeight(v, u)} (two plates!) on the squat.` },
             { name: "Three Wheels", value: 315, description: (v, u) => `Achieved an e1RM of ${formatWeight(v, u)} (three plates!) on the squat.` },
@@ -4180,6 +4188,7 @@ const achievementsList = {
         description: "Achieve new e1RM milestones in any deadlift variation.",
         icon: Trophy,
         type: 'tiered',
+        unit: 'weight',
         tiers: [
             { name: "Two Wheels", value: 225, description: (v, u) => `Achieved an e1RM of ${formatWeight(v,u)} on the deadlift.` },
             { name: "Three Wheels", value: 315, description: (v, u) => `Achieved an e1RM of ${formatWeight(v,u)} on the deadlift.` },
@@ -4193,13 +4202,14 @@ const achievementsList = {
         description: "Bench press a multiple of your bodyweight.",
         icon: Weight,
         type: 'tiered',
+        unit: 'ratio',
         tiers: [
             { name: "1.0x BW", value: 1.0, description: () => "Benching your bodyweight is a classic milestone." },
             { name: "1.5x BW", value: 1.5, description: () => "Benching 1.5x your bodyweight is seriously strong." },
             { name: "2.0x BW", value: 2.0, description: () => "Benching double your bodyweight is elite." },
         ],
         getValue: (logs, program, bodyWeight, weightUnit, bodyWeightHistory) => {
-            return getBodyweightRatioFor(logs, 'bench', bodyWeightHistory, weightUnit);
+            return getBodyweightRatioFor(logs, 'bench', bodyWeightHistory);
         }
     },
     bodyweight_squat: {
@@ -4207,13 +4217,14 @@ const achievementsList = {
         description: "Squat a multiple of your bodyweight.",
         icon: Weight,
         type: 'tiered',
+        unit: 'ratio',
         tiers: [
             { name: "1.5x BW", value: 1.5, description: () => "Squatting 1.5x your bodyweight." },
             { name: "2.0x BW", value: 2.0, description: () => "Squatting 2x your bodyweight. Strong foundation!" },
             { name: "2.5x BW", value: 2.5, description: () => "Squatting 2.5x your bodyweight. Powerful!" },
         ],
         getValue: (logs, program, bodyWeight, weightUnit, bodyWeightHistory) => {
-            return getBodyweightRatioFor(logs, 'squat', bodyWeightHistory, weightUnit);
+            return getBodyweightRatioFor(logs, 'squat', bodyWeightHistory);
         }
     },
      bodyweight_deadlift: {
@@ -4221,13 +4232,14 @@ const achievementsList = {
         description: "Deadlift a multiple of your bodyweight.",
         icon: Weight,
         type: 'tiered',
+        unit: 'ratio',
         tiers: [
             { name: "2.0x BW", value: 2.0, description: () => "Deadlifting 2x your bodyweight." },
             { name: "2.5x BW", value: 2.5, description: () => "Deadlifting 2.5x your bodyweight. Powerful!" },
             { name: "3.0x BW", value: 3.0, description: () => "Deadlifting 3x your bodyweight. Incredible!" },
         ],
         getValue: (logs, program, bodyWeight, weightUnit, bodyWeightHistory) => {
-            return getBodyweightRatioFor(logs, 'deadlift', bodyWeightHistory, weightUnit);
+            return getBodyweightRatioFor(logs, 'deadlift', bodyWeightHistory);
         }
     },
     overhead_overlord: {
@@ -4235,6 +4247,7 @@ const achievementsList = {
         description: "Achieve new e1RM milestones in any overhead press variation.",
         icon: Trophy,
         type: 'tiered',
+        unit: 'weight',
         tiers: [
             { name: "135 Club", value: 135, description: (v, u) => `Achieved an e1RM of ${formatWeight(v, u)} on overhead press.` },
             { name: "185 Club", value: 185, description: (v, u) => `Achieved an e1RM of ${formatWeight(v, u)} on overhead press.` },
@@ -4263,6 +4276,7 @@ const achievementsList = {
         description: "Complete a high number of strict pull-ups in a single set.",
         icon: Award,
         type: 'tiered',
+        unit: 'reps',
         tiers: [
             { name: "10 Reps", value: 10, description: () => "Completed 10 strict pull-ups." },
             { name: "15 Reps", value: 15, description: () => "Completed 15 strict pull-ups." },
@@ -4279,6 +4293,7 @@ const achievementsList = {
         description: "Total number of workout sessions completed.",
         icon: CalendarDays,
         type: 'tiered',
+        unit: 'sessions',
         tiers: [
             { name: "10 Sessions", value: 10, description: () => "Completed 10 workouts." },
             { name: "50 Sessions", value: 50, description: () => "Completed 50 workouts. Keep it up!" },
@@ -4294,6 +4309,7 @@ const achievementsList = {
         description: "Number of consecutive scheduled workouts completed.",
         icon: Flame,
         type: 'tiered',
+        unit: 'days',
         tiers: [
             { name: "10 Streak", value: 10, description: () => "Completed 10 workouts in a row." },
             { name: "30 Streak", value: 30, description: () => "30 consecutive workouts. Unstoppable!" },
@@ -4306,6 +4322,7 @@ const achievementsList = {
         description: "Set a new personal record for single-day lifting volume.",
         icon: TrendingUp,
         type: 'single',
+        unit: 'weight',
         getValue: (logs, program) => {
             const dailyVolumes = Object.values(logs).reduce((acc, log) => {
                 const day = `${log.week}-${log.dayKey}`;
@@ -4320,6 +4337,7 @@ const achievementsList = {
         description: "Set a new personal record for weekly lifting volume.",
         icon: Zap,
         type: 'single',
+        unit: 'weight',
         getValue: (logs, program) => {
             const weeklyVolumes = Object.values(logs).reduce((acc, log) => {
                 acc[log.week] = (acc[log.week] || 0) + getSetVolume(log, program.masterExerciseList);
@@ -4333,6 +4351,7 @@ const achievementsList = {
         description: "Record your Reps in Reserve (RIR) for a large number of sets.",
         icon: Shield,
         type: 'tiered',
+        unit: 'sets',
         tiers: [
             { name: "50 Sets", value: 50, description: () => "Logged RIR for 50 sets." },
             { name: "150 Sets", value: 150, description: () => "Logged RIR for 150 sets." },
@@ -4345,6 +4364,7 @@ const achievementsList = {
         description: "Complete every single workout in a full mesocycle.",
         icon: Star,
         type: 'single',
+        unit: 'boolean',
         getValue: (logs, program) => {
             if (!program || !program.info) return 0;
             const { info, weeklySchedule, workoutOrder, settings } = program;
@@ -4361,6 +4381,7 @@ const achievementsList = {
         description: "Create a custom exercise in the program editor.",
         icon: Pencil,
         type: 'single',
+        unit: 'boolean',
         getValue: (logs, program) => {
             const presetExercises = new Set(Object.keys(exerciseBank));
             const customExercises = Object.keys(program.masterExerciseList).filter(ex => !presetExercises.has(ex));
@@ -4407,7 +4428,7 @@ const AchievementCard = ({ achievementId, achievement, unlockedStatus, currentVa
     }
     
     const colorKey = tierName ? tierName.toLowerCase().split(' ')[0] : 'default';
-    const isBwAchievement = achievementId.includes('bodyweight');
+    const unit = achievement.unit || 'weight';
 
     const colorScheme = {
         'bronze': { bg: 'bg-amber-100 dark:bg-amber-900/50', text: 'text-amber-600 dark:text-amber-400', border: 'border-amber-400', progress: 'bg-amber-500' },
@@ -4446,10 +4467,24 @@ const AchievementCard = ({ achievementId, achievement, unlockedStatus, currentVa
                         <div className={`${isUnlocked ? colorScheme.progress : 'bg-blue-500'} h-1.5 rounded-full`} style={{ width: `${progressPercentage}%` }}></div>
                     </div>
                     <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                        {isBwAchievement
-                            ? `${currentValue.toFixed(2)}x / ${nextTier.value.toFixed(2)}x BW`
-                            : `${formatWeight(currentValue, weightUnit, false)} / ${formatWeight(nextTier.value, weightUnit, false)}`
-                        }
+                        {(() => {
+                            const current = Math.floor(currentValue);
+                            const target = nextTier.value;
+                            switch (unit) {
+                                case 'ratio':
+                                    return `${currentValue.toFixed(2)}x / ${target.toFixed(2)}x BW`;
+                                case 'reps':
+                                    return `${current} / ${target} reps`;
+                                case 'days':
+                                    return `${current} / ${target} days`;
+                                case 'sets':
+                                    return `${current} / ${target} sets`;
+                                case 'sessions':
+                                    return `${current} / ${target} sessions`;
+                                default:
+                                    return `${formatWeight(currentValue, weightUnit, false)} / ${formatWeight(target, weightUnit, false)}`;
+                            }
+                        })()}
                     </p>
                 </div>
             )}
@@ -4482,18 +4517,27 @@ const AchievementsView = ({ unlockedAchievements, historicalLogs, programData, b
 
         const { achievement, unlockedStatus } = achievementData;
         const Icon = achievement.icon;
-        const nonWeightAchievements = new Set(['workout_streak', 'pull_up_pro', 'workouts_completed', 'rpe_honesty']);
-        const isNonWeight = nonWeightAchievements.has(achievementId);
 
+        const unit = achievement.unit || 'weight';
         const formatTierValue = (tier) => {
-            if (isNonWeight) {
-                if (achievementId === 'workout_streak') return `${tier.value} Day Streak`;
-                if (achievementId === 'pull_up_pro') return `${tier.value} Reps`;
-                return tier.value;
+            const target = tier.value;
+            switch (unit) {
+                case 'ratio':
+                    return `${target.toFixed(2)}x BW`;
+                case 'reps':
+                    return `${target} reps`;
+                case 'days':
+                    return `${target} days`;
+                case 'sets':
+                    return `${target} sets`;
+                case 'sessions':
+                    return `${target} sessions`;
+                case 'weight':
+                default:
+                    return formatWeight(target, weightUnit);
             }
-            return formatWeight(tier.value, weightUnit);
         };
-        
+
         openModal(
             <div>
                 <div className="flex items-center gap-3 mb-4">
@@ -4774,14 +4818,16 @@ const AppCore = () => {
     };
 
     const handleBodyWeightChange = useCallback((newWeight, save = false) => {
-        setBodyWeight(newWeight);
         if (save) {
-            const weightValue = parseFloat(newWeight);
+            const weightValue = parseFloat(newWeight); // newWeight is in current display unit
             if (!isNaN(weightValue) && weightValue > 0) {
-                const newEntry = { weight: weightValue, date: new Date().toISOString() };
+                const weightInLbs = weightUnit === 'kg' ? weightValue * 2.20462 : weightValue;
+                const newEntry = { weight: weightInLbs, date: new Date().toISOString() };
+
+                setBodyWeight(weightInLbs.toString());
                 setBodyWeightHistory(prevHistory => {
                     const newHistory = [...prevHistory, newEntry];
-                    handleUpdateAndSave({ bodyWeight: weightValue.toString(), bodyWeightHistory: newHistory });
+                    handleUpdateAndSave({ bodyWeight: weightInLbs.toString(), bodyWeightHistory: newHistory });
                     addToast("Weight logged successfully!", "success");
                     return newHistory;
                 });
@@ -4789,7 +4835,7 @@ const AppCore = () => {
                 addToast("Invalid weight value.", "error");
             }
         }
-    }, [handleUpdateAndSave, addToast]);
+    }, [handleUpdateAndSave, addToast, weightUnit]);
     
     const showTutorial = useCallback((isReview = false) => {
         if (!isReview && customId) {
