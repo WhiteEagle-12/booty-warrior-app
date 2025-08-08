@@ -3030,14 +3030,25 @@ const EditProgramView = ({ programData, onProgramDataChange, onBack, onNavigate 
         const { source, destination, type } = result;
     
         if (type === 'workoutDay') {
-            const reorderedMasterTemplates = Array.from(program.workoutOrder.filter(name => !name.includes('(Custom W')));
+            const masterTemplates = program.workoutOrder.filter(name => !name.includes('(Custom W)'));
+            const reorderedMasterTemplates = Array.from(masterTemplates);
             const [movedItem] = reorderedMasterTemplates.splice(source.index, 1);
             reorderedMasterTemplates.splice(destination.index, 0, movedItem);
 
-            const customWorkouts = program.workoutOrder.filter(name => name.includes('(Custom W'));
+            const mapping = {};
+            masterTemplates.forEach((oldName, index) => {
+                mapping[oldName] = reorderedMasterTemplates[index];
+            });
 
+            const newSchedule = program.weeklySchedule.map(day => ({
+                ...day,
+                workout: mapping[day.workout] || day.workout
+            }));
+
+            const customWorkouts = program.workoutOrder.filter(name => name.includes('(Custom W'));
             const newOrder = [...reorderedMasterTemplates, ...customWorkouts];
-            updateProgram({ workoutOrder: newOrder });
+
+            updateProgram({ workoutOrder: newOrder, weeklySchedule: newSchedule });
             return;
         }
     
@@ -3223,6 +3234,8 @@ const EditProgramView = ({ programData, onProgramDataChange, onBack, onNavigate 
                 </div>
 
                 {/* Workout Day List */}
+                <MasterScheduleEditor program={program} onProgramDataChange={updateProgram} />
+
                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white my-3">Master Workout Templates</h3>
                  <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">Drag exercises to reorder them within a day, or drag them to another day entirely.</p>
                 <Droppable droppableId="all-workouts" direction="vertical" type="workoutDay">
@@ -4167,6 +4180,45 @@ const getMaxE1RMFor = (logs, exerciseSubstring) => {
     return Math.max(0, ...relevantLogs.map(l => calculateE1RM(l.load, l.reps, l.rir)));
 };
 
+const getBodyweightRatioFor = (logs, exerciseSubstring, bodyWeightHistory, weightUnit) => {
+    const exerciseLogs = Object.values(logs).filter(
+        l => !l.skipped && l.exercise.toLowerCase().includes(exerciseSubstring) && l.date && (l.load || l.load === 0) && l.reps
+    );
+
+    if (exerciseLogs.length === 0 || !bodyWeightHistory || bodyWeightHistory.length === 0) {
+        return 0;
+    }
+
+    const sortedBwHistory = [...bodyWeightHistory]
+        .map(e => ({ ...e, date: new Date(e.date) }))
+        .sort((a, b) => a.date - b.date);
+
+    if (sortedBwHistory.length === 0) return 0;
+
+    let maxRatio = 0;
+
+    for (const log of exerciseLogs) {
+        const logDate = new Date(log.date);
+
+        const suitableBwEntry = sortedBwHistory.filter(bw => bw.date <= logDate).pop();
+
+        if (suitableBwEntry && suitableBwEntry.weight > 0) {
+            const e1rm = calculateE1RM(log.load, log.reps, log.rir);
+            // The bodyweight in history is stored as a number. We assume the unit system is consistent.
+            const bodyWeightInLbs = weightUnit === 'kg' ? suitableBwEntry.weight * 2.20462 : suitableBwEntry.weight;
+
+            if (bodyWeightInLbs > 0) {
+                const ratio = e1rm / bodyWeightInLbs;
+                if (ratio > maxRatio) {
+                    maxRatio = ratio;
+                }
+            }
+        }
+    }
+
+    return maxRatio;
+};
+
 const achievementsList = {
     total_volume: {
         name: "Total Volume",
@@ -4229,12 +4281,8 @@ const achievementsList = {
             { name: "1.5x BW", value: 1.5, description: () => "Benching 1.5x your bodyweight is seriously strong." },
             { name: "2.0x BW", value: 2.0, description: () => "Benching double your bodyweight is elite." },
         ],
-        getValue: (logs, program, bodyWeight, weightUnit) => {
-            if (!bodyWeight || bodyWeight <= 0) return 0;
-            const bodyWeightInLbs = weightUnit === 'kg' ? bodyWeight * 2.20462 : bodyWeight;
-            const maxBench = getMaxE1RMFor(logs, 'bench');
-            if (bodyWeightInLbs === 0) return 0;
-            return maxBench / bodyWeightInLbs;
+        getValue: (logs, program, bodyWeight, weightUnit, bodyWeightHistory) => {
+            return getBodyweightRatioFor(logs, 'bench', bodyWeightHistory, weightUnit);
         }
     },
     bodyweight_squat: {
@@ -4247,12 +4295,8 @@ const achievementsList = {
             { name: "2.0x BW", value: 2.0, description: () => "Squatting 2x your bodyweight. Strong foundation!" },
             { name: "2.5x BW", value: 2.5, description: () => "Squatting 2.5x your bodyweight. Powerful!" },
         ],
-        getValue: (logs, program, bodyWeight, weightUnit) => {
-            if (!bodyWeight || bodyWeight <= 0) return 0;
-            const bodyWeightInLbs = weightUnit === 'kg' ? bodyWeight * 2.20462 : bodyWeight;
-            const maxSquat = getMaxE1RMFor(logs, 'squat');
-            if (bodyWeightInLbs === 0) return 0;
-            return maxSquat / bodyWeightInLbs;
+        getValue: (logs, program, bodyWeight, weightUnit, bodyWeightHistory) => {
+            return getBodyweightRatioFor(logs, 'squat', bodyWeightHistory, weightUnit);
         }
     },
      bodyweight_deadlift: {
@@ -4265,12 +4309,8 @@ const achievementsList = {
             { name: "2.5x BW", value: 2.5, description: () => "Deadlifting 2.5x your bodyweight. Powerful!" },
             { name: "3.0x BW", value: 3.0, description: () => "Deadlifting 3x your bodyweight. Incredible!" },
         ],
-        getValue: (logs, program, bodyWeight, weightUnit) => {
-            if (!bodyWeight || bodyWeight <= 0) return 0;
-            const bodyWeightInLbs = weightUnit === 'kg' ? bodyWeight * 2.20462 : bodyWeight;
-            const maxDeadlift = getMaxE1RMFor(logs, 'deadlift');
-            if (bodyWeightInLbs === 0) return 0;
-            return maxDeadlift / bodyWeightInLbs;
+        getValue: (logs, program, bodyWeight, weightUnit, bodyWeightHistory) => {
+            return getBodyweightRatioFor(logs, 'deadlift', bodyWeightHistory, weightUnit);
         }
     },
     overhead_overlord: {
@@ -4495,7 +4535,7 @@ const AchievementCard = ({ achievementId, achievement, unlockedStatus, currentVa
     );
 };
 
-const AchievementsView = ({ unlockedAchievements, historicalLogs, programData, bodyWeight, weightUnit, onBack }) => {
+const AchievementsView = ({ unlockedAchievements, historicalLogs, programData, bodyWeight, weightUnit, onBack, bodyWeightHistory }) => {
     const { openModal, closeModal } = useContext(AppStateContext);
 
     const processedAchievements = useMemo(() => {
@@ -4504,11 +4544,11 @@ const AchievementsView = ({ unlockedAchievements, historicalLogs, programData, b
         return Object.entries(achievementsList)
             .filter(([id, achievement]) => achievement && typeof achievement === 'object' && achievement.name && achievement.getValue)
             .map(([id, achievement]) => {
-                const currentValue = achievement.getValue(historicalLogs, programData, parseFloat(bodyWeight) || 0, weightUnit);
+                const currentValue = achievement.getValue(historicalLogs, programData, parseFloat(bodyWeight) || 0, weightUnit, bodyWeightHistory);
                 const unlockedStatus = unlockedAchievements[id];
                 return { id, achievement, currentValue, unlockedStatus };
             });
-    }, [historicalLogs, programData, bodyWeight, unlockedAchievements, weightUnit]);
+    }, [historicalLogs, programData, bodyWeight, unlockedAchievements, weightUnit, bodyWeightHistory]);
     
     const handleShowDescription = (e, achievementId) => {
         e.preventDefault();
@@ -4938,7 +4978,7 @@ const AppCore = () => {
 
             Object.entries(achievementsList).forEach(([id, achievement]) => {
                 const currentValue = achievement.getValue
-                    ? achievement.getValue(historicalLogs, programData, parseFloat(bodyWeight) || 0)
+                ? achievement.getValue(historicalLogs, programData, parseFloat(bodyWeight) || 0, weightUnit, bodyWeightHistory)
                     : 0;
                 const oldTier = unlockedAchievements[id] ?? -1;
                 let newTier = -1;
@@ -5223,7 +5263,7 @@ const AppCore = () => {
             case 'lifting': return <LiftingSession {...pageState.data} onBack={onBack} allLogs={allLogs} setAllLogs={setAllLogs} onSkipDay={handleSkipDay} programData={programData} weightUnit={weightUnit} onStartTimer={handleStartTimer} />;
             case 'analytics': return <AnalyticsView allLogs={historicalLogs} programData={programData} onBack={onBack} />;
             case 'records': return <RecordsView allLogs={historicalLogs} onBack={onBack} />;
-            case 'achievements': return <AchievementsView unlockedAchievements={unlockedAchievements} historicalLogs={historicalLogs} programData={programData} bodyWeight={bodyWeight} weightUnit={weightUnit} onBack={onBack} />;
+            case 'achievements': return <AchievementsView unlockedAchievements={unlockedAchievements} historicalLogs={historicalLogs} programData={programData} bodyWeight={bodyWeight} weightUnit={weightUnit} onBack={onBack} bodyWeightHistory={bodyWeightHistory} />;
             case 'programHub': return <ProgramManagerView onProgramUpdate={handleProgramUpdate} activeProgram={{...programData, id: activeInstanceId}} programInstances={programInstances} onInstanceSwitch={handleInstanceSwitch} onBack={onBack} />;
             case 'editProgram': return <EditProgramView programData={programData} onProgramDataChange={handleProgramDataChange} onBack={onBack} onNavigate={navigate} />;
             case 'settings': return <SettingsView allLogs={allLogs} historicalLogs={historicalLogs} weightUnit={weightUnit} onWeightUnitChange={handleWeightUnitChange} onResetMeso={handleResetMeso} programData={programData} onProgramDataChange={handleProgramDataChange} onShowTutorial={() => showTutorial(true)} bodyWeight={bodyWeight} onBodyWeightChange={handleBodyWeightChange} onBack={onBack} onRestoreLogs={handleRestoreLogs} onProgramImport={handleProgramImport} />;
