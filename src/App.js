@@ -976,7 +976,14 @@ const FirebaseProvider = ({ children }) => {
     const [firebaseServices, setFirebaseServices] = useState(null);
     const [user, setUser] = useState(null);
     const [isLoading, setIsLoading] = useState(true);
-    const [customId, setCustomId] = useState(() => localStorage.getItem('projectOverloadSyncId') || '');
+    const [customId, setCustomId] = useState(() => {
+        try {
+            return localStorage.getItem('projectOverloadSyncId') || '';
+        } catch (e) {
+            console.error("localStorage is not available, proceeding without it.");
+            return '';
+        }
+    });
 
     useEffect(() => {
         const firebaseConfig = {
@@ -1007,7 +1014,11 @@ const FirebaseProvider = ({ children }) => {
     const handleSetCustomId = useCallback((id) => {
         const sanitizedId = id.trim().replace(/[^a-zA-Z0-9-_]/g, '');
         if (sanitizedId && sanitizedId.length > 0) {
-            localStorage.setItem('projectOverloadSyncId', sanitizedId);
+            try {
+                localStorage.setItem('projectOverloadSyncId', sanitizedId);
+            } catch (e) {
+                console.error("localStorage is not available, proceeding without it.");
+            }
             setCustomId(sanitizedId);
             return sanitizedId;
         }
