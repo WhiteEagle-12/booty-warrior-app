@@ -3234,8 +3234,6 @@ const EditProgramView = ({ programData, onProgramDataChange, onBack, onNavigate 
                 </div>
 
                 {/* Workout Day List */}
-                <MasterScheduleEditor program={program} onProgramDataChange={updateProgram} />
-
                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white my-3">Master Workout Templates</h3>
                  <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">Drag exercises to reorder them within a day, or drag them to another day entirely.</p>
                 <Droppable droppableId="all-workouts" direction="vertical" type="workoutDay">
@@ -4978,7 +4976,7 @@ const AppCore = () => {
 
             Object.entries(achievementsList).forEach(([id, achievement]) => {
                 const currentValue = achievement.getValue
-                ? achievement.getValue(historicalLogs, programData, parseFloat(bodyWeight) || 0, weightUnit, bodyWeightHistory)
+                    ? achievement.getValue(historicalLogs, programData, parseFloat(bodyWeight) || 0, weightUnit, bodyWeightHistory)
                     : 0;
                 const oldTier = unlockedAchievements[id] ?? -1;
                 let newTier = -1;
