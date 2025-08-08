@@ -3678,6 +3678,45 @@ const RestoreProgramModal = ({ csvData, onRestore, onClose }) => {
 
 const ProgramManagerView = ({ onProgramUpdate, activeProgram, programInstances, onInstanceSwitch, onBack }) => {
     const { openModal, closeModal, addToast } = useContext(AppStateContext);
+    const fileInputRef = useRef(null);
+
+    const handleFileImport = (event) => {
+        const file = event.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            try {
+                if (file.name.endsWith('.csv')) {
+                    openModal(<RestoreProgramModal csvData={e.target.result} onRestore={onProgramUpdate} onClose={closeModal} />);
+                } else {
+                    const importedProgram = JSON.parse(e.target.result);
+                    if (
+                        importedProgram.name && typeof importedProgram.name === 'string' &&
+                        importedProgram.info && typeof importedProgram.info === 'object' &&
+                        importedProgram.masterExerciseList && typeof importedProgram.masterExerciseList === 'object' &&
+                        importedProgram.programStructure && typeof importedProgram.programStructure === 'object' &&
+                        importedProgram.weeklySchedule && Array.isArray(importedProgram.weeklySchedule) &&
+                        importedProgram.workoutOrder && Array.isArray(importedProgram.workoutOrder)
+                    ) {
+                        onProgramUpdate(importedProgram);
+                        addToast(`Program "${importedProgram.name}" imported successfully!`, 'success');
+                    } else {
+                        throw new Error("Invalid or incomplete program file structure.");
+                    }
+                }
+            } catch (error) {
+                console.error("Failed to import program:", error);
+                addToast(`Failed to import: ${error.message}`, 'error');
+            }
+        };
+        reader.readAsText(file);
+        event.target.value = null;
+    };
+
+    const handleImportClick = () => {
+        fileInputRef.current?.click();
+    };
 
     const handleShareProgram = () => {
         try {
