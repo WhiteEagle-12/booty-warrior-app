@@ -2715,6 +2715,17 @@ const EditProgramView = ({ programData, onProgramDataChange, onBack, onNavigate 
         onProgramDataChange(newProgram);
     };
 
+    const regenerateWeeklySchedule = (newWorkoutOrder, programStructure) => {
+        if (!newWorkoutOrder || newWorkoutOrder.length === 0) {
+            const restDayName = Object.keys(programStructure).find(key => programStructure[key].isRest) || 'Rest Day';
+            return ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map(d => ({ day: d, workout: restDayName }));
+        }
+
+        return ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((day, index) => {
+            return { day, workout: newWorkoutOrder[index % newWorkoutOrder.length] };
+        });
+    };
+
     const handleInfoChange = (field, value) => {
         updateProgram({ info: { ...program.info, [field]: value } });
     };
@@ -2723,7 +2734,8 @@ const EditProgramView = ({ programData, onProgramDataChange, onBack, onNavigate 
         const newWorkoutName = `New Workout ${Object.keys(program.programStructure).length + 1}`;
         const newProgramStructure = { ...program.programStructure, [newWorkoutName]: { exercises: [], label: 'New', isRest: false } };
         const newWorkoutOrder = [...program.workoutOrder, newWorkoutName];
-        updateProgram({ programStructure: newProgramStructure, workoutOrder: newWorkoutOrder });
+        const newSchedule = regenerateWeeklySchedule(newWorkoutOrder.filter(name => !name.includes('(Custom W)')), newProgramStructure);
+        updateProgram({ programStructure: newProgramStructure, workoutOrder: newWorkoutOrder, weeklySchedule: newSchedule });
     };
 
     const handleAddNewRestDay = () => {
@@ -2733,7 +2745,8 @@ const EditProgramView = ({ programData, onProgramDataChange, onBack, onNavigate 
             [newRestDayName]: { exercises: [], label: 'Rest', isRest: true }
         };
         const newWorkoutOrder = [...program.workoutOrder, newRestDayName];
-        updateProgram({ programStructure: newProgramStructure, workoutOrder: newWorkoutOrder });
+        const newSchedule = regenerateWeeklySchedule(newWorkoutOrder.filter(name => !name.includes('(Custom W)')), newProgramStructure);
+        updateProgram({ programStructure: newProgramStructure, workoutOrder: newWorkoutOrder, weeklySchedule: newSchedule });
     };
 
     const handleToggleTemplateType = (workoutName) => {
@@ -2783,10 +2796,11 @@ const EditProgramView = ({ programData, onProgramDataChange, onBack, onNavigate 
                             }
                         }
 
+                        const finalSchedule = regenerateWeeklySchedule(newWorkoutOrder.filter(name => !name.includes('(Custom W)')), newProgramStructure);
                         updateProgram({
                             programStructure: newProgramStructure,
                             workoutOrder: newWorkoutOrder,
-                            weeklySchedule: newSchedule,
+                            weeklySchedule: finalSchedule,
                             weeklyOverrides: newOverrides,
                         });
                         closeModal();
@@ -2964,18 +2978,9 @@ const EditProgramView = ({ programData, onProgramDataChange, onBack, onNavigate 
             const [movedItem] = reorderedMasterTemplates.splice(source.index, 1);
             reorderedMasterTemplates.splice(destination.index, 0, movedItem);
 
-            const mapping = {};
-            masterTemplates.forEach((oldName, index) => {
-                mapping[oldName] = reorderedMasterTemplates[index];
-            });
-
-            const newSchedule = program.weeklySchedule.map(day => ({
-                ...day,
-                workout: mapping[day.workout] || day.workout
-            }));
-
             const customWorkouts = program.workoutOrder.filter(name => name.includes('(Custom W'));
             const newOrder = [...reorderedMasterTemplates, ...customWorkouts];
+            const newSchedule = regenerateWeeklySchedule(reorderedMasterTemplates, program.programStructure);
 
             updateProgram({ workoutOrder: newOrder, weeklySchedule: newSchedule });
             return;
@@ -4477,6 +4482,17 @@ const AchievementsView = ({ unlockedAchievements, historicalLogs, programData, b
 
         const { achievement, unlockedStatus } = achievementData;
         const Icon = achievement.icon;
+        const nonWeightAchievements = new Set(['workout_streak', 'pull_up_pro', 'workouts_completed', 'rpe_honesty']);
+        const isNonWeight = nonWeightAchievements.has(achievementId);
+
+        const formatTierValue = (tier) => {
+            if (isNonWeight) {
+                if (achievementId === 'workout_streak') return `${tier.value} Day Streak`;
+                if (achievementId === 'pull_up_pro') return `${tier.value} Reps`;
+                return tier.value;
+            }
+            return formatWeight(tier.value, weightUnit);
+        };
         
         openModal(
             <div>
@@ -4492,7 +4508,7 @@ const AchievementsView = ({ unlockedAchievements, historicalLogs, programData, b
                             <div key={tier.name} className={`flex items-center gap-3 p-2 rounded-md ${unlockedStatus >= index ? 'bg-green-100 dark:bg-green-900/50' : 'bg-gray-100 dark:bg-gray-700/50'}`}>
                                 <CheckCircle size={20} className={unlockedStatus >= index ? 'text-green-500' : 'text-gray-400'} />
                                 <div>
-                                    <p className="font-bold">{tier.name} ({formatWeight(tier.value, weightUnit)})</p>
+                                    <p className="font-bold">{tier.name} ({formatTierValue(tier)})</p>
                                     <p className="text-xs text-gray-500 dark:text-gray-400">{tier.description(tier.value, weightUnit)}</p>
                                 </div>
                             </div>
