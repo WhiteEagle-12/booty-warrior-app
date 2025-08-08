@@ -1924,45 +1924,29 @@ const DashboardView = ({ allLogs, programData, bodyWeightHistory }) => {
 };
 
 
-const SettingsView = ({ allLogs, historicalLogs, weightUnit, onWeightUnitChange, onResetMeso, programData, onProgramDataChange, onShowTutorial, bodyWeight, onBodyWeightChange, onBack, onRestoreLogs, onProgramImport }) => {
+const SettingsView = ({ allLogs, historicalLogs, weightUnit, onWeightUnitChange, onResetMeso, programData, onProgramDataChange, onShowTutorial, bodyWeight, onBodyWeightChange, onBack, onFileImport }) => {
     const { theme, toggleTheme } = useContext(ThemeContext);
     const { customId, handleSetCustomId } = useContext(FirebaseContext);
     const { openModal, closeModal } = useContext(AppStateContext);
     const [tempId, setTempId] = useState(customId);
     const [exportSelection, setExportSelection] = useState('all');
-    const logFileInputRef = useRef(null);
-    const programFileInputRef = useRef(null);
+    const fileInputRef = useRef(null);
     const [localBodyWeight, setLocalBodyWeight] = useState(bodyWeight || '');
 
     useEffect(() => {
         setLocalBodyWeight(bodyWeight || '');
     }, [bodyWeight]);
 
-    const handleLogFileImport = (event) => {
+    const handleFileImport = (event) => {
         const file = event.target.files[0];
-        if (!file) return;
-
-        const reader = new FileReader();
-        reader.onload = (e) => {
-            onRestoreLogs(e.target.result);
-        };
-        reader.readAsText(file);
-        event.target.value = null; // Reset input
-    };
-
-    const handleProgramFileImport = (event) => {
-        const file = event.target.files[0];
-        if (!file) return;
-        onProgramImport(file);
+        if (file) {
+            onFileImport(file);
+        }
         event.target.value = null;
-    }
-
-    const handleLogImportClick = () => {
-        logFileInputRef.current?.click();
     };
 
-    const handleProgramImportClick = () => {
-        programFileInputRef.current?.click();
+    const handleFileImportClick = () => {
+        fileInputRef.current?.click();
     };
 
     const exportData = (logsToExport, filename) => {
@@ -2179,19 +2163,11 @@ const SettingsView = ({ allLogs, historicalLogs, weightUnit, onWeightUnitChange,
                         </div>
                          <div className="border-t border-gray-200 dark:border-gray-700"></div>
                         <div>
-                            <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">Import a program structure from a JSON or CSV file. This will add it as a new program in your Program Hub.</p>
-                            <button onClick={handleProgramImportClick} className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-teal-600 text-white rounded-lg shadow-md hover:bg-teal-700 transition-colors">
-                                <Upload size={16}/> Import Program from File
+                            <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">Import a program (JSON) or workout history (CSV) from a file.</p>
+                            <button onClick={handleFileImportClick} className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg shadow-md hover:bg-green-700 transition-colors">
+                                <Upload size={16} /> Import from File
                             </button>
-                            <input type="file" ref={programFileInputRef} onChange={handleProgramFileImport} accept=".json,.csv" style={{ display: 'none' }} />
-                        </div>
-                         <div className="border-t border-gray-200 dark:border-gray-700"></div>
-                        <div>
-                            <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">Restore workout history from a previously exported CSV file. This will overwrite all current logs.</p>
-                            <button onClick={handleLogImportClick} className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg shadow-md hover:bg-green-700 transition-colors">
-                                <Upload size={16} /> Import Workout History (CSV)
-                            </button>
-                            <input type="file" ref={logFileInputRef} onChange={handleLogFileImport} accept=".csv" style={{ display: 'none' }} />
+                            <input type="file" ref={fileInputRef} onChange={handleFileImport} accept=".json,.csv" style={{ display: 'none' }} />
                         </div>
                     </div>
                 </div>
@@ -2336,9 +2312,15 @@ const AnalyticsView = ({ allLogs, programData, onBack }) => {
 
 
     const muscleGroupData = useMemo(() => {
-        const dataByMuscle = {};
+        if (!allLogs || Object.keys(allLogs).length === 0 || !masterExerciseList) return [];
 
-        if (!programData || !masterExerciseList) return [];
+        const lastLoggedWeek = Math.max(0, ...Object.values(allLogs).map(log => log.week || 0));
+        if (lastLoggedWeek === 0) return [];
+
+        const weekLogs = Object.values(allLogs).filter(log => log.week === lastLoggedWeek && !log.skipped);
+        if (weekLogs.length === 0) return [];
+
+        const dataByMuscle = {};
 
         const ensureMuscle = (muscle) => {
             if (muscle && !dataByMuscle[muscle]) {
@@ -2346,98 +2328,45 @@ const AnalyticsView = ({ allLogs, programData, onBack }) => {
             }
         };
 
-        const processExercise = (exerciseName) => {
-            const exerciseDetails = getExerciseDetails(exerciseName, masterExerciseList);
+        weekLogs.forEach(log => {
+            const exerciseDetails = getExerciseDetails(log.exercise, masterExerciseList);
             if (exerciseDetails?.muscles) {
-                const numSets = Number(exerciseDetails.sets) || 0;
-                if (numSets === 0) return;
-
                 const { primary, secondary, tertiary, primaryContribution, secondaryContribution, tertiaryContribution } = exerciseDetails.muscles;
+
+                // Each log is one set
+                const numSets = 1;
 
                 if (primary) {
                     ensureMuscle(primary);
                     const contributedSets = (primaryContribution || 1) * numSets;
                     dataByMuscle[primary].sets += contributedSets;
-                    dataByMuscle[primary].exercises[exerciseName] = (dataByMuscle[primary].exercises[exerciseName] || 0) + contributedSets;
+                    dataByMuscle[primary].exercises[log.exercise] = (dataByMuscle[primary].exercises[log.exercise] || 0) + contributedSets;
                 }
                 if (secondary) {
                     ensureMuscle(secondary);
                     const contributedSets = (secondaryContribution || 0.5) * numSets;
                     dataByMuscle[secondary].sets += contributedSets;
-                    dataByMuscle[secondary].exercises[exerciseName] = (dataByMuscle[secondary].exercises[exerciseName] || 0) + contributedSets;
+                    dataByMuscle[secondary].exercises[log.exercise] = (dataByMuscle[secondary].exercises[log.exercise] || 0) + contributedSets;
                 }
                 if (tertiary) {
                     ensureMuscle(tertiary);
                     const contributedSets = (tertiaryContribution || 0.25) * numSets;
                     dataByMuscle[tertiary].sets += contributedSets;
-                    dataByMuscle[tertiary].exercises[exerciseName] = (dataByMuscle[tertiary].exercises[exerciseName] || 0) + contributedSets;
+                    dataByMuscle[tertiary].exercises[log.exercise] = (dataByMuscle[tertiary].exercises[log.exercise] || 0) + contributedSets;
                 }
             }
-        };
-
-        if (programData.settings.useWeeklySchedule) {
-            // Iterate through the entire program schedule
-            for (let week = 1; week <= programData.info.weeks; week++) {
-                programData.weeklySchedule.forEach(day => {
-                    const workoutName = getWorkoutNameForDay(programData, week, day.day);
-                    const workout = getWorkoutForWeek(programData, week, workoutName);
-                    if (workout) {
-                        workout.exercises.forEach(processExercise);
-                    }
-                });
-            }
-        } else {
-            // For sequential programs, calculate volume for a single full rotation of workouts, multiplied by program length
-            const workoutDaysInRotation = programData.workoutOrder.filter(name => !programData.programStructure[name]?.isRest);
-            if (workoutDaysInRotation.length > 0) {
-                const totalWorkoutSessions = programData.info.weeks * 7;
-                const totalRotations = totalWorkoutSessions / workoutDaysInRotation.length;
-
-                workoutDaysInRotation.forEach(workoutName => {
-                    const workout = programData.programStructure[workoutName];
-                    if (workout && workout.exercises) {
-                        workout.exercises.forEach(exName => {
-                            const exerciseDetails = getExerciseDetails(exName, masterExerciseList);
-                            if (exerciseDetails?.muscles) {
-                                const numSets = (Number(exerciseDetails.sets) || 0) * totalRotations;
-                                if (numSets === 0) return;
-
-                                const { primary, secondary, tertiary, primaryContribution, secondaryContribution, tertiaryContribution } = exerciseDetails.muscles;
-
-                                if (primary) {
-                                    ensureMuscle(primary);
-                                    const contributedSets = (primaryContribution || 1) * numSets;
-                                    dataByMuscle[primary].sets += contributedSets;
-                                    dataByMuscle[primary].exercises[exName] = (dataByMuscle[primary].exercises[exName] || 0) + contributedSets;
-                                }
-                                if (secondary) {
-                                    ensureMuscle(secondary);
-                                    const contributedSets = (secondaryContribution || 0.5) * numSets;
-                                    dataByMuscle[secondary].sets += contributedSets;
-                                    dataByMuscle[secondary].exercises[exName] = (dataByMuscle[secondary].exercises[exName] || 0) + contributedSets;
-                                }
-                                if (tertiary) {
-                                    ensureMuscle(tertiary);
-                                    const contributedSets = (tertiaryContribution || 0.25) * numSets;
-                                    dataByMuscle[tertiary].sets += contributedSets;
-                                    dataByMuscle[tertiary].exercises[exName] = (dataByMuscle[tertiary].exercises[exName] || 0) + contributedSets;
-                                }
-                            }
-                        });
-                    }
-                });
-            }
-        }
+        });
 
         const totalSets = Object.values(dataByMuscle).reduce((sum, d) => sum + d.sets, 0);
+        if (totalSets === 0) return [];
 
         return Object.entries(dataByMuscle).map(([name, data]) => ({
             name,
             sets: parseFloat(data.sets.toFixed(1)),
-            setsPercentage: totalSets > 0 ? Math.round((data.sets / totalSets) * 100) : 0,
+            setsPercentage: Math.round((data.sets / totalSets) * 100),
             exercises: data.exercises,
         })).sort((a, b) => b.sets - a.sets);
-    }, [programData, masterExerciseList]);
+    }, [allLogs, masterExerciseList]);
 
     const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#AF19FF', '#FF42A1', '#42A1FF'];
     const RADIAN = Math.PI / 180;
@@ -2535,7 +2464,7 @@ const AnalyticsView = ({ allLogs, programData, onBack }) => {
                 </div>
 
                 <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-4">
-                    <h3 className="font-semibold dark:text-gray-200 mb-2">Muscle Group Set Distribution (All Time)</h3>
+                    <h3 className="font-semibold dark:text-gray-200 mb-2">Muscle Group Set Distribution (Last Week)</h3>
                     {muscleGroupData.length > 0 ? (
                         <div className="grid md:grid-cols-2 gap-8 items-center">
                             <div className="w-full aspect-square">
@@ -3687,9 +3616,28 @@ const RestoreProgramModal = ({ csvData, onRestore, onClose }) => {
     );
 };
 
-const ProgramManagerView = ({ onProgramUpdate, activeProgram, programInstances, onInstanceSwitch, onBack }) => {
+const ProgramManagerView = ({ onProgramUpdate, activeProgram, programInstances, onInstanceSwitch, onBack, onDeleteProgram }) => {
     const { openModal, closeModal, addToast } = useContext(AppStateContext);
     const fileInputRef = useRef(null);
+
+    const handleDeleteProgram = (instanceId) => {
+        const programToDelete = programInstances.find(p => p.id === instanceId);
+        if (!programToDelete) return;
+
+        openModal(
+            <div>
+                <h2 className="text-xl font-bold mb-4">Confirm Deletion</h2>
+                <p className="text-gray-600 dark:text-gray-400">Are you sure you want to delete the program "{programToDelete.program.name}"? This action cannot be undone.</p>
+                <div className="flex justify-end gap-2 mt-6">
+                    <button onClick={closeModal} className="px-4 py-2 bg-gray-200 dark:bg-gray-600 rounded-lg">Cancel</button>
+                    <button onClick={() => {
+                        onDeleteProgram(instanceId);
+                        closeModal();
+                    }} className="px-4 py-2 bg-red-600 text-white rounded-lg">Delete</button>
+                </div>
+            </div>
+        );
+    };
 
     const handleFileImport = (event) => {
         const file = event.target.files[0];
@@ -3727,42 +3675,6 @@ const ProgramManagerView = ({ onProgramUpdate, activeProgram, programInstances, 
 
     const handleImportClick = () => {
         fileInputRef.current?.click();
-    };
-
-    const handleShareProgram = () => {
-        try {
-            const activeExercises = new Set(Object.values(activeProgram.programStructure).flatMap(w => w.exercises));
-            const activeMasterExerciseList = Object.fromEntries(
-                Object.entries(activeProgram.masterExerciseList).filter(([name]) => activeExercises.has(name))
-            );
-
-            const programToExport = {
-                name: activeProgram.name,
-                info: activeProgram.info,
-                masterExerciseList: activeMasterExerciseList,
-                programStructure: activeProgram.programStructure,
-                weeklySchedule: activeProgram.weeklySchedule,
-                workoutOrder: activeProgram.workoutOrder,
-                settings: activeProgram.settings,
-                weeklyOverrides: activeProgram.weeklyOverrides || {},
-            };
-
-            const programJson = JSON.stringify(programToExport, null, 2);
-            const blob = new Blob([programJson], { type: 'application/json' });
-            const url = URL.createObjectURL(blob);
-            const link = document.createElement('a');
-            const fileName = activeProgram.name.replace(/[^a-z0-9]/gi, '_').toLowerCase();
-            link.download = `${fileName}_program.json`;
-            link.href = url;
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-            URL.revokeObjectURL(url);
-            addToast('Program exported successfully!', 'success');
-        } catch (error) {
-            console.error("Failed to export program:", error);
-            addToast('Error exporting program.', 'error');
-        }
     };
 
     const handleExportProgramToCSV = () => {
@@ -3824,13 +3736,10 @@ const ProgramManagerView = ({ onProgramUpdate, activeProgram, programInstances, 
             <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-md mb-6">
                  <h3 className="text-xl font-bold text-gray-800 dark:text-gray-200 mb-4">Manage Your Program</h3>
                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                     <button onClick={handleShareProgram} className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-blue-600 text-white rounded-lg shadow-md hover:bg-blue-700 transition-colors">
-                        <Download size={16}/> Export Program (JSON)
-                    </button>
                      <button onClick={handleExportProgramToCSV} className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-teal-600 text-white rounded-lg shadow-md hover:bg-teal-700 transition-colors">
                         <Download size={16}/> Export Program (CSV)
                     </button>
-                    <button onClick={handleImportClick} className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-green-600 text-white rounded-lg shadow-md hover:bg-green-700 transition-colors col-span-full">
+                    <button onClick={handleImportClick} className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-green-600 text-white rounded-lg shadow-md hover:bg-green-700 transition-colors">
                         <Upload size={16}/> Import from File
                     </button>
                     <input type="file" ref={fileInputRef} onChange={handleFileImport} accept=".json,.csv" style={{ display: 'none' }} />
@@ -3851,9 +3760,14 @@ const ProgramManagerView = ({ onProgramUpdate, activeProgram, programInstances, 
                                     <h4 className="font-semibold text-lg">{instance.program.name}</h4>
                                     <p className="text-sm text-gray-500 dark:text-gray-400">Last used: {new Date(instance.lastModified).toLocaleDateString()}</p>
                                 </div>
-                                <button onClick={() => onInstanceSwitch(instance.id)} disabled={instance.id === activeProgram.id} className="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg shadow hover:bg-blue-700 disabled:bg-gray-400">
-                                    {instance.id === activeProgram.id ? 'Active' : 'Switch To'}
-                                </button>
+                                <div className="flex items-center gap-2">
+                                    <button onClick={() => onInstanceSwitch(instance.id)} disabled={instance.id === activeProgram.id} className="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg shadow hover:bg-blue-700 disabled:bg-gray-400">
+                                        {instance.id === activeProgram.id ? 'Active' : 'Switch To'}
+                                    </button>
+                                    <button onClick={() => handleDeleteProgram(instance.id)} disabled={instance.id === activeProgram.id} className="p-2 text-sm bg-red-600 text-white rounded-lg shadow hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed">
+                                        <XCircle size={16} />
+                                    </button>
+                                </div>
                             </div>
                         ))}
                     </div>
@@ -4488,6 +4402,8 @@ const AchievementCard = ({ achievementId, achievement, unlockedStatus, currentVa
     }
     
     const colorKey = tierName ? tierName.toLowerCase().split(' ')[0] : 'default';
+    const isBwAchievement = achievementId.includes('bodyweight');
+
     const colorScheme = {
         'bronze': { bg: 'bg-amber-100 dark:bg-amber-900/50', text: 'text-amber-600 dark:text-amber-400', border: 'border-amber-400', progress: 'bg-amber-500' },
         'silver': { bg: 'bg-slate-100 dark:bg-slate-800/50', text: 'text-slate-600 dark:text-slate-400', border: 'border-slate-400', progress: 'bg-slate-500' },
@@ -4525,7 +4441,10 @@ const AchievementCard = ({ achievementId, achievement, unlockedStatus, currentVa
                         <div className={`${isUnlocked ? colorScheme.progress : 'bg-blue-500'} h-1.5 rounded-full`} style={{ width: `${progressPercentage}%` }}></div>
                     </div>
                     <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                        {formatWeight(currentValue, weightUnit, false)} / {formatWeight(nextTier.value, weightUnit, false)}
+                        {isBwAchievement
+                            ? `${currentValue.toFixed(2)}x / ${nextTier.value.toFixed(2)}x BW`
+                            : `${formatWeight(currentValue, weightUnit, false)} / ${formatWeight(nextTier.value, weightUnit, false)}`
+                        }
                     </p>
                 </div>
             )}
@@ -4829,6 +4748,15 @@ const AppCore = () => {
         addToast("Switched program!", "success");
     }
 
+    const handleDeleteProgram = (instanceId) => {
+        setProgramInstances(prev => {
+            const newInstances = prev.filter(p => p.id !== instanceId);
+            handleUpdateAndSave({ programInstances: newInstances });
+            return newInstances;
+        });
+        addToast("Program deleted.", "success");
+    };
+
     const handleBodyWeightChange = useCallback((newWeight, save = false) => {
         setBodyWeight(newWeight);
         if (save) {
@@ -5076,16 +5004,15 @@ const AppCore = () => {
         }
     };
 
-    const handleProgramImport = useCallback((file) => {
+    const handleFileImport = useCallback((file) => {
         if (!file) return;
 
         const reader = new FileReader();
         reader.onload = (e) => {
+            const content = e.target.result;
             try {
-                if (file.name.endsWith('.csv')) {
-                    openModal(<RestoreProgramModal csvData={e.target.result} onRestore={handleProgramUpdate} onClose={closeModal} />);
-                } else {
-                    const importedProgram = JSON.parse(e.target.result);
+                if (file.name.endsWith('.json')) {
+                    const importedProgram = JSON.parse(content);
                     if (
                         importedProgram.name && typeof importedProgram.name === 'string' &&
                         importedProgram.info && typeof importedProgram.info === 'object' &&
@@ -5099,14 +5026,30 @@ const AppCore = () => {
                     } else {
                         throw new Error("Invalid or incomplete program file structure.");
                     }
+                } else if (file.name.endsWith('.csv')) {
+                    const lines = content.trim().split('\n');
+                    if (lines.length > 0) {
+                        const headers = lines[0].toLowerCase().split(',').map(h => h.trim());
+                        if (headers.includes('week') && headers.includes('load (lbs)')) {
+                            handleRestoreLogs(content);
+                        } else if (headers.includes('workout day') && headers.includes('day of week')) {
+                            openModal(<RestoreProgramModal csvData={content} onRestore={handleProgramUpdate} onClose={closeModal} />);
+                        } else {
+                            throw new Error("Unrecognized CSV format.");
+                        }
+                    } else {
+                        throw new Error("CSV file is empty.");
+                    }
+                } else {
+                    throw new Error("Unsupported file type. Please select a .json or .csv file.");
                 }
             } catch (error) {
-                console.error("Failed to import program:", error);
-                addToast(`Failed to import: ${error.message}`, 'error');
+                console.error("Failed to import file:", error);
+                addToast(`Import Failed: ${error.message}`, 'error');
             }
         };
         reader.readAsText(file);
-    }, [openModal, closeModal, handleProgramUpdate, addToast]);
+    }, [openModal, closeModal, handleProgramUpdate, addToast, handleRestoreLogs]);
 
     const handleRestoreLogs = useCallback((csvData) => {
         if (!csvData) {
@@ -5262,9 +5205,9 @@ const AppCore = () => {
             case 'analytics': return <AnalyticsView allLogs={historicalLogs} programData={programData} onBack={onBack} />;
             case 'records': return <RecordsView allLogs={historicalLogs} onBack={onBack} />;
             case 'achievements': return <AchievementsView unlockedAchievements={unlockedAchievements} historicalLogs={historicalLogs} programData={programData} bodyWeight={bodyWeight} weightUnit={weightUnit} onBack={onBack} bodyWeightHistory={bodyWeightHistory} />;
-            case 'programHub': return <ProgramManagerView onProgramUpdate={handleProgramUpdate} activeProgram={{...programData, id: activeInstanceId}} programInstances={programInstances} onInstanceSwitch={handleInstanceSwitch} onBack={onBack} />;
+            case 'programHub': return <ProgramManagerView onProgramUpdate={handleProgramUpdate} activeProgram={{...programData, id: activeInstanceId}} programInstances={programInstances} onInstanceSwitch={handleInstanceSwitch} onBack={onBack} onDeleteProgram={handleDeleteProgram} />;
             case 'editProgram': return <EditProgramView programData={programData} onProgramDataChange={handleProgramDataChange} onBack={onBack} onNavigate={navigate} />;
-            case 'settings': return <SettingsView allLogs={allLogs} historicalLogs={historicalLogs} weightUnit={weightUnit} onWeightUnitChange={handleWeightUnitChange} onResetMeso={handleResetMeso} programData={programData} onProgramDataChange={handleProgramDataChange} onShowTutorial={() => showTutorial(true)} bodyWeight={bodyWeight} onBodyWeightChange={handleBodyWeightChange} onBack={onBack} onRestoreLogs={handleRestoreLogs} onProgramImport={handleProgramImport} />;
+            case 'settings': return <SettingsView allLogs={allLogs} historicalLogs={historicalLogs} weightUnit={weightUnit} onWeightUnitChange={handleWeightUnitChange} onResetMeso={handleResetMeso} programData={programData} onProgramDataChange={handleProgramDataChange} onShowTutorial={() => showTutorial(true)} bodyWeight={bodyWeight} onBodyWeightChange={handleBodyWeightChange} onBack={onBack} onFileImport={handleFileImport} />;
             default: return <MainView onSessionSelect={(week, day, type, seqIndex) => navigate(type, { week, dayKey: day, sequentialWorkoutIndex: seqIndex })} onEditProgram={() => navigate('editProgram')} completedDays={completedDays} onUnskipDay={handleUnskipDay} programData={programData} allLogs={allLogs} onNavigate={navigate} />;
         }
     };
