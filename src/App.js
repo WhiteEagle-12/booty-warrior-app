@@ -682,36 +682,65 @@ const getWorkoutNameForDay = (pData, week, dayKey) => {
 
 const migrateProgramData = (program) => {
     if (!program || !program.programStructure) return program;
-    const firstWorkoutKey = Object.keys(program.programStructure)[0];
-    if (firstWorkoutKey && program.programStructure[firstWorkoutKey].isRest !== undefined) {
+
+    // Check if all templates already have the isRest property.
+    const isAlreadyMigrated = Object.values(program.programStructure).every(template => template.isRest !== undefined);
+    if (isAlreadyMigrated) {
         return program;
     }
 
     let newProgram = JSON.parse(JSON.stringify(program));
     let restTemplateName = "Rest Day";
 
+    // Intelligently assign isRest property for legacy program data
     for (const key in newProgram.programStructure) {
-        newProgram.programStructure[key].isRest = false;
+        const template = newProgram.programStructure[key];
+        if (template.isRest === undefined) {
+            // Guess if it's a rest day based on name or lack of exercises.
+            if (key.toLowerCase().includes('rest') || !template.exercises || template.exercises.length === 0) {
+                template.isRest = true;
+            } else {
+                template.isRest = false;
+            }
+        }
     }
 
+    // Ensure the primary "Rest Day" template exists and is correctly marked.
     if (!newProgram.programStructure[restTemplateName]) {
         newProgram.programStructure[restTemplateName] = { exercises: [], label: "Rest", isRest: true };
-    }
-    if (!newProgram.workoutOrder.includes(restTemplateName)) {
-        newProgram.workoutOrder.push(restTemplateName);
+    } else {
+        newProgram.programStructure[restTemplateName].isRest = true;
     }
 
-    newProgram.weeklySchedule = newProgram.weeklySchedule.map(day => {
-        if (day.workout === 'Rest') {
+    // Make sure the primary rest day is in the workout order.
+    if (!newProgram.workoutOrder.includes(restTemplateName)) {
+        const oldRestIndex = newProgram.workoutOrder.indexOf('Rest');
+        if (oldRestIndex > -1) {
+            newProgram.workoutOrder.splice(oldRestIndex, 1, restTemplateName);
+        } else {
+            newProgram.workoutOrder.push(restTemplateName);
+        }
+    }
+
+    // Clean up old "Rest" template if it was separate
+    if (restTemplateName !== 'Rest' && newProgram.programStructure['Rest']) {
+        delete newProgram.programStructure['Rest'];
+    }
+
+    // Standardize schedule to point to the new rest day template name.
+    const scheduleUpdater = (day) => {
+        if (day.workout === 'Rest' || newProgram.programStructure[day.workout]?.isRest) {
             return { ...day, workout: restTemplateName };
         }
         return day;
-    });
+    };
+    newProgram.weeklySchedule = newProgram.weeklySchedule.map(scheduleUpdater);
 
     if (newProgram.weeklyOverrides) {
         for (const week in newProgram.weeklyOverrides) {
             for (const dayKey in newProgram.weeklyOverrides[week]) {
-                if (newProgram.weeklyOverrides[week][dayKey] === 'Rest') {
+                const workoutName = newProgram.weeklyOverrides[week][dayKey];
+                if (workoutName === 'Rest' || newProgram.programStructure[workoutName]?.isRest) {
                     newProgram.weeklyOverrides[week][dayKey] = restTemplateName;
                 }
             }
@@ -2309,7 +2338,7 @@ const AnalyticsView = ({ allLogs, programData, onBack }) => {
     const muscleGroupData = useMemo(() => {
         const dataByMuscle = {};
 
-        if (!allLogs || !masterExerciseList) return [];
+        if (!programData || !masterExerciseList) return [];
 
         const ensureMuscle = (muscle) => {
             if (muscle && !dataByMuscle[muscle]) {
@@ -2317,33 +2346,88 @@ const AnalyticsView = ({ allLogs, programData, onBack }) => {
             }
         };
 
-        Object.values(allLogs).forEach(log => {
-            if (!log.skipped && (log.load || log.load === 0) && log.reps) {
-                const exerciseDetails = getExerciseDetails(log.exercise, masterExerciseList);
-                if (exerciseDetails?.muscles) {
-                    const { primary, secondary, tertiary, primaryContribution, secondaryContribution, tertiaryContribution } = exerciseDetails.muscles;
+        const processExercise = (exerciseName) => {
+            const exerciseDetails = getExerciseDetails(exerciseName, masterExerciseList);
+            if (exerciseDetails?.muscles) {
+                const numSets = Number(exerciseDetails.sets) || 0;
+                if (numSets === 0) return;
 
-                    if (primary) {
-                        ensureMuscle(primary);
-                        const contributedSets = primaryContribution || 1;
-                        dataByMuscle[primary].sets += contributedSets;
-                        dataByMuscle[primary].exercises[log.exercise] = (dataByMuscle[primary].exercises[log.exercise] || 0) + contributedSets;
-                    }
-                    if (secondary) {
-                        ensureMuscle(secondary);
-                        const contributedSets = secondaryContribution || 0.5;
-                        dataByMuscle[secondary].sets += contributedSets;
-                        dataByMuscle[secondary].exercises[log.exercise] = (dataByMuscle[secondary].exercises[log.exercise] || 0) + contributedSets;
-                    }
-                    if (tertiary) {
-                        ensureMuscle(tertiary);
-                        const contributedSets = tertiaryContribution || 0.25;
-                        dataByMuscle[tertiary].sets += contributedSets;
-                        dataByMuscle[tertiary].exercises[log.exercise] = (dataByMuscle[tertiary].exercises[log.exercise] || 0) + contributedSets;
-                    }
+                const { primary, secondary, tertiary, primaryContribution, secondaryContribution, tertiaryContribution } = exerciseDetails.muscles;
+
+                if (primary) {
+                    ensureMuscle(primary);
+                    const contributedSets = (primaryContribution || 1) * numSets;
+                    dataByMuscle[primary].sets += contributedSets;
+                    dataByMuscle[primary].exercises[exerciseName] = (dataByMuscle[primary].exercises[exerciseName] || 0) + contributedSets;
+                }
+                if (secondary) {
+                    ensureMuscle(secondary);
+                    const contributedSets = (secondaryContribution || 0.5) * numSets;
+                    dataByMuscle[secondary].sets += contributedSets;
+                    dataByMuscle[secondary].exercises[exerciseName] = (dataByMuscle[secondary].exercises[exerciseName] || 0) + contributedSets;
+                }
+                if (tertiary) {
+                    ensureMuscle(tertiary);
+                    const contributedSets = (tertiaryContribution || 0.25) * numSets;
+                    dataByMuscle[tertiary].sets += contributedSets;
+                    dataByMuscle[tertiary].exercises[exerciseName] = (dataByMuscle[tertiary].exercises[exerciseName] || 0) + contributedSets;
                 }
             }
-        });
+        };
+
+        if (programData.settings.useWeeklySchedule) {
+            // Iterate through the entire program schedule
+            for (let week = 1; week <= programData.info.weeks; week++) {
+                programData.weeklySchedule.forEach(day => {
+                    const workoutName = getWorkoutNameForDay(programData, week, day.day);
+                    const workout = getWorkoutForWeek(programData, week, workoutName);
+                    if (workout) {
+                        workout.exercises.forEach(processExercise);
+                    }
+                });
+            }
+        } else {
+            // For sequential programs, calculate volume for a single full rotation of workouts, multiplied by program length
+            const workoutDaysInRotation = programData.workoutOrder.filter(name => !programData.programStructure[name]?.isRest);
+            if (workoutDaysInRotation.length > 0) {
+                const totalWorkoutSessions = programData.info.weeks * 7;
+                const totalRotations = totalWorkoutSessions / workoutDaysInRotation.length;
+
+                workoutDaysInRotation.forEach(workoutName => {
+                    const workout = programData.programStructure[workoutName];
+                    if (workout && workout.exercises) {
+                        workout.exercises.forEach(exName => {
+                            const exerciseDetails = getExerciseDetails(exName, masterExerciseList);
+                            if (exerciseDetails?.muscles) {
+                                const numSets = (Number(exerciseDetails.sets) || 0) * totalRotations;
+                                if (numSets === 0) return;
+
+                                const { primary, secondary, tertiary, primaryContribution, secondaryContribution, tertiaryContribution } = exerciseDetails.muscles;
+
+                                if (primary) {
+                                    ensureMuscle(primary);
+                                    const contributedSets = (primaryContribution || 1) * numSets;
+                                    dataByMuscle[primary].sets += contributedSets;
+                                    dataByMuscle[primary].exercises[exName] = (dataByMuscle[primary].exercises[exName] || 0) + contributedSets;
+                                }
+                                if (secondary) {
+                                    ensureMuscle(secondary);
+                                    const contributedSets = (secondaryContribution || 0.5) * numSets;
+                                    dataByMuscle[secondary].sets += contributedSets;
+                                    dataByMuscle[secondary].exercises[exName] = (dataByMuscle[secondary].exercises[exName] || 0) + contributedSets;
+                                }
+                                if (tertiary) {
+                                    ensureMuscle(tertiary);
+                                    const contributedSets = (tertiaryContribution || 0.25) * numSets;
+                                    dataByMuscle[tertiary].sets += contributedSets;
+                                    dataByMuscle[tertiary].exercises[exName] = (dataByMuscle[tertiary].exercises[exName] || 0) + contributedSets;
+                                }
+                            }
+                        });
+                    }
+                });
+            }
+        }
 
         const totalSets = Object.values(dataByMuscle).reduce((sum, d) => sum + d.sets, 0);
 
@@ -2353,7 +2437,7 @@ const AnalyticsView = ({ allLogs, programData, onBack }) => {
             setsPercentage: totalSets > 0 ? Math.round((data.sets / totalSets) * 100) : 0,
             exercises: data.exercises,
         })).sort((a, b) => b.sets - a.sets);
-    }, [allLogs, masterExerciseList]);
+    }, [programData, masterExerciseList]);
 
     const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#AF19FF', '#FF42A1', '#42A1FF'];
     const RADIAN = Math.PI / 180;
@@ -2733,25 +2817,48 @@ const EditProgramView = ({ programData, onProgramDataChange, onBack, onNavigate 
     };
     
     const handleDeleteWorkoutDay = (workoutNameToDelete) => {
-        const restTemplate = Object.keys(program.programStructure).find(name => program.programStructure[name]?.isRest) || 'Rest Day';
+        // Find a suitable rest day template to fall back on, EXCLUDING the one being deleted.
+        const fallbackRestTemplate = Object.keys(program.programStructure).find(name => name !== workoutNameToDelete && program.programStructure[name]?.isRest) || 'Rest Day';
+
         openModal(
             <div>
                 <h2 className="text-xl font-bold mb-4">Confirm Deletion</h2>
-                <p className="text-gray-600 dark:text-gray-400">Are you sure you want to delete "{workoutNameToDelete}"? It will be removed from the program and replaced with a '{restTemplate}' day in the weekly schedule.</p>
+                <p className="text-gray-600 dark:text-gray-400">Are you sure you want to delete "{workoutNameToDelete}"? It will be removed from the program and replaced with a '{fallbackRestTemplate}' day in the weekly schedule.</p>
                 <div className="flex justify-end gap-2 mt-6">
                     <button onClick={closeModal} className="px-4 py-2 bg-gray-200 dark:bg-gray-600 rounded-lg">Cancel</button>
                     <button onClick={() => {
-                        const newProgramStructure = { ...program.programStructure };
+                        let newProgramStructure = { ...program.programStructure };
                         delete newProgramStructure[workoutNameToDelete];
                         
-                        const newWorkoutOrder = program.workoutOrder.filter(name => name !== workoutNameToDelete);
+                        let newWorkoutOrder = program.workoutOrder.filter(name => name !== workoutNameToDelete);
 
-                        const newSchedule = program.weeklySchedule.map(d => d.workout === workoutNameToDelete ? { ...d, workout: restTemplate } : d);
+                        // Ensure at least one rest day template always exists.
+                        let finalRestTemplate = Object.keys(newProgramStructure).find(name => newProgramStructure[name]?.isRest);
+                        if (!finalRestTemplate) {
+                            finalRestTemplate = 'Rest Day';
+                            newProgramStructure[finalRestTemplate] = { exercises: [], label: "Rest", isRest: true };
+                            if (!newWorkoutOrder.includes(finalRestTemplate)) {
+                                newWorkoutOrder.push(finalRestTemplate);
+                            }
+                        }
+
+                        const newSchedule = program.weeklySchedule.map(d => d.workout === workoutNameToDelete ? { ...d, workout: finalRestTemplate } : d);
+
+                        // Also update any weekly overrides that might be using the deleted template.
+                        const newOverrides = JSON.parse(JSON.stringify(program.weeklyOverrides || {}));
+                        for (const week in newOverrides) {
+                            for (const day in newOverrides[week]) {
+                                if (newOverrides[week][day] === workoutNameToDelete) {
+                                    newOverrides[week][day] = finalRestTemplate;
+                                }
+                            }
+                        }
 
                         updateProgram({
                             programStructure: newProgramStructure,
                             workoutOrder: newWorkoutOrder,
                             weeklySchedule: newSchedule,
+                            weeklyOverrides: newOverrides,
                         });
                         closeModal();
                     }} className="px-4 py-2 bg-red-600 text-white rounded-lg">Delete</button>
@@ -4958,6 +5065,10 @@ const AppCore = () => {
                 }
 
                 const logId = `${Week}-${Day}-${Exercise}-${Set}`;
+                const loadInLbs = parseFloat(logData['Load (lbs)']);
+                const displayLoad = weightUnit === 'kg'
+                    ? (loadInLbs / 2.20462).toFixed(1)
+                    : (logData['Load (lbs)'] || '');
 
                 newLogs[logId] = {
                     week: parseInt(Week, 10),
@@ -4965,7 +5076,8 @@ const AppCore = () => {
                     session: logData['Session'] || 'Restored Session',
                     exercise: Exercise,
                     set: parseInt(Set, 10),
-                    load: parseFloat(logData['Load (lbs)']),
+                    load: loadInLbs,
+                    displayLoad: displayLoad,
                     reps: logData['Reps'],
                     rir: logData['RIR'] || '',
                     date: new Date().toISOString(),
@@ -4999,7 +5111,7 @@ const AppCore = () => {
             console.error("Error restoring from CSV:", error);
             addToast(`Import Failed: ${error.message}`, 'error');
         }
-    }, [openModal, closeModal, addToast, handleUpdateAndSave]);
+    }, [openModal, closeModal, addToast, handleUpdateAndSave, weightUnit]);
 
     const handleTimerEnd = useCallback(() => {
         setActiveTimer(null);
