@@ -951,13 +951,13 @@ const FirebaseProvider = ({ children }) => {
 
     useEffect(() => {
         const firebaseConfig = {
-            apiKey: "AIzaSyDVa7T9j2UxbURwEtwGfJne8OpbFmIYrds",
-            authDomain: "booty-warrior.firebaseapp.com",
-            projectId: "booty-warrior",
-            storageBucket: "booty-warrior.appspot.com",
-            messagingSenderId: "690053281718",
-            appId: "1:690053281718:web:1b8327379d2dce4b6ab317",
-            measurementId: "G-7Z18JX39Q6"
+            apiKey: process.env.REACT_APP_FIREBASE_API_KEY,
+            authDomain: process.env.REACT_APP_FIREBASE_AUTH_DOMAIN,
+            projectId: process.env.REACT_APP_FIREBASE_PROJECT_ID,
+            storageBucket: process.env.REACT_APP_FIREBASE_STORAGE_BUCKET,
+            messagingSenderId: process.env.REACT_APP_FIREBASE_MESSAGING_SENDER_ID,
+            appId: process.env.REACT_APP_FIREBASE_APP_ID,
+            measurementId: process.env.REACT_APP_FIREBASE_MEASUREMENT_ID
         };
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);

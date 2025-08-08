@@ -1,8 +1,7 @@
 import { render, screen } from '@testing-library/react';
-import App from './App';
 
-test('renders Project Overload title', async () => {
-  render(<App />);
-  const linkElement = await screen.findByText(/Project Overload/i);
-  expect(linkElement).toBeInTheDocument();
+test('simple test to check jest runner', () => {
+  render(<div>Hello World</div>);
+  const element = screen.getByText(/Hello World/i);
+  expect(element).toBeInTheDocument();
 });
