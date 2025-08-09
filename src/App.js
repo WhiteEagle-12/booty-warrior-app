@@ -681,22 +681,37 @@ const getWorkoutNameForDay = (pData, week, dayKey) => {
 };
 
 const migrateProgramData = (program) => {
-    if (!program || !program.programStructure) return program;
+    // Defensive check for malformed program data from Firebase.
+    const defaultPreset = presets['optimal-ppl-ul'];
+    const requiredKeys = ['info', 'masterExerciseList', 'programStructure', 'weeklySchedule', 'workoutOrder', 'settings'];
 
-    // Check if all templates already have the isRest property.
-    const isAlreadyMigrated = Object.values(program.programStructure).every(template => template.isRest !== undefined);
-    if (isAlreadyMigrated) {
-        return program;
+    let isMalformed = !program;
+    if (program) {
+        for (const key of requiredKeys) {
+            if (!program[key]) {
+                isMalformed = true;
+                break;
+            }
+        }
     }
 
-    let newProgram = JSON.parse(JSON.stringify(program));
+    let newProgram = isMalformed
+        ? JSON.parse(JSON.stringify({ ...defaultPreset, ...program }))
+        : JSON.parse(JSON.stringify(program));
+
+
+    // Check if all templates already have the isRest property.
+    const isAlreadyMigrated = Object.values(newProgram.programStructure).every(template => template.isRest !== undefined);
+    if (isAlreadyMigrated && !isMalformed) { // If it was malformed, we should continue to ensure full migration.
+        return newProgram;
+    }
+
     let restTemplateName = "Rest Day";
 
     // Intelligently assign isRest property for legacy program data
     for (const key in newProgram.programStructure) {
         const template = newProgram.programStructure[key];
         if (template.isRest === undefined) {
-            // Guess if it's a rest day based on name or lack of exercises.
             if (key.toLowerCase().includes('rest') || !template.exercises || template.exercises.length === 0) {
                 template.isRest = true;
             } else {
@@ -3731,7 +3746,7 @@ const ProgramManagerView = ({ onProgramUpdate, activeProgram, programInstances, 
         const rows = [];
 
         weeklySchedule.forEach(({ day }) => {
-            const workoutName = getWorkoutNameForDay(activeProgram.program, new Date().getWeek, day); // Simplified week, assuming for structure
+            const workoutName = getWorkoutNameForDay(activeProgram.program, 1, day); // Simplified week, assuming for structure
             if (!program.programStructure[workoutName]?.isRest) {
                 const workoutDetails = programStructure[workoutName];
                 if (workoutDetails) {
