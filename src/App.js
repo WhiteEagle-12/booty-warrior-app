@@ -976,6 +976,7 @@ const FirebaseProvider = ({ children }) => {
     const [firebaseServices, setFirebaseServices] = useState(null);
     const [user, setUser] = useState(null);
     const [isLoading, setIsLoading] = useState(true);
+    const [configError, setConfigError] = useState(null);
     const [customId, setCustomId] = useState(() => {
         try {
             return localStorage.getItem('projectOverloadSyncId') || '';
@@ -986,6 +987,24 @@ const FirebaseProvider = ({ children }) => {
     });
 
     useEffect(() => {
+        const requiredEnvVars = [
+            'REACT_APP_FIREBASE_API_KEY',
+            'REACT_APP_FIREBASE_AUTH_DOMAIN',
+            'REACT_APP_FIREBASE_PROJECT_ID',
+            'REACT_APP_FIREBASE_STORAGE_BUCKET',
+            'REACT_APP_FIREBASE_MESSAGING_SENDER_ID',
+            'REACT_APP_FIREBASE_APP_ID',
+            'REACT_APP_FIREBASE_MEASUREMENT_ID'
+        ];
+        const missingVars = requiredEnvVars.filter(key => !process.env[key]);
+        if (missingVars.length > 0) {
+            const message = `Missing Firebase configuration variables: ${missingVars.join(', ')}`;
+            console.error(message);
+            setConfigError(message);
+            setIsLoading(false);
+            return;
+        }
+
         const firebaseConfig = {
             apiKey: process.env.REACT_APP_FIREBASE_API_KEY,
             authDomain: process.env.REACT_APP_FIREBASE_AUTH_DOMAIN,
@@ -1025,13 +1044,22 @@ const FirebaseProvider = ({ children }) => {
         return null;
     }, []);
 
-    const value = { 
-        ...firebaseServices, 
-        user, 
-        isLoading, 
+    const value = {
+        ...firebaseServices,
+        user,
+        isLoading,
         customId,
         handleSetCustomId
     };
+
+    if (configError) {
+        return (
+            <div className="p-4 text-center">
+                <h1 className="text-xl font-bold text-red-600 mb-2">Configuration Error</h1>
+                <p>{configError}</p>
+            </div>
+        );
+    }
 
     return (
         <FirebaseContext.Provider value={value}>
