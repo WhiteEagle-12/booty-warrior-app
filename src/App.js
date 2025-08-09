@@ -3747,7 +3747,7 @@ const ProgramManagerView = ({ onProgramUpdate, activeProgram, programInstances, 
 
         weeklySchedule.forEach(({ day }) => {
             const workoutName = getWorkoutNameForDay(activeProgram.program, 1, day); // Simplified week, assuming for structure
-            if (!programStructure[workoutName]?.isRest) {
+            if (!program.programStructure[workoutName]?.isRest) {
                 const workoutDetails = programStructure[workoutName];
                 if (workoutDetails) {
                     workoutDetails.exercises.forEach(exName => {
@@ -4890,7 +4890,7 @@ const AppCore = () => {
         setActiveInstanceId(newInstance.id);
         addToast(`Program "${newInstance.program.name}" loaded!`, "success");
         navigate('main');
-    }, [handleUpdateAndSave, addToast]);
+    }, [handleUpdateAndSave, addToast, navigate]);
     
     const handleInstanceSwitch = (instanceId) => {
         setActiveInstanceId(instanceId);
@@ -5156,53 +5156,6 @@ const AppCore = () => {
         }
     };
 
-    const handleFileImport = useCallback((file) => {
-        if (!file) return;
-
-        const reader = new FileReader();
-        reader.onload = (e) => {
-            const content = e.target.result;
-            try {
-                if (file.name.endsWith('.json')) {
-                    const importedProgram = JSON.parse(content);
-                    if (
-                        importedProgram.name && typeof importedProgram.name === 'string' &&
-                        importedProgram.info && typeof importedProgram.info === 'object' &&
-                        importedProgram.masterExerciseList && typeof importedProgram.masterExerciseList === 'object' &&
-                        importedProgram.programStructure && typeof importedProgram.programStructure === 'object' &&
-                        importedProgram.weeklySchedule && Array.isArray(importedProgram.weeklySchedule) &&
-                        importedProgram.workoutOrder && Array.isArray(importedProgram.workoutOrder)
-                    ) {
-                        handleProgramUpdate(importedProgram);
-                        addToast(`Program "${importedProgram.name}" imported successfully!`, 'success');
-                    } else {
-                        throw new Error("Invalid or incomplete program file structure.");
-                    }
-                } else if (file.name.endsWith('.csv')) {
-                    const lines = content.trim().split('\n');
-                    if (lines.length > 0) {
-                        const headers = lines[0].toLowerCase().split(',').map(h => h.trim());
-                        if (headers.includes('week') && headers.includes('load (lbs)')) {
-                            handleRestoreLogs(content);
-                        } else if (headers.includes('workout day') && headers.includes('day of week')) {
-                            openModal(<RestoreProgramModal csvData={content} onRestore={handleProgramUpdate} onClose={closeModal} />);
-                        } else {
-                            throw new Error("Unrecognized CSV format.");
-                        }
-                    } else {
-                        throw new Error("CSV file is empty.");
-                    }
-                } else {
-                    throw new Error("Unsupported file type. Please select a .json or .csv file.");
-                }
-            } catch (error) {
-                console.error("Failed to import file:", error);
-                addToast(`Import Failed: ${error.message}`, 'error');
-            }
-        };
-        reader.readAsText(file);
-    }, [openModal, closeModal, handleProgramUpdate, addToast, handleRestoreLogs]);
-
     const handleRestoreLogs = useCallback((csvData) => {
         if (!csvData) {
             addToast('The selected file is empty.', 'error');
@@ -5284,6 +5237,53 @@ const AppCore = () => {
             addToast(`Import Failed: ${error.message}`, 'error');
         }
     }, [openModal, closeModal, addToast, handleUpdateAndSave, weightUnit]);
+
+    const handleFileImport = useCallback((file) => {
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            const content = e.target.result;
+            try {
+                if (file.name.endsWith('.json')) {
+                    const importedProgram = JSON.parse(content);
+                    if (
+                        importedProgram.name && typeof importedProgram.name === 'string' &&
+                        importedProgram.info && typeof importedProgram.info === 'object' &&
+                        importedProgram.masterExerciseList && typeof importedProgram.masterExerciseList === 'object' &&
+                        importedProgram.programStructure && typeof importedProgram.programStructure === 'object' &&
+                        importedProgram.weeklySchedule && Array.isArray(importedProgram.weeklySchedule) &&
+                        importedProgram.workoutOrder && Array.isArray(importedProgram.workoutOrder)
+                    ) {
+                        handleProgramUpdate(importedProgram);
+                        addToast(`Program "${importedProgram.name}" imported successfully!`, 'success');
+                    } else {
+                        throw new Error("Invalid or incomplete program file structure.");
+                    }
+                } else if (file.name.endsWith('.csv')) {
+                    const lines = content.trim().split('\n');
+                    if (lines.length > 0) {
+                        const headers = lines[0].toLowerCase().split(',').map(h => h.trim());
+                        if (headers.includes('week') && headers.includes('load (lbs)')) {
+                            handleRestoreLogs(content);
+                        } else if (headers.includes('workout day') && headers.includes('day of week')) {
+                            openModal(<RestoreProgramModal csvData={content} onRestore={handleProgramUpdate} onClose={closeModal} />);
+                        } else {
+                            throw new Error("Unrecognized CSV format.");
+                        }
+                    } else {
+                        throw new Error("CSV file is empty.");
+                    }
+                } else {
+                    throw new Error("Unsupported file type. Please select a .json or .csv file.");
+                }
+            } catch (error) {
+                console.error("Failed to import file:", error);
+                addToast(`Import Failed: ${error.message}`, 'error');
+            }
+        };
+        reader.readAsText(file);
+    }, [openModal, closeModal, handleProgramUpdate, addToast, handleRestoreLogs]);
 
     const handleTimerEnd = useCallback(() => {
         setActiveTimer(null);
