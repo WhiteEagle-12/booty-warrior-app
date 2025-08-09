@@ -4870,6 +4870,15 @@ const AppCore = () => {
         });
     }, [activeInstanceId, handleUpdateAndSave]);
 
+    const navigate = useCallback((view, data = {}) => {
+        const newPageState = { view, data };
+        if (pageState.view === newPageState.view && JSON.stringify(pageState.data) === JSON.stringify(newPageState.data)) {
+            return;
+        }
+        window.history.pushState(newPageState, '', window.location.pathname);
+        setPageState(newPageState);
+    }, [pageState]);
+
     const handleProgramUpdate = useCallback((newProgramTemplate) => {
         const newInstance = {
             id: crypto.randomUUID(),
@@ -5095,15 +5104,6 @@ const AppCore = () => {
 
         verifyAchievements();
     }, [isDataLoading, historicalLogs, programData, bodyWeight, addToast, unlockedAchievements, handleUpdateAndSave]);
-
-    const navigate = useCallback((view, data = {}) => {
-        const newPageState = { view, data };
-        if (pageState.view === newPageState.view && JSON.stringify(pageState.data) === JSON.stringify(newPageState.data)) {
-            return;
-        }
-        window.history.pushState(newPageState, '', window.location.pathname);
-        setPageState(newPageState);
-    }, [pageState]);
 
     useEffect(() => {
         window.history.replaceState(pageState, '', window.location.pathname);
