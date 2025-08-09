@@ -3747,7 +3747,7 @@ const ProgramManagerView = ({ onProgramUpdate, activeProgram, programInstances, 
 
         weeklySchedule.forEach(({ day }) => {
             const workoutName = getWorkoutNameForDay(activeProgram.program, 1, day); // Simplified week, assuming for structure
-            if (!program.programStructure[workoutName]?.isRest) {
+            if (!programStructure[workoutName]?.isRest) {
                 const workoutDetails = programStructure[workoutName];
                 if (workoutDetails) {
                     workoutDetails.exercises.forEach(exName => {
