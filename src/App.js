@@ -803,8 +803,20 @@ const isSetLogComplete = (log) => {
     return isLoadValid && areRepsValid && isRirValid;
 }
 
-const findLastPerformanceLogs = (exerciseName, currentWeek, currentDayKey, allLogs, sessionHistoryCount = 5) => {
-    const dayOrder = { Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6, Sun: 7 };
+const findLastPerformanceLogs = (exerciseName, currentWeek, currentDayKey, allLogs, programData, sessionHistoryCount = 5) => {
+    const dayOrder = (programData?.weeklySchedule || []).reduce((acc, day, index) => {
+        acc[day.day] = index;
+        return acc;
+    }, {});
+    const scheduleLength = programData?.weeklySchedule?.length || 7;
+
+    const getDayIndex = (dayKey) => {
+        if (dayOrder[dayKey] !== undefined) return dayOrder[dayKey];
+        const match = dayKey.match(/\d+$/);
+        if (match) return parseInt(match[0], 10) -1;
+        return 99; // Fallback for sorting
+    };
+
     const allSessions = {};
 
     for (const logId in allLogs) {
@@ -812,14 +824,16 @@ const findLastPerformanceLogs = (exerciseName, currentWeek, currentDayKey, allLo
         if (log.exercise === exerciseName && !log.skipped && (log.load || log.load === 0) && log.reps) {
             const sessionKey = `${log.week}-${log.dayKey}`;
             if (!allSessions[sessionKey]) {
-                const logDayNum = (log.week - 1) * 7 + (dayOrder[log.dayKey] || 0);
+                const dayIndex = getDayIndex(log.dayKey);
+                const logDayNum = (log.week - 1) * scheduleLength + dayIndex;
                 allSessions[sessionKey] = { week: log.week, dayKey: log.dayKey, dayNum: logDayNum, logs: [] };
             }
             allSessions[sessionKey].logs.push(log);
         }
     }
     
-    const currentDayNum = (currentWeek - 1) * 7 + (dayOrder[currentDayKey] || 0);
+    const currentDayIndex = getDayIndex(currentDayKey);
+    const currentDayNum = (currentWeek - 1) * scheduleLength + currentDayIndex;
     
     const pastSessions = Object.values(allSessions)
         .filter(session => session.dayNum < currentDayNum)
@@ -1236,9 +1250,9 @@ const IntensityTechnique = ({ technique }) => {
     return (<div className="mt-2 flex items-center gap-2 text-xs text-gray-600 dark:text-gray-400 bg-gray-100 dark:bg-gray-700/50 px-2 py-1 rounded-md">{icon}<div><span className="font-semibold">Intensity:</span> {technique}</div></div>);
 };
 
-const ExerciseHistoryModal = ({ exerciseName, allLogs }) => {
+const ExerciseHistoryModal = ({ exerciseName, allLogs, programData }) => {
     // To get all historical logs, we can pass a future week number.
-    const { historicalSessions } = useMemo(() => findLastPerformanceLogs(exerciseName, 999, 'Sun', allLogs), [exerciseName, allLogs]);
+    const { historicalSessions } = useMemo(() => findLastPerformanceLogs(exerciseName, 999, 'Sun', allLogs, programData), [exerciseName, allLogs, programData]);
 
     if (!historicalSessions || historicalSessions.length === 0) {
         return (
@@ -1341,7 +1355,7 @@ const SetRow = ({ setNumber, logData, onLogChange, lastSetData, exerciseDetails,
 };
 
 
-const ExerciseCard = ({ exerciseName, week, dayKey, allLogs, onLogChange, masterExerciseList, weightUnit, workoutDetails }) => {
+const ExerciseCard = ({ exerciseName, week, dayKey, allLogs, onLogChange, masterExerciseList, weightUnit, workoutDetails, programData }) => {
     const { openModal } = useContext(AppStateContext);
     const exercise = getExerciseDetails(exerciseName, masterExerciseList);
     const sets = Array.from({ length: Number(exercise?.sets) || 0 }, (_, i) => i + 1);
@@ -1373,12 +1387,12 @@ const ExerciseCard = ({ exerciseName, week, dayKey, allLogs, onLogChange, master
     }, [isCompleted]);
     
     const showHistory = () => {
-        openModal(<ExerciseHistoryModal exerciseName={exerciseName} allLogs={allLogs} />, 'lg');
+        openModal(<ExerciseHistoryModal exerciseName={exerciseName} allLogs={allLogs} programData={programData} />, 'lg');
     };
 
     if (!exercise) return <div className="bg-red-100 dark:bg-red-900/50 p-4 rounded-lg text-red-700 dark:text-red-300">Exercise "{exerciseName}" not found in master list.</div>;
 
-    const lastPerformanceData = useMemo(() => findLastPerformanceLogs(exerciseName, week, dayKey, allLogs), [exerciseName, week, dayKey, allLogs]);
+    const lastPerformanceData = useMemo(() => findLastPerformanceLogs(exerciseName, week, dayKey, allLogs, programData), [exerciseName, week, dayKey, allLogs, programData]);
     const suggestion = useMemo(() => getProgressionSuggestion(exerciseName, lastPerformanceData, masterExerciseList), [exerciseName, lastPerformanceData, masterExerciseList]);
     
     return (
@@ -1550,6 +1564,7 @@ const LiftingSession = ({ week, dayKey, onBack, allLogs, setAllLogs, onSkipDay, 
                         masterExerciseList={masterExerciseList} 
                         weightUnit={weightUnit}
                         workoutDetails={workout}
+                        programData={programData}
                     />
                 )}
             </div>
@@ -2026,8 +2041,16 @@ const SettingsView = ({ allLogs, historicalLogs, weightUnit, onWeightUnitChange,
             );
             return;
         }
-        const dayOrder = { Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6, Sun: 7 };
-        const sortedLogs = validLogs.sort((a, b) => ((a.week - 1) * 7 + dayOrder[a.dayKey]) - ((b.week - 1) * 7 + dayOrder[b.dayKey]) || a.set - b.set);
+        const dayOrder = programData.weeklySchedule.reduce((acc, day, index) => {
+            acc[day.day] = index;
+            return acc;
+        }, {});
+        const scheduleLength = programData.weeklySchedule.length || 7;
+        const sortedLogs = validLogs.sort((a, b) => {
+            const dayNumA = (a.week - 1) * scheduleLength + (dayOrder[a.dayKey] ?? 99);
+            const dayNumB = (b.week - 1) * scheduleLength + (dayOrder[b.dayKey] ?? 99);
+            return dayNumA - dayNumB || a.set - b.set;
+        });
         const headers = ['Week', 'Day', 'Session', 'Exercise', 'Set', 'Load (lbs)', 'Reps', 'RIR', 'e1RM'];
         const csvContent = [headers.join(','), ...sortedLogs.map(log => [log.week, log.dayKey, `"${log.session}"`, `"${log.exercise}"`, log.set, log.load, log.reps, log.rir || '', calculateE1RM(log.load, log.reps, log.rir)].join(','))].join('\n');
         const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
@@ -2057,12 +2080,18 @@ const SettingsView = ({ allLogs, historicalLogs, weightUnit, onWeightUnitChange,
     const exportOptions = useMemo(() => {
         if (!hasLogs) return { weeks: [], workouts: [] };
         const logs = Object.values(historicalLogs).filter(log => log.exercise && log.week && log.dayKey && !log.skipped);
-        const dayOrder = { Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6, Sun: 7 };
+        const dayOrder = programData.weeklySchedule.reduce((acc, day, index) => {
+            acc[day.day] = index;
+            return acc;
+        }, {});
+        const scheduleLength = programData.weeklySchedule.length || 7;
         const loggedWeeks = [...new Set(logs.map(log => log.week))].sort((a, b) => a - b);
         const loggedWorkouts = [...new Set(logs.map(log => `workout:${log.week}-${log.dayKey}`))].sort((a, b) => {
             const [, weekA, dayA] = a.split(/-|:/);
             const [, weekB, dayB] = b.split(/-|:/);
-            return ((parseInt(weekA) - 1) * 7 + dayOrder[dayA]) - ((parseInt(weekB) - 1) * 7 + dayOrder[dayB]);
+            const dayNumA = (parseInt(weekA) - 1) * scheduleLength + (dayOrder[dayA] ?? 99);
+            const dayNumB = (parseInt(weekB) - 1) * scheduleLength + (dayOrder[dayB] ?? 99);
+            return dayNumA - dayNumB;
         });
         return { weeks: loggedWeeks, workouts: loggedWorkouts };
     }, [historicalLogs, hasLogs]);
@@ -2336,21 +2365,24 @@ const AnalyticsView = ({ allLogs, programData, onBack }) => {
             return { sessionLabel: `W${session.week} ${session.dayKey}`, e1RM: calculateE1RM(topSet.load, topSet.reps, topSet.rir), load: topSet.load, reps: topSet.reps };
         }).filter(Boolean);
         
-        const dayOrder = { Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6, Sun: 7 };
-        return processedData.sort((a, b) => { 
+        const dayOrder = programData.weeklySchedule.reduce((acc, day, index) => {
+            acc[day.day] = index;
+            return acc;
+        }, {});
+        const scheduleLength = programData.weeklySchedule.length || 7;
+
+        return processedData.sort((a, b) => {
             const [weekLabelA, dayLabelA] = a.sessionLabel.substring(1).split(' ');
             const [weekLabelB, dayLabelB] = b.sessionLabel.substring(1).split(' ');
             const weekA = parseInt(weekLabelA, 10);
             const weekB = parseInt(weekLabelB, 10);
 
-            if (weekA !== weekB) {
-                return weekA - weekB;
-            }
+            const dayIndexA = dayOrder[dayLabelA] ?? parseInt(dayLabelA.split('-')[1], 10) ?? 99;
+            const dayIndexB = dayOrder[dayLabelB] ?? parseInt(dayLabelB.split('-')[1], 10) ?? 99;
 
-            // Handle both day keys (e.g., "Mon") and sequential keys (e.g., "workout-5")
-            const dayNumA = dayOrder[dayLabelA] || parseInt(dayLabelA.split('-')[1], 10) || 0;
-            const dayNumB = dayOrder[dayLabelB] || parseInt(dayLabelB.split('-')[1], 10) || 0;
-            
+            const dayNumA = (weekA - 1) * scheduleLength + dayIndexA;
+            const dayNumB = (weekB - 1) * scheduleLength + dayIndexB;
+
             return dayNumA - dayNumB;
         });
     }, [selectedExercise, allLogs]);
@@ -2782,6 +2814,21 @@ const EditProgramView = ({ programData, onProgramDataChange, onBack, onNavigate 
         updateProgram({ info: { ...program.info, [field]: value } });
     };
 
+    const handleAddDayToSchedule = () => {
+        const newSchedule = [...program.weeklySchedule];
+        const newDayName = `Day ${newSchedule.length + 1}`;
+        const restTemplate = Object.keys(program.programStructure).find(name => program.programStructure[name]?.isRest) || 'Rest Day';
+        newSchedule.push({ day: newDayName, workout: restTemplate });
+        updateProgram({ weeklySchedule: newSchedule });
+    };
+
+    const handleRemoveLastDayFromSchedule = () => {
+        if (program.weeklySchedule.length > 1) {
+            const newSchedule = program.weeklySchedule.slice(0, -1);
+            updateProgram({ weeklySchedule: newSchedule });
+        }
+    };
+
     const handleAddWorkoutDay = () => {
         const newWorkoutName = `New Workout ${Object.keys(program.programStructure).length + 1}`;
         const newProgramStructure = { ...program.programStructure, [newWorkoutName]: { exercises: [], label: 'New', isRest: false } };
@@ -2872,10 +2919,20 @@ const EditProgramView = ({ programData, onProgramDataChange, onBack, onNavigate 
         const newWorkoutOrder = program.workoutOrder.map(name => name === oldName ? newName : name);
         const newSchedule = program.weeklySchedule.map(d => d.workout === oldName ? { ...d, workout: newName } : d);
 
+        const newOverrides = JSON.parse(JSON.stringify(program.weeklyOverrides || {}));
+        for (const week in newOverrides) {
+            for (const day in newOverrides[week]) {
+                if (newOverrides[week][day] === oldName) {
+                    newOverrides[week][day] = newName;
+                }
+            }
+        }
+
         updateProgram({
             programStructure: newProgramStructure,
             workoutOrder: newWorkoutOrder,
             weeklySchedule: newSchedule,
+            weeklyOverrides: newOverrides,
         });
         closeModal();
     };
@@ -2996,24 +3053,41 @@ const EditProgramView = ({ programData, onProgramDataChange, onBack, onNavigate 
     };
     
     const handleToggleRestDay = (week, dayKey) => {
-        const currentWorkout = getWorkoutNameForDay(program, week, dayKey);
-
+        const currentWorkoutName = getWorkoutNameForDay(program, week, dayKey);
+        const isCurrentlyRest = program.programStructure[currentWorkoutName]?.isRest;
         let newOverrides = JSON.parse(JSON.stringify(program.weeklyOverrides || {}));
         if (!newOverrides[week]) {
             newOverrides[week] = {};
         }
 
-        if (!program.programStructure[currentWorkout]?.isRest) {
+        if (!isCurrentlyRest) {
+            // If it's a workout day, toggle to a rest day.
             const restTemplate = Object.keys(program.programStructure).find(name => program.programStructure[name]?.isRest) || 'Rest Day';
             newOverrides[week][dayKey] = restTemplate;
         } else {
-            delete newOverrides[week][dayKey];
+            // If it's a rest day, toggle back to a workout day.
+            const masterWorkout = program.weeklySchedule.find(d => d.day === dayKey)?.workout;
+            // Check if the master schedule for this day is a valid, non-rest workout.
+            if (masterWorkout && !program.programStructure[masterWorkout]?.isRest) {
+                // If so, reverting is as simple as removing the override.
+                delete newOverrides[week][dayKey];
+            } else {
+                // Otherwise, we need to find a workout to assign.
+                const firstWorkout = program.workoutOrder.find(name => !program.programStructure[name]?.isRest);
+                if (firstWorkout) {
+                    newOverrides[week][dayKey] = firstWorkout;
+                } else {
+                    // No workout days exist, so we can't switch. For now, do nothing.
+                    // This could be improved with a user alert.
+                    return;
+                }
+            }
         }
 
+        // Clean up empty week objects in overrides.
         if (Object.keys(newOverrides[week]).length === 0) {
             delete newOverrides[week];
         }
-
         updateProgram({ weeklyOverrides: newOverrides });
     };
 
@@ -3037,10 +3111,20 @@ const EditProgramView = ({ programData, onProgramDataChange, onBack, onNavigate 
                 workout: mapping[day.workout] || day.workout
             }));
 
+            const newOverrides = JSON.parse(JSON.stringify(program.weeklyOverrides || {}));
+            for (const week in newOverrides) {
+                for (const day in newOverrides[week]) {
+                    const overriddenWorkout = newOverrides[week][day];
+                    if (mapping[overriddenWorkout]) {
+                        newOverrides[week][day] = mapping[overriddenWorkout];
+                    }
+                }
+            }
+
             const customWorkouts = program.workoutOrder.filter(name => name.includes('(Custom W'));
             const newOrder = [...reorderedMasterTemplates, ...customWorkouts];
 
-            updateProgram({ workoutOrder: newOrder, weeklySchedule: newSchedule });
+            updateProgram({ workoutOrder: newOrder, weeklySchedule: newSchedule, weeklyOverrides: newOverrides });
             return;
         }
     
@@ -3221,6 +3305,14 @@ const EditProgramView = ({ programData, onProgramDataChange, onBack, onNavigate 
                                     onToggleRest={handleToggleRestDay}
                                 />
                             ))}
+                            <div className="mt-4 flex gap-2">
+                                <button onClick={handleAddDayToSchedule} className="w-full flex items-center justify-center gap-2 p-2 rounded-lg bg-green-100 dark:bg-green-900/50 text-green-700 dark:text-green-300 hover:bg-green-200 dark:hover:bg-green-800/50">
+                                    <PlusCircle size={16}/> Add Day
+                                </button>
+                                <button onClick={handleRemoveLastDayFromSchedule} disabled={program.weeklySchedule.length <= 1} className="w-full flex items-center justify-center gap-2 p-2 rounded-lg bg-red-100 dark:bg-red-900/50 text-red-700 dark:text-red-300 hover:bg-red-200 dark:hover:bg-red-800/50 disabled:opacity-50 disabled:cursor-not-allowed">
+                                    <XCircle size={16}/> Remove Last Day
+                                </button>
+                            </div>
                         </div>
                     )}
                 </div>
