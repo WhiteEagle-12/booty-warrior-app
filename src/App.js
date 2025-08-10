@@ -1901,9 +1901,9 @@ const DashboardView = ({ allLogs, programData, bodyWeightHistory }) => {
                 const workout = getWorkoutForWeek(programData, w, workoutName);
                 if(!workout) return true;
                 return workout.exercises.every(ex => {
-                    const details = getExerciseDetails(ex.name, masterExerciseList);
+                    const details = getExerciseDetails(ex, masterExerciseList);
                     if(!details) return false;
-                    return Array.from({length: Number(details.sets)}, (_, i) => i + 1).every(setNum => isSetLogComplete(allLogs[`${w}-${day.day}-${ex.name}-${setNum}`]));
+                    return Array.from({length: Number(details.sets)}, (_, i) => i + 1).every(setNum => isSetLogComplete(allLogs[`${w}-${day.day}-${ex}-${setNum}`]));
                 });
             });
             if (!isWeekComplete) {
@@ -4918,10 +4918,11 @@ const AppCore = () => {
 
     const programData = useMemo(() => {
         if (!activeInstanceId || programInstances.length === 0) {
-            return presets['optimal-ppl-ul'];
+            return migrateProgramData(presets['optimal-ppl-ul']);
         }
         const activeInstance = programInstances.find(p => p.id === activeInstanceId);
-        return activeInstance ? activeInstance.program : presets['optimal-ppl-ul'];
+        // The program in activeInstance should already be migrated, but we migrate the fallback just in case.
+        return activeInstance ? activeInstance.program : migrateProgramData(presets['optimal-ppl-ul']);
     }, [activeInstanceId, programInstances]);
 
     const handleUpdateAndSave = useCallback((updates) => {
