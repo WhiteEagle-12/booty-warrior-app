@@ -2795,6 +2795,47 @@ const MasterScheduleEditor = ({ program, onProgramDataChange }) => {
     );
 };
 
+const getRemappedProgram = (program, newWorkoutOrder) => {
+    const oldWorkoutOrder = program.workoutOrder;
+    const { programStructure, weeklySchedule, weeklyOverrides } = program;
+
+    const oldWorkoutDays = oldWorkoutOrder.filter(name => !programStructure[name]?.isRest);
+    const newWorkoutDays = newWorkoutOrder.filter(name => !programStructure[name]?.isRest);
+
+    if (oldWorkoutDays.length === 0 || newWorkoutDays.length === 0) {
+        return { ...program, workoutOrder: newWorkoutOrder };
+    }
+
+    const mapping = {};
+    oldWorkoutDays.forEach((oldName, index) => {
+        if (index < newWorkoutDays.length) {
+            mapping[oldName] = newWorkoutDays[index];
+        }
+    });
+
+    const remappedSchedule = weeklySchedule.map(day => {
+        const mappedWorkout = mapping[day.workout];
+        return mappedWorkout ? { ...day, workout: mappedWorkout } : day;
+    });
+
+    const remappedOverrides = JSON.parse(JSON.stringify(weeklyOverrides || {}));
+    for (const week in remappedOverrides) {
+        for (const day in remappedOverrides[week]) {
+            const mappedWorkout = mapping[remappedOverrides[week][day]];
+            if (mappedWorkout) {
+                remappedOverrides[week][day] = mappedWorkout;
+            }
+        }
+    }
+
+    return {
+        ...program,
+        workoutOrder: newWorkoutOrder,
+        weeklySchedule: remappedSchedule,
+        weeklyOverrides: remappedOverrides,
+    };
+};
+
 const EditProgramView = ({ programData, onProgramDataChange, onBack, onNavigate }) => {
     const { openModal, closeModal } = useContext(AppStateContext);
     const [program, setProgram] = useState(programData);
@@ -2946,23 +2987,8 @@ const EditProgramView = ({ programData, onProgramDataChange, onBack, onNavigate 
         const [movedItem] = newOrder.splice(workoutIndex, 1);
         newOrder.splice(workoutIndex + direction, 0, movedItem);
 
-        const workoutDays = newOrder.filter(name => !program.programStructure[name]?.isRest);
-        if (workoutDays.length > 0) {
-            let workoutIndex = 0;
-            const newSchedule = program.weeklySchedule.map(day => {
-                const isOldWorkoutRest = program.programStructure[day.workout]?.isRest;
-                if (isOldWorkoutRest) {
-                    return day;
-                } else {
-                    const newWorkout = workoutDays[workoutIndex % workoutDays.length];
-                    workoutIndex++;
-                    return { ...day, workout: newWorkout };
-                }
-            });
-            updateProgram({ workoutOrder: newOrder, weeklySchedule: newSchedule });
-        } else {
-            updateProgram({ workoutOrder: newOrder });
-        }
+        const remappedProgram = getRemappedProgram(program, newOrder);
+        updateProgram(remappedProgram);
     };
 
     const handleAddExerciseToWorkout = (workoutName) => {
@@ -3101,30 +3127,11 @@ const EditProgramView = ({ programData, onProgramDataChange, onBack, onNavigate 
             const [movedItem] = reorderedMasterTemplates.splice(source.index, 1);
             reorderedMasterTemplates.splice(destination.index, 0, movedItem);
 
-            const mapping = {};
-            masterTemplates.forEach((oldName, index) => {
-                mapping[oldName] = reorderedMasterTemplates[index];
-            });
-
-            const newSchedule = program.weeklySchedule.map(day => ({
-                ...day,
-                workout: mapping[day.workout] || day.workout
-            }));
-
-            const newOverrides = JSON.parse(JSON.stringify(program.weeklyOverrides || {}));
-            for (const week in newOverrides) {
-                for (const day in newOverrides[week]) {
-                    const overriddenWorkout = newOverrides[week][day];
-                    if (mapping[overriddenWorkout]) {
-                        newOverrides[week][day] = mapping[overriddenWorkout];
-                    }
-                }
-            }
-
             const customWorkouts = program.workoutOrder.filter(name => name.includes('(Custom W'));
             const newOrder = [...reorderedMasterTemplates, ...customWorkouts];
 
-            updateProgram({ workoutOrder: newOrder, weeklySchedule: newSchedule, weeklyOverrides: newOverrides });
+            const remappedProgram = getRemappedProgram(program, newOrder);
+            updateProgram(remappedProgram);
             return;
         }
     
