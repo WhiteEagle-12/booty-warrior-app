@@ -774,11 +774,27 @@ const migrateProgramData = (program) => {
     // V3 Migration: Ensure exercises in templates are objects with unique IDs for stable DnD.
     for (const key in newProgram.programStructure) {
         const template = newProgram.programStructure[key];
-        if (template && template.exercises && template.exercises.length > 0 && typeof template.exercises[0] === 'string') {
-            template.exercises = template.exercises.map(exName => ({
-                id: crypto.randomUUID(),
-                name: exName
-            }));
+        if (template && template.exercises && template.exercises.length > 0) {
+            const needsMigration = template.exercises.some(ex => typeof ex === 'string' || !ex.id || !ex.name);
+            if (needsMigration) {
+                template.exercises = template.exercises
+                    .map(ex => {
+                        // Case 1: Exercise is a non-empty string
+                        if (typeof ex === 'string' && ex.trim() !== '') {
+                            return { id: crypto.randomUUID(), name: ex };
+                        }
+                        // Case 2: Exercise is an object with a valid name property
+                        if (ex && typeof ex === 'object' && ex.name && typeof ex.name === 'string' && ex.name.trim() !== '') {
+                            return {
+                                id: ex.id || crypto.randomUUID(), // Ensure ID exists
+                                name: ex.name
+                            };
+                        }
+                        // All other cases are considered invalid
+                        return null;
+                    })
+                    .filter(Boolean); // Filter out all the nulls
+            }
         }
     }
 
@@ -3093,40 +3109,38 @@ const EditProgramView = ({ programData, onProgramDataChange, onBack, onNavigate 
         const { source, destination, type } = result;
 
         if (type === 'workoutDay') {
-            const reorderedSchedule = Array.from(program.weeklySchedule);
-            const [movedItem] = reorderedSchedule.splice(source.index, 1);
-            reorderedSchedule.splice(destination.index, 0, movedItem);
-            updateProgram({ weeklySchedule: reorderedSchedule });
+            const reorderedWorkoutOrder = Array.from(program.workoutOrder);
+            const [movedItem] = reorderedWorkoutOrder.splice(source.index, 1);
+            reorderedWorkoutOrder.splice(destination.index, 0, movedItem);
+            updateProgram({ workoutOrder: reorderedWorkoutOrder });
             return;
         }
     
         if (type === 'exercise') {
-            const getScheduleId = (droppableId) => droppableId.startsWith('exercises-') ? droppableId.substring('exercises-'.length) : droppableId;
-            const sourceScheduleId = getScheduleId(source.droppableId);
-            const destScheduleId = getScheduleId(destination.droppableId);
+            const { droppableId: sourceWorkoutName } = source;
+            const { droppableId: destWorkoutName } = destination;
 
             const newProgramStructure = JSON.parse(JSON.stringify(program.programStructure));
 
-            // Find the workout name associated with the droppable ID (which is now a schedule item ID)
-            const sourceScheduleItem = program.weeklySchedule.find(item => item.id === sourceScheduleId);
-            const destScheduleItem = program.weeklySchedule.find(item => item.id === destScheduleId);
-
-            if (!sourceScheduleItem || !destScheduleItem) return;
-
-            const sourceWorkout = newProgramStructure[sourceScheduleItem.workout];
-            const destWorkout = newProgramStructure[destScheduleItem.workout];
-
-            if (sourceScheduleId === destScheduleId) {
-                // Reordering within the same list
-                const [movedItem] = sourceWorkout.exercises.splice(source.index, 1);
-                sourceWorkout.exercises.splice(destination.index, 0, movedItem);
+            if (sourceWorkoutName === destWorkoutName) {
+                // Reordering within the same workout template
+                const workout = newProgramStructure[sourceWorkoutName];
+                const [movedItem] = workout.exercises.splice(source.index, 1);
+                if(movedItem) { // Ensure item exists
+                    workout.exercises.splice(destination.index, 0, movedItem);
+                    updateProgram({ programStructure: newProgramStructure });
+                }
             } else {
-                // Moving from one list to another
+                // Moving from one workout to another
+                const sourceWorkout = newProgramStructure[sourceWorkoutName];
+                const destWorkout = newProgramStructure[destWorkoutName];
                 const [movedItem] = sourceWorkout.exercises.splice(source.index, 1);
-                destWorkout.exercises.splice(destination.index, 0, movedItem);
+
+                if (movedItem) { // Ensure item exists
+                    destWorkout.exercises.splice(destination.index, 0, movedItem);
+                    updateProgram({ programStructure: newProgramStructure });
+                }
             }
-    
-            updateProgram({ programStructure: newProgramStructure });
         }
     };
     
@@ -3300,29 +3314,25 @@ const EditProgramView = ({ programData, onProgramDataChange, onBack, onNavigate 
                 {/* Workout Day List */}
                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white my-3">Master Workout Templates</h3>
                  <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">Drag exercises to reorder them within a day, or drag them to another day entirely.</p>
-                <Droppable droppableId="weekly-schedule-editor" direction="vertical" type="workoutDay">
+                <Droppable droppableId="workout-templates" direction="vertical" type="workoutDay">
                     {(provided) => (
                         <div {...provided.droppableProps} ref={provided.innerRef} className="space-y-4">
-                            {program.weeklySchedule.map((scheduleItem, index) => {
-                                const workoutName = scheduleItem.workout;
+                            {program.workoutOrder.map((workoutName, index) => {
                                 const workoutDetails = program.programStructure[workoutName];
                                 if (!workoutDetails) return null;
                                 const isRest = workoutDetails.isRest;
 
                                 return (
-                                    <Draggable key={scheduleItem.id} draggableId={scheduleItem.id} index={index}>
+                                    <Draggable key={workoutName} draggableId={workoutName} index={index}>
                                         {(provided) => (
-                                            <div ref={provided.innerRef} {...provided.draggableProps} id={`workout-day-editor-${scheduleItem.id}`}>
+                                            <div ref={provided.innerRef} {...provided.draggableProps} id={`workout-day-editor-${workoutName}`}>
                                                 <div className={`rounded-xl shadow-md p-4 ${isRest ? 'bg-indigo-100 dark:bg-indigo-900/50' : 'bg-white dark:bg-gray-800'}`}>
                                                     <div className="flex justify-between items-center mb-3 border-b border-gray-200 dark:border-gray-700 pb-3">
                                                         <div {...provided.dragHandleProps} className="flex items-center gap-2 cursor-grab flex-grow">
                                                             <Move size={20} className="text-gray-400" />
-                                                            <div>
-                                                                <div className="text-sm font-bold text-gray-500 dark:text-gray-400">{scheduleItem.day}</div>
-                                                                <button onClick={() => startEditingName(workoutName)} className="text-xl font-bold text-gray-800 dark:text-gray-200 text-left hover:text-blue-500 dark:hover:text-blue-400 transition-colors">
-                                                                    {workoutName}
-                                                                </button>
-                                                            </div>
+                                                            <button onClick={() => startEditingName(workoutName)} className="text-xl font-bold text-gray-800 dark:text-gray-200 text-left hover:text-blue-500 dark:hover:text-blue-400 transition-colors">
+                                                                {workoutName}
+                                                            </button>
                                                         </div>
                                                         <div className="flex items-center gap-2">
                                                              <button onClick={() => handleDeleteWorkoutDay(workoutName)} className="p-1 hover:text-red-500"><XCircle size={20}/></button>
@@ -3330,14 +3340,14 @@ const EditProgramView = ({ programData, onProgramDataChange, onBack, onNavigate 
                                                     </div>
                                                     {!isRest && (
                                                         <>
-                                                            <Droppable droppableId={`exercises-${scheduleItem.id}`} type="exercise">
+                                                            <Droppable droppableId={workoutName} type="exercise">
                                                                 {(provided) => (
                                                                     <ul {...provided.droppableProps} ref={provided.innerRef} className="space-y-2 mb-3 min-h-[50px]">
                                                                         {workoutDetails.exercises.map((ex, index) => (
                                                                             <Draggable key={ex.id} draggableId={ex.id} index={index}>
                                                                                 {(provided) => (
                                                                                     <li ref={provided.innerRef} {...provided.draggableProps} {...provided.dragHandleProps} className="flex justify-between items-center p-2 bg-gray-50 dark:bg-gray-700/50 rounded-md group">
-                                                                                        <span className="font-medium">{ex.name}</span>
+                                                                                        <span className="font-medium">{ex.name || `Exercise name missing (id: ${ex.id})`}</span>
                                                                                         <div className="flex items-center gap-1 text-gray-500">
                                                                                             <button onClick={() => handleEditExerciseDetails(ex.name)} className="p-1 opacity-0 group-hover:opacity-100 transition-opacity"><Pencil size={16}/></button>
                                                                                             <button onClick={() => handleRemoveExerciseFromWorkout(workoutName, index)} className="p-1 opacity-0 group-hover:opacity-100 transition-opacity"><XCircle size={16}/></button>
@@ -3362,7 +3372,7 @@ const EditProgramView = ({ programData, onProgramDataChange, onBack, onNavigate 
                                 );
                             })}
                             {provided.placeholder}
-                            <div className="flex gap-2">
+                             <div className="flex gap-2">
                                 <button onClick={handleAddWorkoutDay} className="w-full flex items-center justify-center gap-2 p-3 rounded-xl bg-green-100 dark:bg-green-900/50 text-green-700 dark:text-green-300 hover:bg-green-200 dark:hover:bg-green-800/50 font-bold">
                                     <PlusCircle size={20}/> Add Workout Day
                                 </button>
@@ -4917,11 +4927,14 @@ const AppCore = () => {
     const [unlockedAchievements, setUnlockedAchievements] = useState({});
 
     const programData = useMemo(() => {
+        let programToMigrate;
         if (!activeInstanceId || programInstances.length === 0) {
-            return presets['optimal-ppl-ul'];
+            programToMigrate = presets['optimal-ppl-ul'];
+        } else {
+            const activeInstance = programInstances.find(p => p.id === activeInstanceId);
+            programToMigrate = activeInstance ? activeInstance.program : presets['optimal-ppl-ul'];
         }
-        const activeInstance = programInstances.find(p => p.id === activeInstanceId);
-        return activeInstance ? activeInstance.program : presets['optimal-ppl-ul'];
+        return migrateProgramData(programToMigrate);
     }, [activeInstanceId, programInstances]);
 
     const handleUpdateAndSave = useCallback((updates) => {
