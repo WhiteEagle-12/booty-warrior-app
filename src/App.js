@@ -2849,7 +2849,7 @@ const EditProgramView = ({ programData, onProgramDataChange, onBack, onNavigate 
         let newRestDayName;
         let restDayCounter = 1;
         do {
-            newRestDayName = `Rest Day ${Object.values(program.programStructure).filter(p => p.isRest).length + restDayCounter}`;
+            newRestDayName = `Rest Day ${restDayCounter}`;
             restDayCounter++;
         } while (program.programStructure[newRestDayName]);
 
@@ -2894,7 +2894,7 @@ const EditProgramView = ({ programData, onProgramDataChange, onBack, onNavigate 
         let newWorkoutName;
         let workoutCounter = 1;
         do {
-            newWorkoutName = `New Workout ${Object.keys(program.programStructure).length + workoutCounter}`;
+            newWorkoutName = `New Workout ${workoutCounter}`;
             workoutCounter++;
         } while(program.programStructure[newWorkoutName]);
 
