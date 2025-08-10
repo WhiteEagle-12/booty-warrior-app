@@ -3147,52 +3147,23 @@ const EditProgramView = ({ programData, onProgramDataChange, onBack, onNavigate 
             const reorderedWorkoutOrder = Array.from(programData.workoutOrder);
             const [movedItem] = reorderedWorkoutOrder.splice(source.index, 1);
             reorderedWorkoutOrder.splice(destination.index, 0, movedItem);
-
-            const updates = { workoutOrder: reorderedWorkoutOrder };
-
-            // If using a weekly schedule, update it to reflect the new master order.
-            if (programData.settings.useWeeklySchedule) {
-                // The new logic: directly map the new workoutOrder to the weeklySchedule, preserving IDs.
-                const newSchedule = programData.weeklySchedule.map((daySchedule, index) => {
-                    // If the workoutOrder is shorter than the schedule, loop it.
-                    // This handles cases where user has e.g. a 3-day split on a 7-day schedule
-                    const newWorkoutName = reorderedWorkoutOrder[index % reorderedWorkoutOrder.length];
-                    return {
-                        ...daySchedule, // This preserves the day's `id`, `day` name (e.g., "Mon"), etc.
-                        workout: newWorkoutName, // This updates only the workout assignment.
-                    };
-                });
-                updates.weeklySchedule = newSchedule;
-            }
-
-            updateProgram(updates);
+            updateProgram({ workoutOrder: reorderedWorkoutOrder });
             return;
         }
-    
+
         if (type === 'exercise') {
-            const { droppableId: sourceWorkoutName } = source;
-            const { droppableId: destWorkoutName } = destination;
+            const { droppableId: sourceWorkoutName, index: sourceIndex } = source;
+            const { droppableId: destWorkoutName, index: destIndex } = destination;
 
             const newProgramStructure = JSON.parse(JSON.stringify(programData.programStructure));
 
-            if (sourceWorkoutName === destWorkoutName) {
-                // Reordering within the same workout template
-                const workout = newProgramStructure[sourceWorkoutName];
-                const [movedItem] = workout.exercises.splice(source.index, 1);
-                if(movedItem) { // Ensure item exists
-                    workout.exercises.splice(destination.index, 0, movedItem);
-                    updateProgram({ programStructure: newProgramStructure });
-                }
-            } else {
-                // Moving from one workout to another
-                const sourceWorkout = newProgramStructure[sourceWorkoutName];
-                const destWorkout = newProgramStructure[destWorkoutName];
-                const [movedItem] = sourceWorkout.exercises.splice(source.index, 1);
+            const sourceList = newProgramStructure[sourceWorkoutName].exercises;
+            const destList = newProgramStructure[destWorkoutName].exercises;
 
-                if (movedItem) { // Ensure item exists
-                    destWorkout.exercises.splice(destination.index, 0, movedItem);
-                    updateProgram({ programStructure: newProgramStructure });
-                }
+            const [movedItem] = sourceList.splice(sourceIndex, 1);
+            if (movedItem) {
+                destList.splice(destIndex, 0, movedItem);
+                updateProgram({ programStructure: newProgramStructure });
             }
         }
     };
