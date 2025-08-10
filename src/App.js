@@ -705,62 +705,69 @@ const migrateProgramData = (program) => {
         : JSON.parse(JSON.stringify(program));
 
 
-    // V2 & V3 migrations are now idempotent and will run on every load to ensure data integrity.
-    // The old early return based on `isRest` property was preventing V3 migration on V2-era data.
+    // V4 Migration: Ensure all templates have unique IDs, especially rest days.
+    const nameCounts = {};
+    const newStructure = {};
+    const nameMapping = {}; // oldName -> newName array
 
-    let restTemplateName = "Rest Day";
+    // First pass: Sanitize names and create unique versions
+    Object.keys(newProgram.programStructure).forEach(key => {
+        const template = newProgram.programStructure[key];
+        let baseName = key.replace(/ \d+$/, ''); // "Rest Day 1" -> "Rest Day"
 
-    // Intelligently assign isRest property for legacy program data
+        const count = (nameCounts[baseName] || 0) + 1;
+        nameCounts[baseName] = count;
+
+        const newName = count > 1 ? `${baseName} ${count}` : baseName;
+
+        if (key !== newName) {
+            if (!nameMapping[key]) nameMapping[key] = [];
+            nameMapping[key].push(newName);
+        }
+
+        newStructure[newName] = { ...template, id: template.id || crypto.randomUUID() };
+    });
+
+    newProgram.programStructure = newStructure;
+
+    // Update workoutOrder with new unique names
+    const orderNameCounts = {};
+    newProgram.workoutOrder = newProgram.workoutOrder.map(name => {
+        let baseName = name.replace(/ \d+$/, '');
+        const count = (orderNameCounts[baseName] || 0) + 1;
+        orderNameCounts[baseName] = count;
+        return count > 1 ? `${baseName} ${count}` : baseName;
+    });
+
+    // Update weeklySchedule with new unique names
+    const scheduleNameCounts = {};
+    newProgram.weeklySchedule = newProgram.weeklySchedule.map(day => {
+        let baseName = day.workout.replace(/ \d+$/, '');
+        const count = (scheduleNameCounts[baseName] || 0) + 1;
+        scheduleNameCounts[baseName] = count;
+        const newWorkoutName = count > 1 ? `${baseName} ${count}` : baseName;
+        return { ...day, workout: newWorkoutName };
+    });
+
+    // Update overrides with new unique names
+    if (newProgram.weeklyOverrides) {
+        for (const week in newProgram.weeklyOverrides) {
+            const overrideNameCounts = {};
+            for (const dayKey in newProgram.weeklyOverrides[week]) {
+                let baseName = newProgram.weeklyOverrides[week][dayKey].replace(/ \d+$/, '');
+                const count = (overrideNameCounts[baseName] || 0) + 1;
+                overrideNameCounts[baseName] = count;
+                const newWorkoutName = count > 1 ? `${baseName} ${count}` : baseName;
+                newProgram.weeklyOverrides[week][dayKey] = newWorkoutName;
+            }
+        }
+    }
+
+    // Ensure all templates have an `isRest` property.
     for (const key in newProgram.programStructure) {
         const template = newProgram.programStructure[key];
         if (template.isRest === undefined) {
-            if (key.toLowerCase().includes('rest') || !template.exercises || template.exercises.length === 0) {
-                template.isRest = true;
-            } else {
-                template.isRest = false;
-            }
-        }
-    }
-
-    // Ensure the primary "Rest Day" template exists and is correctly marked.
-    if (!newProgram.programStructure[restTemplateName]) {
-        newProgram.programStructure[restTemplateName] = { exercises: [], label: "Rest", isRest: true };
-    } else {
-        newProgram.programStructure[restTemplateName].isRest = true;
-    }
-
-    // Make sure the primary rest day is in the workout order.
-    if (!newProgram.workoutOrder.includes(restTemplateName)) {
-        const oldRestIndex = newProgram.workoutOrder.indexOf('Rest');
-        if (oldRestIndex > -1) {
-            newProgram.workoutOrder.splice(oldRestIndex, 1, restTemplateName);
-        } else {
-            newProgram.workoutOrder.push(restTemplateName);
-        }
-    }
-
-    // Clean up old "Rest" template if it was separate
-    if (restTemplateName !== 'Rest' && newProgram.programStructure['Rest']) {
-        delete newProgram.programStructure['Rest'];
-    }
-
-    // Standardize schedule to point to the new rest day template name.
-    const scheduleUpdater = (day) => {
-        if (day.workout === 'Rest' || newProgram.programStructure[day.workout]?.isRest) {
-            return { ...day, workout: restTemplateName };
-        }
-        return day;
-    };
-    newProgram.weeklySchedule = newProgram.weeklySchedule.map(scheduleUpdater);
-
-    if (newProgram.weeklyOverrides) {
-        for (const week in newProgram.weeklyOverrides) {
-            for (const dayKey in newProgram.weeklyOverrides[week]) {
-                const workoutName = newProgram.weeklyOverrides[week][dayKey];
-                if (workoutName === 'Rest' || newProgram.programStructure[workoutName]?.isRest) {
-                    newProgram.weeklyOverrides[week][dayKey] = restTemplateName;
-                }
-            }
+            template.isRest = key.toLowerCase().includes('rest') || !template.exercises || template.exercises.length === 0;
         }
     }
 
@@ -2899,55 +2906,13 @@ const EditProgramView = ({ programData, onProgramDataChange, onBack, onNavigate 
         updateProgram({ programStructure: newProgramStructure });
     };
     
-    const handleDeleteWorkoutDay = (workoutNameToDelete) => {
-        // Find a suitable rest day template to fall back on, EXCLUDING the one being deleted.
-        const fallbackRestTemplate = Object.keys(program.programStructure).find(name => name !== workoutNameToDelete && program.programStructure[name]?.isRest) || 'Rest Day';
-
-        openModal(
-            <div>
-                <h2 className="text-xl font-bold mb-4">Confirm Deletion</h2>
-                <p className="text-gray-600 dark:text-gray-400">Are you sure you want to delete "{workoutNameToDelete}"? It will be removed from the program and replaced with a '{fallbackRestTemplate}' day in the weekly schedule.</p>
-                <div className="flex justify-end gap-2 mt-6">
-                    <button onClick={closeModal} className="px-4 py-2 bg-gray-200 dark:bg-gray-600 rounded-lg">Cancel</button>
-                    <button onClick={() => {
-                        let newProgramStructure = { ...program.programStructure };
-                        delete newProgramStructure[workoutNameToDelete];
-                        
-                        let newWorkoutOrder = program.workoutOrder.filter(name => name !== workoutNameToDelete);
-
-                        // Ensure at least one rest day template always exists.
-                        let finalRestTemplate = Object.keys(newProgramStructure).find(name => newProgramStructure[name]?.isRest);
-                        if (!finalRestTemplate) {
-                            finalRestTemplate = 'Rest Day';
-                            newProgramStructure[finalRestTemplate] = { exercises: [], label: "Rest", isRest: true };
-                            if (!newWorkoutOrder.includes(finalRestTemplate)) {
-                                newWorkoutOrder.push(finalRestTemplate);
-                            }
-                        }
-
-                        const newSchedule = program.weeklySchedule.map(d => d.workout === workoutNameToDelete ? { ...d, workout: finalRestTemplate } : d);
-
-                        // Also update any weekly overrides that might be using the deleted template.
-                        const newOverrides = JSON.parse(JSON.stringify(program.weeklyOverrides || {}));
-                        for (const week in newOverrides) {
-                            for (const day in newOverrides[week]) {
-                                if (newOverrides[week][day] === workoutNameToDelete) {
-                                    newOverrides[week][day] = finalRestTemplate;
-                                }
-                            }
-                        }
-
-                        updateProgram({
-                            programStructure: newProgramStructure,
-                            workoutOrder: newWorkoutOrder,
-                            weeklySchedule: newSchedule,
-                            weeklyOverrides: newOverrides,
-                        });
-                        closeModal();
-                    }} className="px-4 py-2 bg-red-600 text-white rounded-lg">Delete</button>
-                </div>
-            </div>
-        );
+    const handleDeleteWorkoutDay = (dayIdToRemove) => {
+        if (program.weeklySchedule.length <= 1) {
+            addToast("Your schedule must have at least one day.", "error");
+            return;
+        }
+        const newSchedule = program.weeklySchedule.filter(d => d.id !== dayIdToRemove);
+        updateProgram({ weeklySchedule: newSchedule });
     };
 
     const handleRenameWorkoutDay = (oldName, newName) => {
@@ -3116,35 +3081,11 @@ const EditProgramView = ({ programData, onProgramDataChange, onBack, onNavigate 
         if (!result.destination) return;
         const { source, destination, type } = result;
 
-        if (type === 'workoutDay') {
-            const reorderedWorkoutOrder = Array.from(program.workoutOrder);
-            const [movedItem] = reorderedWorkoutOrder.splice(source.index, 1);
-            reorderedWorkoutOrder.splice(destination.index, 0, movedItem);
-
-            const updates = { workoutOrder: reorderedWorkoutOrder };
-
-            // If using a weekly schedule, regenerate it based on the new workout order to match user expectation.
-            if (program.settings.useWeeklySchedule) {
-                const workoutCycle = reorderedWorkoutOrder.filter(name => !program.programStructure[name]?.isRest);
-
-                if (workoutCycle.length > 0) {
-                    let workoutCycleIndex = 0;
-                    const newSchedule = program.weeklySchedule.map(daySchedule => {
-                        const isRestDay = program.programStructure[daySchedule.workout]?.isRest;
-
-                        if (isRestDay) {
-                            return daySchedule;
-                        } else {
-                            const newWorkoutForDay = workoutCycle[workoutCycleIndex % workoutCycle.length];
-                            workoutCycleIndex++;
-                            return { ...daySchedule, workout: newWorkoutForDay };
-                        }
-                    });
-                    updates.weeklySchedule = newSchedule;
-                }
-            }
-
-            updateProgram(updates);
+        if (type === 'master-schedule-day') {
+            const reorderedSchedule = Array.from(program.weeklySchedule);
+            const [movedItem] = reorderedSchedule.splice(source.index, 1);
+            reorderedSchedule.splice(destination.index, 0, movedItem);
+            updateProgram({ weeklySchedule: reorderedSchedule });
             return;
         }
     
@@ -3155,20 +3096,18 @@ const EditProgramView = ({ programData, onProgramDataChange, onBack, onNavigate 
             const newProgramStructure = JSON.parse(JSON.stringify(program.programStructure));
 
             if (sourceWorkoutName === destWorkoutName) {
-                // Reordering within the same workout template
                 const workout = newProgramStructure[sourceWorkoutName];
                 const [movedItem] = workout.exercises.splice(source.index, 1);
-                if(movedItem) { // Ensure item exists
+                if (movedItem) {
                     workout.exercises.splice(destination.index, 0, movedItem);
                     updateProgram({ programStructure: newProgramStructure });
                 }
             } else {
-                // Moving from one workout to another
                 const sourceWorkout = newProgramStructure[sourceWorkoutName];
                 const destWorkout = newProgramStructure[destWorkoutName];
                 const [movedItem] = sourceWorkout.exercises.splice(source.index, 1);
 
-                if (movedItem) { // Ensure item exists
+                if (movedItem) {
                     destWorkout.exercises.splice(destination.index, 0, movedItem);
                     updateProgram({ programStructure: newProgramStructure });
                 }
@@ -3314,60 +3253,38 @@ const EditProgramView = ({ programData, onProgramDataChange, onBack, onNavigate 
                     </div>
                 </div>
 
-                {/* Weekly Schedule Editor - Collapsible */}
-                <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-4 mb-6">
-                    <button onClick={() => setScheduleOpen(!isScheduleOpen)} className="w-full flex justify-between items-center text-left">
-                        <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Weekly Schedule & Overrides</h3>
-                        {isScheduleOpen ? <ChevronUp /> : <ChevronDown />}
-                    </button>
-                    {isScheduleOpen && (
-                        <div className="mt-4 space-y-2">
-                            {Array.from({ length: program.info.weeks }, (_, i) => i + 1).map(week => (
-                                <EditWeekCard
-                                    key={week}
-                                    week={week}
-                                    program={program}
-                                    onEditDay={handleEditDay}
-                                    onToggleRest={handleToggleRestDay}
-                                />
-                            ))}
-                            <div className="mt-4 flex gap-2">
-                                <button onClick={handleAddDayToSchedule} className="w-full flex items-center justify-center gap-2 p-2 rounded-lg bg-green-100 dark:bg-green-900/50 text-green-700 dark:text-green-300 hover:bg-green-200 dark:hover:bg-green-800/50">
-                                    <PlusCircle size={16}/> Add Day
-                                </button>
-                                <button onClick={handleRemoveLastDayFromSchedule} disabled={program.weeklySchedule.length <= 1} className="w-full flex items-center justify-center gap-2 p-2 rounded-lg bg-red-100 dark:bg-red-900/50 text-red-700 dark:text-red-300 hover:bg-red-200 dark:hover:bg-red-800/50 disabled:opacity-50 disabled:cursor-not-allowed">
-                                    <XCircle size={16}/> Remove Last Day
-                                </button>
-                            </div>
-                        </div>
-                    )}
-                </div>
-
-                {/* Workout Day List */}
-                 <h3 className="text-lg font-semibold text-gray-900 dark:text-white my-3">Master Workout Templates</h3>
-                 <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">Drag exercises to reorder them within a day, or drag them to another day entirely.</p>
-                <Droppable droppableId="workout-templates" direction="vertical" type="workoutDay">
+                {/* Master Schedule Editor */}
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white my-3">Master Schedule</h3>
+                <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">Drag to reorder days. Changes here will update the master program.</p>
+                <Droppable droppableId="master-schedule" direction="vertical" type="master-schedule-day">
                     {(provided) => (
                         <div {...provided.droppableProps} ref={provided.innerRef} className="space-y-4">
-                            {program.workoutOrder.map((workoutName, index) => {
+                            {program.weeklySchedule.map((scheduleDay, index) => {
+                                const workoutName = scheduleDay.workout;
                                 const workoutDetails = program.programStructure[workoutName];
                                 if (!workoutDetails) return null;
                                 const isRest = workoutDetails.isRest;
 
                                 return (
-                                    <Draggable key={workoutName} draggableId={workoutName} index={index}>
+                                    <Draggable key={scheduleDay.id} draggableId={scheduleDay.id} index={index}>
                                         {(provided) => (
-                                            <div ref={provided.innerRef} {...provided.draggableProps} id={`workout-day-editor-${workoutName}`}>
+                                            <div ref={provided.innerRef} {...provided.draggableProps} id={`schedule-day-editor-${scheduleDay.id}`}>
                                                 <div className={`rounded-xl shadow-md p-4 ${isRest ? 'bg-indigo-100 dark:bg-indigo-900/50' : 'bg-white dark:bg-gray-800'}`}>
                                                     <div className="flex justify-between items-center mb-3 border-b border-gray-200 dark:border-gray-700 pb-3">
                                                         <div {...provided.dragHandleProps} className="flex items-center gap-2 cursor-grab flex-grow">
                                                             <Move size={20} className="text-gray-400" />
-                                                            <button onClick={() => startEditingName(workoutName)} className="text-xl font-bold text-gray-800 dark:text-gray-200 text-left hover:text-blue-500 dark:hover:text-blue-400 transition-colors">
-                                                                {workoutName}
-                                                            </button>
+                                                            <div>
+                                                                <span className="font-bold text-sm text-gray-500 dark:text-gray-400">{scheduleDay.day}</span>
+                                                                <button onClick={() => startEditingName(workoutName)} className="text-xl font-bold text-gray-800 dark:text-gray-200 text-left hover:text-blue-500 dark:hover:text-blue-400 transition-colors">
+                                                                    {workoutName}
+                                                                </button>
+                                                            </div>
                                                         </div>
                                                         <div className="flex items-center gap-2">
-                                                             <button onClick={() => handleDeleteWorkoutDay(workoutName)} className="p-1 hover:text-red-500"><XCircle size={20}/></button>
+                                                            <button onClick={() => handleToggleTemplateType(workoutName)} className="p-1 hover:text-blue-500">
+                                                                {isRest ? <Dumbbell size={20} /> : <Shield size={20} />}
+                                                            </button>
+                                                            <button onClick={() => handleDeleteWorkoutDay(scheduleDay.id)} className="p-1 hover:text-red-500"><XCircle size={20}/></button>
                                                         </div>
                                                     </div>
                                                     {!isRest && (
@@ -3393,7 +3310,7 @@ const EditProgramView = ({ programData, onProgramDataChange, onBack, onNavigate 
                                                                 )}
                                                             </Droppable>
                                                             <button onClick={() => handleAddExerciseToWorkout(workoutName)} className="w-full flex items-center justify-center gap-2 p-2 rounded-lg bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300 hover:bg-blue-200 dark:hover:bg-blue-800/50">
-                                                                <PlusCircle size={16}/> Add Exercise
+                                                                <PlusCircle size={16}/> Add Exercise to Template
                                                             </button>
                                                         </>
                                                     )}
@@ -3404,12 +3321,17 @@ const EditProgramView = ({ programData, onProgramDataChange, onBack, onNavigate 
                                 );
                             })}
                             {provided.placeholder}
-                             <div className="flex gap-2">
+                            <div className="flex gap-2">
+                                <button onClick={handleAddDayToSchedule} className="w-full flex items-center justify-center gap-2 p-3 rounded-xl bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300 hover:bg-blue-200 dark:hover:bg-blue-800/50 font-bold">
+                                    <PlusCircle size={20}/> Add Day to Schedule
+                                </button>
+                            </div>
+                            <div className="flex gap-2">
                                 <button onClick={handleAddWorkoutDay} className="w-full flex items-center justify-center gap-2 p-3 rounded-xl bg-green-100 dark:bg-green-900/50 text-green-700 dark:text-green-300 hover:bg-green-200 dark:hover:bg-green-800/50 font-bold">
-                                    <PlusCircle size={20}/> Add Workout Day
+                                    <PlusCircle size={20}/> Add New Workout Template
                                 </button>
                                 <button onClick={handleAddNewRestDay} className="w-full flex items-center justify-center gap-2 p-3 rounded-xl bg-indigo-100 dark:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-200 dark:hover:bg-indigo-800/50 font-bold">
-                                    <Shield size={20}/> Add Rest Day
+                                    <Shield size={20}/> Add New Rest Day Template
                                 </button>
                             </div>
                         </div>
