@@ -774,28 +774,36 @@ const migrateProgramData = (program) => {
     // V3 Migration: Ensure exercises in templates are objects with unique IDs for stable DnD.
     for (const key in newProgram.programStructure) {
         const template = newProgram.programStructure[key];
-        if (template && template.exercises && template.exercises.length > 0) {
-            const needsMigration = template.exercises.some(ex => typeof ex === 'string' || !ex.id || !ex.name);
-            if (needsMigration) {
-                template.exercises = template.exercises
-                    .map(ex => {
-                        // Case 1: Exercise is a non-empty string
-                        if (typeof ex === 'string' && ex.trim() !== '') {
-                            return { id: crypto.randomUUID(), name: ex };
-                        }
-                        // Case 2: Exercise is an object with a valid name property
-                        if (ex && typeof ex === 'object' && ex.name && typeof ex.name === 'string' && ex.name.trim() !== '') {
-                            return {
-                                id: ex.id || crypto.randomUUID(), // Ensure ID exists
-                                name: ex.name
-                            };
-                        }
-                        // All other cases are considered invalid
-                        return null;
-                    })
-                    .filter(Boolean); // Filter out all the nulls
+
+        // Ensure template.exercises is an array. If not, initialize to empty array.
+        if (!template || !Array.isArray(template.exercises)) {
+            if(template) template.exercises = [];
+            continue;
+        }
+
+        const migratedExercises = [];
+        for (const ex of template.exercises) {
+            let validExercise = null;
+
+            // Case 1: The exercise is a non-empty string.
+            if (typeof ex === 'string' && ex.trim() !== '') {
+                validExercise = { id: crypto.randomUUID(), name: ex };
+            }
+            // Case 2: The exercise is an object with a valid name.
+            else if (ex && typeof ex === 'object' && ex.name && typeof ex.name === 'string' && ex.name.trim() !== '') {
+                validExercise = {
+                    id: ex.id || crypto.randomUUID(), // Ensure an ID always exists.
+                    name: ex.name
+                };
+            }
+
+            // If we created a valid exercise object, add it to our new list.
+            if (validExercise) {
+                migratedExercises.push(validExercise);
             }
         }
+        // Replace the old exercises array with the newly sanitized one.
+        template.exercises = migratedExercises;
     }
 
     return newProgram;
@@ -3112,7 +3120,31 @@ const EditProgramView = ({ programData, onProgramDataChange, onBack, onNavigate 
             const reorderedWorkoutOrder = Array.from(program.workoutOrder);
             const [movedItem] = reorderedWorkoutOrder.splice(source.index, 1);
             reorderedWorkoutOrder.splice(destination.index, 0, movedItem);
-            updateProgram({ workoutOrder: reorderedWorkoutOrder });
+
+            const updates = { workoutOrder: reorderedWorkoutOrder };
+
+            // If using a weekly schedule, regenerate it based on the new workout order to match user expectation.
+            if (program.settings.useWeeklySchedule) {
+                const workoutCycle = reorderedWorkoutOrder.filter(name => !program.programStructure[name]?.isRest);
+
+                if (workoutCycle.length > 0) {
+                    let workoutCycleIndex = 0;
+                    const newSchedule = program.weeklySchedule.map(daySchedule => {
+                        const isRestDay = program.programStructure[daySchedule.workout]?.isRest;
+
+                        if (isRestDay) {
+                            return daySchedule;
+                        } else {
+                            const newWorkoutForDay = workoutCycle[workoutCycleIndex % workoutCycle.length];
+                            workoutCycleIndex++;
+                            return { ...daySchedule, workout: newWorkoutForDay };
+                        }
+                    });
+                    updates.weeklySchedule = newSchedule;
+                }
+            }
+
+            updateProgram(updates);
             return;
         }
     
