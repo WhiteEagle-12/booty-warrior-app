@@ -764,11 +764,10 @@ const migrateProgramData = (program) => {
     }
 
     // V2 Migration: Ensure every item in weeklySchedule has a unique ID.
-    if (newProgram.weeklySchedule && newProgram.weeklySchedule.every(day => day.id === undefined)) {
-        newProgram.weeklySchedule = newProgram.weeklySchedule.map(day => ({
-            ...day,
-            id: crypto.randomUUID(),
-        }));
+    if (newProgram.weeklySchedule) {
+        newProgram.weeklySchedule = newProgram.weeklySchedule.map(day => {
+            return { ...day, id: day.id || crypto.randomUUID() };
+        });
     }
 
     return newProgram;
