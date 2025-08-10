@@ -2827,7 +2827,7 @@ const EditProgramView = ({ programData, onProgramDataChange, onBack, onNavigate 
         const newSchedule = [...program.weeklySchedule];
         const newDayName = `Day ${newSchedule.length + 1}`;
         const restTemplate = Object.keys(program.programStructure).find(name => program.programStructure[name]?.isRest) || 'Rest Day';
-        newSchedule.push({ day: newDayName, workout: restTemplate });
+        newSchedule.push({ day: newDayName, workout: restTemplate, id: crypto.randomUUID() });
         updateProgram({ weeklySchedule: newSchedule });
     };
 
@@ -3085,33 +3085,27 @@ const EditProgramView = ({ programData, onProgramDataChange, onBack, onNavigate 
             const reorderedSchedule = Array.from(program.weeklySchedule);
             const [movedItem] = reorderedSchedule.splice(source.index, 1);
             reorderedSchedule.splice(destination.index, 0, movedItem);
-
-            // Re-assign the day labels (Mon, Tue, etc.) based on the new order
-            const finalSchedule = reorderedSchedule.map((item, index) => ({
-                ...item,
-                day: program.weeklySchedule[index].day,
-            }));
-
-            updateProgram({ weeklySchedule: finalSchedule });
+            updateProgram({ weeklySchedule: reorderedSchedule });
             return;
         }
     
         if (type === 'exercise') {
-            const sourceDroppableId = source.droppableId;
-            const destDroppableId = destination.droppableId;
+            const getScheduleId = (droppableId) => droppableId.startsWith('exercises-') ? droppableId.substring('exercises-'.length) : droppableId;
+            const sourceScheduleId = getScheduleId(source.droppableId);
+            const destScheduleId = getScheduleId(destination.droppableId);
 
             const newProgramStructure = JSON.parse(JSON.stringify(program.programStructure));
 
             // Find the workout name associated with the droppable ID (which is now a schedule item ID)
-            const sourceScheduleItem = program.weeklySchedule.find(item => item.id === sourceDroppableId);
-            const destScheduleItem = program.weeklySchedule.find(item => item.id === destDroppableId);
+            const sourceScheduleItem = program.weeklySchedule.find(item => item.id === sourceScheduleId);
+            const destScheduleItem = program.weeklySchedule.find(item => item.id === destScheduleId);
 
             if (!sourceScheduleItem || !destScheduleItem) return;
 
             const sourceWorkout = newProgramStructure[sourceScheduleItem.workout];
             const destWorkout = newProgramStructure[destScheduleItem.workout];
 
-            if (sourceDroppableId === destDroppableId) {
+            if (sourceScheduleId === destScheduleId) {
                 // Reordering within the same list
                 const [movedItem] = sourceWorkout.exercises.splice(source.index, 1);
                 sourceWorkout.exercises.splice(destination.index, 0, movedItem);
@@ -3325,7 +3319,7 @@ const EditProgramView = ({ programData, onProgramDataChange, onBack, onNavigate 
                                                     </div>
                                                     {!isRest && (
                                                         <>
-                                                            <Droppable droppableId={scheduleItem.id} type="exercise">
+                                                            <Droppable droppableId={`exercises-${scheduleItem.id}`} type="exercise">
                                                                 {(provided) => (
                                                                     <ul {...provided.droppableProps} ref={provided.innerRef} className="space-y-2 mb-3 min-h-[50px]">
                                                                         {workoutDetails.exercises.map((ex, index) => (
