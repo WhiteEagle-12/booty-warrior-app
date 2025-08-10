@@ -771,6 +771,17 @@ const migrateProgramData = (program) => {
         }));
     }
 
+    // V3 Migration: Ensure exercises in templates are objects with unique IDs for stable DnD.
+    for (const key in newProgram.programStructure) {
+        const template = newProgram.programStructure[key];
+        if (template && template.exercises && template.exercises.length > 0 && typeof template.exercises[0] === 'string') {
+            template.exercises = template.exercises.map(exName => ({
+                id: crypto.randomUUID(),
+                name: exName
+            }));
+        }
+    }
+
     return newProgram;
 };
 
@@ -1196,7 +1207,7 @@ const EditDayWorkoutModal = ({
     };
 
     const handleAddExerciseCallback = (exerciseName, exerciseDetails) => {
-        const newExercises = [...editedWorkout.exercises, exerciseName];
+        const newExercises = [...editedWorkout.exercises, { id: crypto.randomUUID(), name: exerciseName }];
         setEditedWorkout({ ...editedWorkout, exercises: newExercises });
         // The parent component will handle adding the details to the master list if needed
         // This is passed to onAddExercise which should handle the modal logic
@@ -1211,15 +1222,15 @@ const EditDayWorkoutModal = ({
                     {(provided) => (
                         <ul {...provided.droppableProps} ref={provided.innerRef} className="space-y-2 mb-3 min-h-[50px] max-h-60 overflow-y-auto pr-2">
                             {editedWorkout.exercises.map((ex, index) => (
-                                <Draggable key={`${workoutName}-${ex}-${index}`} draggableId={`${workoutName}-${ex}-${index}`} index={index}>
+                                <Draggable key={ex.id} draggableId={ex.id} index={index}>
                                     {(provided) => (
                                         <li ref={provided.innerRef} {...provided.draggableProps} {...provided.dragHandleProps} className="flex justify-between items-center p-2 bg-gray-50 dark:bg-gray-700/50 rounded-md group">
                                             <div className="flex items-center gap-2">
                                                 <Move size={16} className="text-gray-400" />
-                                                <span className="font-medium">{ex}</span>
+                                                <span className="font-medium">{ex.name}</span>
                                             </div>
                                             <div className="flex items-center gap-1 text-gray-500">
-                                                <button onClick={() => onEditExercise(ex)} className="p-1 opacity-0 group-hover:opacity-100 transition-opacity"><Pencil size={16}/></button>
+                                                <button onClick={() => onEditExercise(ex.name)} className="p-1 opacity-0 group-hover:opacity-100 transition-opacity"><Pencil size={16}/></button>
                                                 <button onClick={() => handleRemoveExercise(index)} className="p-1 opacity-0 group-hover:opacity-100 transition-opacity"><XCircle size={16}/></button>
                                             </div>
                                         </li>
@@ -1562,10 +1573,10 @@ const LiftingSession = ({ week, dayKey, onBack, allLogs, setAllLogs, onSkipDay, 
                 <p className="text-lg text-gray-600 dark:text-gray-400">{workoutDisplayName}</p>
             </div>
             <div className="space-y-4">
-                {workout.exercises.map(exName => 
+                {workout.exercises.map(ex =>
                     <ExerciseCard 
-                        key={exName} 
-                        exerciseName={exName} 
+                        key={ex.id}
+                        exerciseName={ex.name}
                         week={week} 
                         dayKey={dayKey} 
                         allLogs={allLogs} 
@@ -1704,11 +1715,11 @@ const SequentialView = ({ onSessionSelect, allLogs, programData }) => {
                 continue;
             }
 
-            const isComplete = workout.exercises.every(exName => {
-                const exDetails = getExerciseDetails(exName, masterExerciseList);
+            const isComplete = workout.exercises.every(ex => {
+                const exDetails = getExerciseDetails(ex.name, masterExerciseList);
                 if (!exDetails) return false;
                 return Array.from({ length: Number(exDetails.sets) }, (_, setIdx) => setIdx + 1).every(setNum => {
-                    const log = allLogs[`${week}-${dayKey}-${exName}-${setNum}`];
+                    const log = allLogs[`${week}-${dayKey}-${ex.name}-${setNum}`];
                     return isSetLogComplete(log);
                 });
             });
@@ -1858,8 +1869,8 @@ const DashboardView = ({ allLogs, programData, bodyWeightHistory }) => {
                 if (workoutName && !programData.programStructure[workoutName]?.isRest) {
                     const workout = getWorkoutForWeek(programData, 1, workoutName);
                     if (workout) {
-                        workout.exercises.forEach(exName => {
-                            const details = getExerciseDetails(exName, masterExerciseList);
+                        workout.exercises.forEach(ex => {
+                            const details = getExerciseDetails(ex.name, masterExerciseList);
                             if (details) weeklySetsCount += Number(details.sets) || 0;
                         });
                     }
@@ -1869,8 +1880,8 @@ const DashboardView = ({ allLogs, programData, bodyWeightHistory }) => {
              workoutOrder.forEach(workoutName => {
                 const workout = getWorkoutForWeek(programData, 1, workoutName);
                 if(workout) {
-                    workout.exercises.forEach(exName => {
-                        const details = getExerciseDetails(exName, masterExerciseList);
+                    workout.exercises.forEach(ex => {
+                        const details = getExerciseDetails(ex.name, masterExerciseList);
                         if(details) weeklySetsCount += Number(details.sets) || 0;
                     });
                 }
@@ -1890,9 +1901,9 @@ const DashboardView = ({ allLogs, programData, bodyWeightHistory }) => {
                 const workout = getWorkoutForWeek(programData, w, workoutName);
                 if(!workout) return true;
                 return workout.exercises.every(ex => {
-                    const details = getExerciseDetails(ex, masterExerciseList);
+                    const details = getExerciseDetails(ex.name, masterExerciseList);
                     if(!details) return false;
-                    return Array.from({length: Number(details.sets)}, (_, i) => i + 1).every(setNum => isSetLogComplete(allLogs[`${w}-${day.day}-${ex}-${setNum}`]));
+                    return Array.from({length: Number(details.sets)}, (_, i) => i + 1).every(setNum => isSetLogComplete(allLogs[`${w}-${day.day}-${ex.name}-${setNum}`]));
                 });
             });
             if (!isWeekComplete) {
@@ -2959,8 +2970,8 @@ const EditProgramView = ({ programData, onProgramDataChange, onBack, onNavigate 
                 masterExerciseList={myExercises}
                 onAdd={(exerciseName, exerciseDetails) => {
                     const newProgramStructure = JSON.parse(JSON.stringify(program.programStructure));
-                    newProgramStructure[workoutName].exercises.push(exerciseName);
-                    
+                    newProgramStructure[workoutName].exercises.push({ id: crypto.randomUUID(), name: exerciseName });
+
                     let newMasterList = { ...program.masterExerciseList };
                     if (exerciseDetails && !newMasterList[exerciseName]) {
                         newMasterList[exerciseName] = exerciseDetails;
@@ -2993,7 +3004,7 @@ const EditProgramView = ({ programData, onProgramDataChange, onBack, onNavigate 
                     // Update all workout structures
                     const newProgramStructure = JSON.parse(JSON.stringify(program.programStructure));
                     Object.keys(newProgramStructure).forEach(workoutKey => {
-                        newProgramStructure[workoutKey].exercises = newProgramStructure[workoutKey].exercises.map(ex => ex === exerciseName ? newName : ex);
+                        newProgramStructure[workoutKey].exercises = newProgramStructure[workoutKey].exercises.map(ex => ex.name === exerciseName ? { ...ex, name: newName } : ex);
                     });
 
                     updateProgram({ masterExerciseList: newMasterList, programStructure: newProgramStructure });
@@ -3005,7 +3016,7 @@ const EditProgramView = ({ programData, onProgramDataChange, onBack, onNavigate 
 
                     const newProgramStructure = JSON.parse(JSON.stringify(program.programStructure));
                     Object.keys(newProgramStructure).forEach(workoutKey => {
-                        newProgramStructure[workoutKey].exercises = newProgramStructure[workoutKey].exercises.filter(ex => ex !== nameToDelete);
+                        newProgramStructure[workoutKey].exercises = newProgramStructure[workoutKey].exercises.filter(ex => ex.name !== nameToDelete);
                     });
 
                     updateProgram({ masterExerciseList: newMasterList, programStructure: newProgramStructure });
@@ -3323,12 +3334,12 @@ const EditProgramView = ({ programData, onProgramDataChange, onBack, onNavigate 
                                                                 {(provided) => (
                                                                     <ul {...provided.droppableProps} ref={provided.innerRef} className="space-y-2 mb-3 min-h-[50px]">
                                                                         {workoutDetails.exercises.map((ex, index) => (
-                                                                            <Draggable key={`${scheduleItem.id}-${ex}-${index}`} draggableId={`${scheduleItem.id}-${ex}-${index}`} index={index}>
+                                                                            <Draggable key={ex.id} draggableId={ex.id} index={index}>
                                                                                 {(provided) => (
                                                                                     <li ref={provided.innerRef} {...provided.draggableProps} {...provided.dragHandleProps} className="flex justify-between items-center p-2 bg-gray-50 dark:bg-gray-700/50 rounded-md group">
-                                                                                        <span className="font-medium">{ex}</span>
+                                                                                        <span className="font-medium">{ex.name}</span>
                                                                                         <div className="flex items-center gap-1 text-gray-500">
-                                                                                            <button onClick={() => handleEditExerciseDetails(ex)} className="p-1 opacity-0 group-hover:opacity-100 transition-opacity"><Pencil size={16}/></button>
+                                                                                            <button onClick={() => handleEditExerciseDetails(ex.name)} className="p-1 opacity-0 group-hover:opacity-100 transition-opacity"><Pencil size={16}/></button>
                                                                                             <button onClick={() => handleRemoveExerciseFromWorkout(workoutName, index)} className="p-1 opacity-0 group-hover:opacity-100 transition-opacity"><XCircle size={16}/></button>
                                                                                         </div>
                                                                                     </li>
@@ -3618,7 +3629,7 @@ const SharedProgramPreview = ({ program, onBack, onSelect, backButtonText = "Bac
                             <h3 className="font-bold text-lg text-gray-900 dark:text-white mb-2">{workoutName}</h3>
                             <ul className="list-disc list-inside space-y-1 text-sm">
                                 {(workoutDetails.exercises || []).map(ex => (
-                                    <li key={ex}>{ex}</li>
+                                    <li key={ex.id}>{ex.name}</li>
                                 ))}
                             </ul>
                         </div>
@@ -3813,11 +3824,11 @@ const ProgramManagerView = ({ onProgramUpdate, activeProgram, programInstances, 
             if (!program.programStructure[workoutName]?.isRest) {
                 const workoutDetails = programStructure[workoutName];
                 if (workoutDetails) {
-                    workoutDetails.exercises.forEach(exName => {
-                        const exDetails = masterExerciseList[exName];
+                    workoutDetails.exercises.forEach(ex => {
+                        const exDetails = masterExerciseList[ex.name];
                         if (exDetails) {
                             rows.push([
-                                `"${workoutName}"`, day, `"${exName}"`, exDetails.sets, `"${exDetails.reps}"`,
+                                `"${workoutName}"`, day, `"${ex.name}"`, exDetails.sets, `"${exDetails.reps}"`,
                                 `"${Array.isArray(exDetails.rir) ? exDetails.rir.join(';') : exDetails.rir}"`,
                                 `"${exDetails.rest}"`, `"${exDetails.muscles?.primary || ''}"`,
                                 `"${exDetails.muscles?.secondary || ''}"`, `"${exDetails.muscles?.tertiary || ''}"`
@@ -4156,11 +4167,11 @@ const calculateStreak = (allLogs, programData) => {
         const workout = getWorkoutForWeek(programData, week, workoutName);
         if (!workout) return true; // Rest days are always "complete" for streak purposes
 
-        return workout.exercises.every(exName => {
-            const exDetails = getExerciseDetails(exName, masterExerciseList);
+        return workout.exercises.every(ex => {
+            const exDetails = getExerciseDetails(ex.name, masterExerciseList);
             if (!exDetails) return false;
             return Array.from({ length: Number(exDetails.sets) }, (_, i) => i + 1).every(setNum => {
-                const log = allLogs[`${week}-${dayKey}-${exName}-${setNum}`];
+                const log = allLogs[`${week}-${dayKey}-${ex.name}-${setNum}`];
                 return isSetLogComplete(log);
             });
         });
@@ -4169,10 +4180,10 @@ const calculateStreak = (allLogs, programData) => {
     const hasAnyLogInDay = (week, dayKey, workoutName) => {
         const workout = getWorkoutForWeek(programData, week, workoutName);
         if (!workout) return false;
-         return workout.exercises.some(exName => {
-             const exDetails = getExerciseDetails(exName, masterExerciseList);
+         return workout.exercises.some(ex => {
+             const exDetails = getExerciseDetails(ex.name, masterExerciseList);
              if (!exDetails) return false;
-             return Array.from({ length: Number(exDetails.sets) }, (_, i) => i + 1).some(setNum => !!allLogs[`${week}-${dayKey}-${exName}-${setNum}`]);
+             return Array.from({ length: Number(exDetails.sets) }, (_, i) => i + 1).some(setNum => !!allLogs[`${week}-${dayKey}-${ex.name}-${setNum}`]);
         });
     }
     
@@ -5383,11 +5394,11 @@ const AppCore = () => {
                     return;
                 }
 
-                const isDayComplete = workout.exercises.every(exName => {
-                    const exDetails = getExerciseDetails(exName, programData.masterExerciseList);
+                const isDayComplete = workout.exercises.every(ex => {
+                    const exDetails = getExerciseDetails(ex.name, programData.masterExerciseList);
                     if (!exDetails) return false;
                     return Array.from({ length: Number(exDetails.sets) }, (_, i) => i + 1).every(setNum => {
-                        const log = allLogs[`${dayKey}-${exName}-${setNum}`];
+                        const log = allLogs[`${dayKey}-${ex.name}-${setNum}`];
                         return isSetLogComplete(log);
                     });
                 });
