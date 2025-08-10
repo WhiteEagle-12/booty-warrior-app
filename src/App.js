@@ -667,12 +667,16 @@ const exerciseBank = {
 };
 
 // --- Helper Functions & Context ---
-const getExerciseDetails = (exerciseName, masterList) => masterList?.[exerciseName] || null;
+const getExerciseDetails = (exerciseName, masterList) => {
+    // This function is now more robust. It can be passed either the full programData object or the masterExerciseList directly.
+    const list = masterList?.masterExerciseList || masterList;
+    return list?.[exerciseName] || null;
+};
 
 const getWorkoutForWeek = (programData, week, workoutName) => {
     // This function now only retrieves the master template. Overrides are handled at the schedule level.
-    if (!workoutName || programData.programStructure[workoutName]?.isRest) return null;
-    return programData?.programStructure?.[workoutName] || null;
+    if (!workoutName || !programData.programStructure[workoutName] || programData.programStructure[workoutName].isRest) return null;
+    return programData.programStructure[workoutName] || null;
 };
 
 const getWorkoutNameForDay = (pData, week, dayKey) => {
@@ -701,11 +705,8 @@ const migrateProgramData = (program) => {
         : JSON.parse(JSON.stringify(program));
 
 
-    // Check if all templates already have the isRest property.
-    const isAlreadyMigrated = Object.values(newProgram.programStructure).every(template => template.isRest !== undefined);
-    if (isAlreadyMigrated && !isMalformed) { // If it was malformed, we should continue to ensure full migration.
-        return newProgram;
-    }
+    // V2 & V3 migrations are now idempotent and will run on every load to ensure data integrity.
+    // The old early return based on `isRest` property was preventing V3 migration on V2-era data.
 
     let restTemplateName = "Rest Day";
 
