@@ -4956,20 +4956,27 @@ const AppCore = () => {
     const handleProgramUpdate = useCallback((newProgramTemplate) => {
         const newInstance = {
             id: crypto.randomUUID(),
-            program: { ...migrateProgramData(newProgramTemplate), weeklyOverrides: {} },
+            program: migrateProgramData(newProgramTemplate), // All program data is encapsulated here
             createdAt: new Date().toISOString(),
             lastModified: new Date().toISOString()
         };
+
+        // Ensure weeklyOverrides is a blank slate for a new program instance.
+        if (!newInstance.program.weeklyOverrides) {
+            newInstance.program.weeklyOverrides = {};
+        }
+
         setProgramInstances(prevInstances => {
             const newInstances = [...prevInstances, newInstance];
-            // BUG FIX: DO NOT CLEAR LOGS. Only update program instances.
-            // Logs are persistent per user, not per program.
-            handleUpdateAndSave({ 
-                programInstances: newInstances, 
-                activeInstanceId: newInstance.id, 
+            // When loading a new program, we are creating a new "instance" of it.
+            // We only need to save the new list of instances and set the active one.
+            handleUpdateAndSave({
+                programInstances: newInstances,
+                activeInstanceId: newInstance.id,
             });
             return newInstances;
         });
+
         setActiveInstanceId(newInstance.id);
         addToast(`Program "${newInstance.program.name}" loaded!`, "success");
         navigate('main');
