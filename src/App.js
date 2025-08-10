@@ -4956,7 +4956,7 @@ const AppCore = () => {
     const handleProgramUpdate = useCallback((newProgramTemplate) => {
         const newInstance = {
             id: crypto.randomUUID(),
-            program: { ...newProgramTemplate, weeklyOverrides: {} },
+            program: { ...migrateProgramData(newProgramTemplate), weeklyOverrides: {} },
             createdAt: new Date().toISOString(),
             lastModified: new Date().toISOString()
         };
