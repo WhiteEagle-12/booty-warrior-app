@@ -695,6 +695,7 @@ const migrateProgramData = (program) => {
         }
     }
 
+    // V2 Migration: Ensure every item in weeklySchedule has a unique ID.
     let newProgram = isMalformed
         ? JSON.parse(JSON.stringify({ ...defaultPreset, ...program }))
         : JSON.parse(JSON.stringify(program));
@@ -760,6 +761,14 @@ const migrateProgramData = (program) => {
                 }
             }
         }
+    }
+
+    // V2 Migration: Ensure every item in weeklySchedule has a unique ID.
+    if (newProgram.weeklySchedule && newProgram.weeklySchedule.every(day => day.id === undefined)) {
+        newProgram.weeklySchedule = newProgram.weeklySchedule.map(day => ({
+            ...day,
+            id: crypto.randomUUID(),
+        }));
     }
 
     return newProgram;
@@ -2795,47 +2804,6 @@ const MasterScheduleEditor = ({ program, onProgramDataChange }) => {
     );
 };
 
-const getRemappedProgram = (program, newWorkoutOrder) => {
-    const oldWorkoutOrder = program.workoutOrder;
-    const { programStructure, weeklySchedule, weeklyOverrides } = program;
-
-    const oldWorkoutDays = oldWorkoutOrder.filter(name => !programStructure[name]?.isRest);
-    const newWorkoutDays = newWorkoutOrder.filter(name => !programStructure[name]?.isRest);
-
-    if (oldWorkoutDays.length === 0 || newWorkoutDays.length === 0) {
-        return { ...program, workoutOrder: newWorkoutOrder };
-    }
-
-    const mapping = {};
-    oldWorkoutDays.forEach((oldName, index) => {
-        if (index < newWorkoutDays.length) {
-            mapping[oldName] = newWorkoutDays[index];
-        }
-    });
-
-    const remappedSchedule = weeklySchedule.map(day => {
-        const mappedWorkout = mapping[day.workout];
-        return mappedWorkout ? { ...day, workout: mappedWorkout } : day;
-    });
-
-    const remappedOverrides = JSON.parse(JSON.stringify(weeklyOverrides || {}));
-    for (const week in remappedOverrides) {
-        for (const day in remappedOverrides[week]) {
-            const mappedWorkout = mapping[remappedOverrides[week][day]];
-            if (mappedWorkout) {
-                remappedOverrides[week][day] = mappedWorkout;
-            }
-        }
-    }
-
-    return {
-        ...program,
-        workoutOrder: newWorkoutOrder,
-        weeklySchedule: remappedSchedule,
-        weeklyOverrides: remappedOverrides,
-    };
-};
-
 const EditProgramView = ({ programData, onProgramDataChange, onBack, onNavigate }) => {
     const { openModal, closeModal } = useContext(AppStateContext);
     const [program, setProgram] = useState(programData);
@@ -2982,14 +2950,6 @@ const EditProgramView = ({ programData, onProgramDataChange, onBack, onNavigate 
         openModal(<RenameWorkoutModal oldName={name} onSave={(newName) => handleRenameWorkoutDay(name, newName)} onClose={closeModal} />)
     };
     
-    const handleReorderWorkoutDay = (workoutIndex, direction) => {
-        const newOrder = [...program.workoutOrder];
-        const [movedItem] = newOrder.splice(workoutIndex, 1);
-        newOrder.splice(workoutIndex + direction, 0, movedItem);
-
-        const remappedProgram = getRemappedProgram(program, newOrder);
-        updateProgram(remappedProgram);
-    };
 
     const handleAddExerciseToWorkout = (workoutName) => {
         const myExercises = program.masterExerciseList;
@@ -3120,30 +3080,38 @@ const EditProgramView = ({ programData, onProgramDataChange, onBack, onNavigate 
     const onDragEnd = (result) => {
         if (!result.destination) return;
         const { source, destination, type } = result;
-    
+
         if (type === 'workoutDay') {
-            const masterTemplates = program.workoutOrder.filter(name => !name.includes('(Custom W)'));
-            const reorderedMasterTemplates = Array.from(masterTemplates);
-            const [movedItem] = reorderedMasterTemplates.splice(source.index, 1);
-            reorderedMasterTemplates.splice(destination.index, 0, movedItem);
+            const reorderedSchedule = Array.from(program.weeklySchedule);
+            const [movedItem] = reorderedSchedule.splice(source.index, 1);
+            reorderedSchedule.splice(destination.index, 0, movedItem);
 
-            const customWorkouts = program.workoutOrder.filter(name => name.includes('(Custom W'));
-            const newOrder = [...reorderedMasterTemplates, ...customWorkouts];
+            // Re-assign the day labels (Mon, Tue, etc.) based on the new order
+            const finalSchedule = reorderedSchedule.map((item, index) => ({
+                ...item,
+                day: program.weeklySchedule[index].day,
+            }));
 
-            const remappedProgram = getRemappedProgram(program, newOrder);
-            updateProgram(remappedProgram);
+            updateProgram({ weeklySchedule: finalSchedule });
             return;
         }
     
         if (type === 'exercise') {
-            const sourceWorkoutName = source.droppableId;
-            const destWorkoutName = destination.droppableId;
-    
+            const sourceDroppableId = source.droppableId;
+            const destDroppableId = destination.droppableId;
+
             const newProgramStructure = JSON.parse(JSON.stringify(program.programStructure));
-            const sourceWorkout = newProgramStructure[sourceWorkoutName];
-            const destWorkout = newProgramStructure[destWorkoutName];
-    
-            if (sourceWorkoutName === destWorkoutName) {
+
+            // Find the workout name associated with the droppable ID (which is now a schedule item ID)
+            const sourceScheduleItem = program.weeklySchedule.find(item => item.id === sourceDroppableId);
+            const destScheduleItem = program.weeklySchedule.find(item => item.id === destDroppableId);
+
+            if (!sourceScheduleItem || !destScheduleItem) return;
+
+            const sourceWorkout = newProgramStructure[sourceScheduleItem.workout];
+            const destWorkout = newProgramStructure[destScheduleItem.workout];
+
+            if (sourceDroppableId === destDroppableId) {
                 // Reordering within the same list
                 const [movedItem] = sourceWorkout.exercises.splice(source.index, 1);
                 sourceWorkout.exercises.splice(destination.index, 0, movedItem);
@@ -3327,39 +3295,41 @@ const EditProgramView = ({ programData, onProgramDataChange, onBack, onNavigate 
                 {/* Workout Day List */}
                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white my-3">Master Workout Templates</h3>
                  <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">Drag exercises to reorder them within a day, or drag them to another day entirely.</p>
-                <Droppable droppableId="all-workouts" direction="vertical" type="workoutDay">
+                <Droppable droppableId="weekly-schedule-editor" direction="vertical" type="workoutDay">
                     {(provided) => (
                         <div {...provided.droppableProps} ref={provided.innerRef} className="space-y-4">
-                            {program.workoutOrder.filter(name => !name.includes('(Custom W')).map((workoutName, workoutIndex) => {
+                            {program.weeklySchedule.map((scheduleItem, index) => {
+                                const workoutName = scheduleItem.workout;
                                 const workoutDetails = program.programStructure[workoutName];
                                 if (!workoutDetails) return null;
                                 const isRest = workoutDetails.isRest;
+
                                 return (
-                                    <Draggable key={workoutName} draggableId={workoutName} index={workoutIndex}>
+                                    <Draggable key={scheduleItem.id} draggableId={scheduleItem.id} index={index}>
                                         {(provided) => (
-                                            <div ref={provided.innerRef} {...provided.draggableProps} id={`workout-day-editor-${workoutName}`}>
+                                            <div ref={provided.innerRef} {...provided.draggableProps} id={`workout-day-editor-${scheduleItem.id}`}>
                                                 <div className={`rounded-xl shadow-md p-4 ${isRest ? 'bg-indigo-100 dark:bg-indigo-900/50' : 'bg-white dark:bg-gray-800'}`}>
                                                     <div className="flex justify-between items-center mb-3 border-b border-gray-200 dark:border-gray-700 pb-3">
                                                         <div {...provided.dragHandleProps} className="flex items-center gap-2 cursor-grab flex-grow">
                                                             <Move size={20} className="text-gray-400" />
-                                                            <button onClick={() => startEditingName(workoutName)} className="text-xl font-bold text-gray-800 dark:text-gray-200 text-left hover:text-blue-500 dark:hover:text-blue-400 transition-colors">
-                                                                {workoutName}
-                                                            </button>
+                                                            <div>
+                                                                <div className="text-sm font-bold text-gray-500 dark:text-gray-400">{scheduleItem.day}</div>
+                                                                <button onClick={() => startEditingName(workoutName)} className="text-xl font-bold text-gray-800 dark:text-gray-200 text-left hover:text-blue-500 dark:hover:text-blue-400 transition-colors">
+                                                                    {workoutName}
+                                                                </button>
+                                                            </div>
                                                         </div>
                                                         <div className="flex items-center gap-2">
-                                                            <button onClick={() => handleToggleTemplateType(workoutName)} title={isRest ? "Convert to Workout Day" : "Convert to Rest Day"} className="p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full">
-                                                                {isRest ? <Dumbbell size={20} className="text-green-500" /> : <Shield size={20} className="text-indigo-500" />}
-                                                            </button>
-                                                            <button onClick={() => handleDeleteWorkoutDay(workoutName)} className="p-1 hover:text-red-500"><XCircle size={20}/></button>
+                                                             <button onClick={() => handleDeleteWorkoutDay(workoutName)} className="p-1 hover:text-red-500"><XCircle size={20}/></button>
                                                         </div>
                                                     </div>
                                                     {!isRest && (
                                                         <>
-                                                            <Droppable droppableId={workoutName} type="exercise">
+                                                            <Droppable droppableId={scheduleItem.id} type="exercise">
                                                                 {(provided) => (
                                                                     <ul {...provided.droppableProps} ref={provided.innerRef} className="space-y-2 mb-3 min-h-[50px]">
                                                                         {workoutDetails.exercises.map((ex, index) => (
-                                                                            <Draggable key={`${workoutName}-${ex}-${index}`} draggableId={`${workoutName}-${ex}-${index}`} index={index}>
+                                                                            <Draggable key={`${scheduleItem.id}-${ex}-${index}`} draggableId={`${scheduleItem.id}-${ex}-${index}`} index={index}>
                                                                                 {(provided) => (
                                                                                     <li ref={provided.innerRef} {...provided.draggableProps} {...provided.dragHandleProps} className="flex justify-between items-center p-2 bg-gray-50 dark:bg-gray-700/50 rounded-md group">
                                                                                         <span className="font-medium">{ex}</span>
