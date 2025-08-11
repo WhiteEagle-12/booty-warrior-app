@@ -2874,22 +2874,8 @@ const EditProgramView = ({ programData, onProgramDataChange, onBack, onNavigate 
     const handleRemoveLastDayFromSchedule = () => {
         onProgramDataChange(p => {
             if (p.weeklySchedule.length <= 1) return p;
-
-            const lastDay = p.weeklySchedule[p.weeklySchedule.length - 1];
-            const workoutNameToRemove = lastDay.workout;
             const newSchedule = p.weeklySchedule.slice(0, -1);
-
-            const isTemplateUsedElsewhere = newSchedule.some(d => d.workout === workoutNameToRemove) ||
-                Object.values(p.weeklyOverrides || {}).some(week => Object.values(week).includes(workoutNameToRemove));
-
-            if (!isTemplateUsedElsewhere) {
-                const newProgramStructure = { ...p.programStructure };
-                delete newProgramStructure[workoutNameToRemove];
-                const newWorkoutOrder = p.workoutOrder.filter(name => name !== workoutNameToRemove);
-                return { ...p, weeklySchedule: newSchedule, programStructure: newProgramStructure, workoutOrder: newWorkoutOrder };
-            } else {
-                return { ...p, weeklySchedule: newSchedule };
-            }
+            return { ...p, weeklySchedule: newSchedule };
         });
     };
 
