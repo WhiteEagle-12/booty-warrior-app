@@ -2823,69 +2823,83 @@ const EditProgramView = ({ programData, onProgramDataChange, onBack, onNavigate 
     const [isScheduleOpen, setScheduleOpen] = useState(false);
 
     const handleInfoChange = (field, value) => {
-        onProgramDataChange({ ...programData, info: { ...programData.info, [field]: value } });
+        onProgramDataChange(currentProgramData => ({
+            ...currentProgramData,
+            info: { ...currentProgramData.info, [field]: value }
+        }));
     };
 
     const handleAddDayToSchedule = () => {
-        const newSchedule = [...programData.weeklySchedule];
-        const newDayName = `Day ${newSchedule.length + 1}`;
-        const restTemplate = Object.keys(programData.programStructure).find(name => programData.programStructure[name]?.isRest) || 'Rest Day';
-        newSchedule.push({ day: newDayName, workout: restTemplate, id: crypto.randomUUID() });
-        onProgramDataChange({ ...programData, weeklySchedule: newSchedule });
+        onProgramDataChange(currentProgramData => {
+            const newSchedule = [...currentProgramData.weeklySchedule];
+            const newDayName = `Day ${newSchedule.length + 1}`;
+            const restTemplate = Object.keys(currentProgramData.programStructure).find(name => currentProgramData.programStructure[name]?.isRest) || 'Rest Day';
+            newSchedule.push({ day: newDayName, workout: restTemplate, id: crypto.randomUUID() });
+            return { ...currentProgramData, weeklySchedule: newSchedule };
+        });
     };
 
     const handleRemoveLastDayFromSchedule = () => {
-        if (programData.weeklySchedule.length > 1) {
-            const newSchedule = programData.weeklySchedule.slice(0, -1);
-            onProgramDataChange({ ...programData, weeklySchedule: newSchedule });
-        }
+        onProgramDataChange(currentProgramData => {
+            if (currentProgramData.weeklySchedule.length > 1) {
+                const newSchedule = currentProgramData.weeklySchedule.slice(0, -1);
+                return { ...currentProgramData, weeklySchedule: newSchedule };
+            }
+            return currentProgramData;
+        });
     };
 
     const handleAddWorkoutDay = () => {
-        const newWorkoutName = `New Workout ${Object.keys(programData.programStructure).length + 1}`;
-        const newProgramStructure = {
-            ...programData.programStructure,
-            [newWorkoutName]: { exercises: [], label: 'New', isRest: false }
-        };
-        const newWorkoutOrder = [...programData.workoutOrder, newWorkoutName];
-        const newSchedule = [
-            ...programData.weeklySchedule,
-            { day: `Day ${programData.weeklySchedule.length + 1}`, workout: newWorkoutName, id: crypto.randomUUID() }
-        ];
-        onProgramDataChange({
-            ...programData,
-            programStructure: newProgramStructure,
-            workoutOrder: newWorkoutOrder,
-            weeklySchedule: newSchedule
+        onProgramDataChange(currentProgramData => {
+            const newWorkoutName = `New Workout ${Object.keys(currentProgramData.programStructure).length + 1}`;
+            const newProgramStructure = {
+                ...currentProgramData.programStructure,
+                [newWorkoutName]: { exercises: [], label: 'New', isRest: false }
+            };
+            const newWorkoutOrder = [...currentProgramData.workoutOrder, newWorkoutName];
+            const newSchedule = [
+                ...currentProgramData.weeklySchedule,
+                { day: `Day ${currentProgramData.weeklySchedule.length + 1}`, workout: newWorkoutName, id: crypto.randomUUID() }
+            ];
+            return {
+                ...currentProgramData,
+                programStructure: newProgramStructure,
+                workoutOrder: newWorkoutOrder,
+                weeklySchedule: newSchedule
+            };
         });
     };
 
     const handleAddNewRestDay = () => {
-        const newRestDayName = `Rest Day ${Object.values(programData.programStructure).filter(p => p.isRest).length + 1}`;
-        const newProgramStructure = {
-            ...programData.programStructure,
-            [newRestDayName]: { exercises: [], label: 'Rest', isRest: true }
-        };
-        const newWorkoutOrder = [...programData.workoutOrder, newRestDayName];
-        const newSchedule = [
-            ...programData.weeklySchedule,
-            { day: `Day ${programData.weeklySchedule.length + 1}`, workout: newRestDayName, id: crypto.randomUUID() }
-        ];
-        onProgramDataChange({
-            ...programData,
-            programStructure: newProgramStructure,
-            workoutOrder: newWorkoutOrder,
-            weeklySchedule: newSchedule
+        onProgramDataChange(currentProgramData => {
+            const newRestDayName = `Rest Day ${Object.values(currentProgramData.programStructure).filter(p => p.isRest).length + 1}`;
+            const newProgramStructure = {
+                ...currentProgramData.programStructure,
+                [newRestDayName]: { exercises: [], label: 'Rest', isRest: true }
+            };
+            const newWorkoutOrder = [...currentProgramData.workoutOrder, newRestDayName];
+            const newSchedule = [
+                ...currentProgramData.weeklySchedule,
+                { day: `Day ${currentProgramData.weeklySchedule.length + 1}`, workout: newRestDayName, id: crypto.randomUUID() }
+            ];
+            return {
+                ...currentProgramData,
+                programStructure: newProgramStructure,
+                workoutOrder: newWorkoutOrder,
+                weeklySchedule: newSchedule
+            };
         });
     };
 
     const handleToggleTemplateType = (workoutName) => {
-        const newProgramStructure = JSON.parse(JSON.stringify(programData.programStructure));
-        const template = newProgramStructure[workoutName];
-        if (template) {
-            template.isRest = !template.isRest;
-        }
-        onProgramDataChange({ ...programData, programStructure: newProgramStructure });
+        onProgramDataChange(currentProgramData => {
+            const newProgramStructure = JSON.parse(JSON.stringify(currentProgramData.programStructure));
+            const template = newProgramStructure[workoutName];
+            if (template) {
+                template.isRest = !template.isRest;
+            }
+            return { ...currentProgramData, programStructure: newProgramStructure };
+        });
     };
 
     const handleDeleteWorkoutDay = (workoutNameToDelete) => {
@@ -2898,37 +2912,39 @@ const EditProgramView = ({ programData, onProgramDataChange, onBack, onNavigate 
                 <div className="flex justify-end gap-2 mt-6">
                     <button onClick={closeModal} className="px-4 py-2 bg-gray-200 dark:bg-gray-600 rounded-lg">Cancel</button>
                     <button onClick={() => {
-                        let newProgramStructure = { ...programData.programStructure };
-                        delete newProgramStructure[workoutNameToDelete];
-                        
-                        let newWorkoutOrder = programData.workoutOrder.filter(name => name !== workoutNameToDelete);
+                        onProgramDataChange(currentProgramData => {
+                            let newProgramStructure = { ...currentProgramData.programStructure };
+                            delete newProgramStructure[workoutNameToDelete];
 
-                        let finalRestTemplate = Object.keys(newProgramStructure).find(name => newProgramStructure[name]?.isRest);
-                        if (!finalRestTemplate) {
-                            finalRestTemplate = 'Rest Day';
-                            newProgramStructure[finalRestTemplate] = { exercises: [], label: "Rest", isRest: true };
-                            if (!newWorkoutOrder.includes(finalRestTemplate)) {
-                                newWorkoutOrder.push(finalRestTemplate);
-                            }
-                        }
+                            let newWorkoutOrder = currentProgramData.workoutOrder.filter(name => name !== workoutNameToDelete);
 
-                        const newSchedule = programData.weeklySchedule.filter(d => d.workout !== workoutNameToDelete);
-
-                        const newOverrides = JSON.parse(JSON.stringify(programData.weeklyOverrides || {}));
-                        for (const week in newOverrides) {
-                            for (const day in newOverrides[week]) {
-                                if (newOverrides[week][day] === workoutNameToDelete) {
-                                    newOverrides[week][day] = finalRestTemplate;
+                            let finalRestTemplate = Object.keys(newProgramStructure).find(name => newProgramStructure[name]?.isRest);
+                            if (!finalRestTemplate) {
+                                finalRestTemplate = 'Rest Day';
+                                newProgramStructure[finalRestTemplate] = { exercises: [], label: "Rest", isRest: true };
+                                if (!newWorkoutOrder.includes(finalRestTemplate)) {
+                                    newWorkoutOrder.push(finalRestTemplate);
                                 }
                             }
-                        }
 
-                        onProgramDataChange({
-                            ...programData,
-                            programStructure: newProgramStructure,
-                            workoutOrder: newWorkoutOrder,
-                            weeklySchedule: newSchedule,
-                            weeklyOverrides: newOverrides,
+                            const newSchedule = currentProgramData.weeklySchedule.filter(d => d.workout !== workoutNameToDelete);
+
+                            const newOverrides = JSON.parse(JSON.stringify(currentProgramData.weeklyOverrides || {}));
+                            for (const week in newOverrides) {
+                                for (const day in newOverrides[week]) {
+                                    if (newOverrides[week][day] === workoutNameToDelete) {
+                                        newOverrides[week][day] = finalRestTemplate;
+                                    }
+                                }
+                            }
+
+                            return {
+                                ...currentProgramData,
+                                programStructure: newProgramStructure,
+                                workoutOrder: newWorkoutOrder,
+                                weeklySchedule: newSchedule,
+                                weeklyOverrides: newOverrides,
+                            };
                         });
                         closeModal();
                     }} className="px-4 py-2 bg-red-600 text-white rounded-lg">Delete</button>
@@ -2943,28 +2959,30 @@ const EditProgramView = ({ programData, onProgramDataChange, onBack, onNavigate 
             return;
         }
 
-        const newProgramStructure = { ...programData.programStructure };
-        newProgramStructure[newName] = { ...newProgramStructure[oldName] };
-        delete newProgramStructure[oldName];
+        onProgramDataChange(currentProgramData => {
+            const newProgramStructure = { ...currentProgramData.programStructure };
+            newProgramStructure[newName] = { ...newProgramStructure[oldName] };
+            delete newProgramStructure[oldName];
 
-        const newWorkoutOrder = programData.workoutOrder.map(name => name === oldName ? newName : name);
-        const newSchedule = programData.weeklySchedule.map(d => d.workout === oldName ? { ...d, workout: newName } : d);
+            const newWorkoutOrder = currentProgramData.workoutOrder.map(name => name === oldName ? newName : name);
+            const newSchedule = currentProgramData.weeklySchedule.map(d => d.workout === oldName ? { ...d, workout: newName } : d);
 
-        const newOverrides = JSON.parse(JSON.stringify(programData.weeklyOverrides || {}));
-        for (const week in newOverrides) {
-            for (const day in newOverrides[week]) {
-                if (newOverrides[week][day] === oldName) {
-                    newOverrides[week][day] = newName;
+            const newOverrides = JSON.parse(JSON.stringify(currentProgramData.weeklyOverrides || {}));
+            for (const week in newOverrides) {
+                for (const day in newOverrides[week]) {
+                    if (newOverrides[week][day] === oldName) {
+                        newOverrides[week][day] = newName;
+                    }
                 }
             }
-        }
 
-        onProgramDataChange({
-            ...programData,
-            programStructure: newProgramStructure,
-            workoutOrder: newWorkoutOrder,
-            weeklySchedule: newSchedule,
-            weeklyOverrides: newOverrides,
+            return {
+                ...currentProgramData,
+                programStructure: newProgramStructure,
+                workoutOrder: newWorkoutOrder,
+                weeklySchedule: newSchedule,
+                weeklyOverrides: newOverrides,
+            };
         });
         closeModal();
     };
@@ -2974,24 +2992,24 @@ const EditProgramView = ({ programData, onProgramDataChange, onBack, onNavigate 
     };
     
     const handleAddExerciseToWorkout = (workoutName) => {
-        const myExercises = programData.masterExerciseList;
-
         openModal(
             <AddExerciseToWorkoutModal 
-                masterExerciseList={myExercises}
+                masterExerciseList={programData.masterExerciseList}
                 onAdd={(exerciseName, exerciseDetails) => {
-                    const newProgramStructure = JSON.parse(JSON.stringify(programData.programStructure));
-                    newProgramStructure[workoutName].exercises.push({ id: crypto.randomUUID(), name: exerciseName });
+                    onProgramDataChange(currentProgramData => {
+                        const newProgramStructure = JSON.parse(JSON.stringify(currentProgramData.programStructure));
+                        newProgramStructure[workoutName].exercises.push({ id: crypto.randomUUID(), name: exerciseName });
 
-                    let newMasterList = { ...programData.masterExerciseList };
-                    if (exerciseDetails && !newMasterList[exerciseName]) {
-                        newMasterList[exerciseName] = exerciseDetails;
-                    }
+                        let newMasterList = { ...currentProgramData.masterExerciseList };
+                        if (exerciseDetails && !newMasterList[exerciseName]) {
+                            newMasterList[exerciseName] = exerciseDetails;
+                        }
 
-                    onProgramDataChange({
-                        ...programData,
-                        programStructure: newProgramStructure,
-                        masterExerciseList: newMasterList
+                        return {
+                            ...currentProgramData,
+                            programStructure: newProgramStructure,
+                            masterExerciseList: newMasterList
+                        };
                     });
                     closeModal();
                 }}
@@ -3007,30 +3025,34 @@ const EditProgramView = ({ programData, onProgramDataChange, onBack, onNavigate 
                 exerciseName={exerciseName}
                 exercise={exerciseDetails}
                 onSave={(newDetails, newName) => {
-                    const newMasterList = { ...programData.masterExerciseList };
-                    if(exerciseName !== newName) {
-                        delete newMasterList[exerciseName];
-                    }
-                    newMasterList[newName] = newDetails;
+                    onProgramDataChange(currentProgramData => {
+                        const newMasterList = { ...currentProgramData.masterExerciseList };
+                        if(exerciseName !== newName) {
+                            delete newMasterList[exerciseName];
+                        }
+                        newMasterList[newName] = newDetails;
 
-                    const newProgramStructure = JSON.parse(JSON.stringify(programData.programStructure));
-                    Object.keys(newProgramStructure).forEach(workoutKey => {
-                        newProgramStructure[workoutKey].exercises = newProgramStructure[workoutKey].exercises.map(ex => ex.name === exerciseName ? { ...ex, name: newName } : ex);
+                        const newProgramStructure = JSON.parse(JSON.stringify(currentProgramData.programStructure));
+                        Object.keys(newProgramStructure).forEach(workoutKey => {
+                            newProgramStructure[workoutKey].exercises = newProgramStructure[workoutKey].exercises.map(ex => ex.name === exerciseName ? { ...ex, name: newName } : ex);
+                        });
+
+                        return { ...currentProgramData, masterExerciseList: newMasterList, programStructure: newProgramStructure };
                     });
-
-                    onProgramDataChange({ ...programData, masterExerciseList: newMasterList, programStructure: newProgramStructure });
                     closeModal();
                 }}
                 onDelete={(nameToDelete) => {
-                    const newMasterList = { ...programData.masterExerciseList };
-                    delete newMasterList[nameToDelete];
+                    onProgramDataChange(currentProgramData => {
+                        const newMasterList = { ...currentProgramData.masterExerciseList };
+                        delete newMasterList[nameToDelete];
 
-                    const newProgramStructure = JSON.parse(JSON.stringify(programData.programStructure));
-                    Object.keys(newProgramStructure).forEach(workoutKey => {
-                        newProgramStructure[workoutKey].exercises = newProgramStructure[workoutKey].exercises.filter(ex => ex.name !== nameToDelete);
+                        const newProgramStructure = JSON.parse(JSON.stringify(currentProgramData.programStructure));
+                        Object.keys(newProgramStructure).forEach(workoutKey => {
+                            newProgramStructure[workoutKey].exercises = newProgramStructure[workoutKey].exercises.filter(ex => ex.name !== nameToDelete);
+                        });
+
+                        return { ...currentProgramData, masterExerciseList: newMasterList, programStructure: newProgramStructure };
                     });
-
-                    onProgramDataChange({ ...programData, masterExerciseList: newMasterList, programStructure: newProgramStructure });
                     closeModal();
                 }}
                 onClose={closeModal}
@@ -3044,8 +3066,10 @@ const EditProgramView = ({ programData, onProgramDataChange, onBack, onNavigate 
             <EditExerciseModal
                 isNew={true}
                 onSave={(newDetails, newName) => {
-                    const newMasterList = { ...programData.masterExerciseList, [newName]: newDetails };
-                    onProgramDataChange({ ...programData, masterExerciseList: newMasterList });
+                    onProgramDataChange(currentProgramData => {
+                        const newMasterList = { ...currentProgramData.masterExerciseList, [newName]: newDetails };
+                        return { ...currentProgramData, masterExerciseList: newMasterList };
+                    });
                     closeModal();
                 }}
                 onClose={closeModal}
@@ -3055,40 +3079,44 @@ const EditProgramView = ({ programData, onProgramDataChange, onBack, onNavigate 
     };
 
     const handleRemoveExerciseFromWorkout = (workoutName, exerciseIndex) => {
-        const newProgramStructure = JSON.parse(JSON.stringify(programData.programStructure));
-        newProgramStructure[workoutName].exercises.splice(exerciseIndex, 1);
-        onProgramDataChange({ ...programData, programStructure: newProgramStructure });
+        onProgramDataChange(currentProgramData => {
+            const newProgramStructure = JSON.parse(JSON.stringify(currentProgramData.programStructure));
+            newProgramStructure[workoutName].exercises.splice(exerciseIndex, 1);
+            return { ...currentProgramData, programStructure: newProgramStructure };
+        });
     };
     
     const handleToggleRestDay = (week, dayKey) => {
-        const currentWorkoutName = getWorkoutNameForDay(programData, week, dayKey);
-        const isCurrentlyRest = programData.programStructure[currentWorkoutName]?.isRest;
-        let newOverrides = JSON.parse(JSON.stringify(programData.weeklyOverrides || {}));
-        if (!newOverrides[week]) {
-            newOverrides[week] = {};
-        }
+        onProgramDataChange(currentProgramData => {
+            const currentWorkoutName = getWorkoutNameForDay(currentProgramData, week, dayKey);
+            const isCurrentlyRest = currentProgramData.programStructure[currentWorkoutName]?.isRest;
+            let newOverrides = JSON.parse(JSON.stringify(currentProgramData.weeklyOverrides || {}));
+            if (!newOverrides[week]) {
+                newOverrides[week] = {};
+            }
 
-        if (!isCurrentlyRest) {
-            const restTemplate = Object.keys(programData.programStructure).find(name => programData.programStructure[name]?.isRest) || 'Rest Day';
-            newOverrides[week][dayKey] = restTemplate;
-        } else {
-            const masterWorkout = programData.weeklySchedule.find(d => d.day === dayKey)?.workout;
-            if (masterWorkout && !programData.programStructure[masterWorkout]?.isRest) {
-                delete newOverrides[week][dayKey];
+            if (!isCurrentlyRest) {
+                const restTemplate = Object.keys(currentProgramData.programStructure).find(name => currentProgramData.programStructure[name]?.isRest) || 'Rest Day';
+                newOverrides[week][dayKey] = restTemplate;
             } else {
-                const firstWorkout = programData.workoutOrder.find(name => !programData.programStructure[name]?.isRest);
-                if (firstWorkout) {
-                    newOverrides[week][dayKey] = firstWorkout;
+                const masterWorkout = currentProgramData.weeklySchedule.find(d => d.day === dayKey)?.workout;
+                if (masterWorkout && !currentProgramData.programStructure[masterWorkout]?.isRest) {
+                    delete newOverrides[week][dayKey];
                 } else {
-                    return;
+                    const firstWorkout = currentProgramData.workoutOrder.find(name => !currentProgramData.programStructure[name]?.isRest);
+                    if (firstWorkout) {
+                        newOverrides[week][dayKey] = firstWorkout;
+                    } else {
+                        return currentProgramData;
+                    }
                 }
             }
-        }
 
-        if (Object.keys(newOverrides[week]).length === 0) {
-            delete newOverrides[week];
-        }
-        onProgramDataChange({ ...programData, weeklyOverrides: newOverrides });
+            if (Object.keys(newOverrides[week]).length === 0) {
+                delete newOverrides[week];
+            }
+            return { ...currentProgramData, weeklyOverrides: newOverrides };
+        });
     };
 
     const onDragEnd = (result) => {
@@ -3096,37 +3124,43 @@ const EditProgramView = ({ programData, onProgramDataChange, onBack, onNavigate 
         const { source, destination, type } = result;
 
         if (type === 'workoutDay') {
-            const reorderedSchedule = Array.from(programData.weeklySchedule);
-            const [movedItem] = reorderedSchedule.splice(source.index, 1);
-            reorderedSchedule.splice(destination.index, 0, movedItem);
-            onProgramDataChange({ ...programData, weeklySchedule: reorderedSchedule });
+            onProgramDataChange(currentProgramData => {
+                const reorderedSchedule = Array.from(currentProgramData.weeklySchedule);
+                const [movedItem] = reorderedSchedule.splice(source.index, 1);
+                reorderedSchedule.splice(destination.index, 0, movedItem);
+                return { ...currentProgramData, weeklySchedule: reorderedSchedule };
+            });
             return;
         }
     
         if (type === 'exercise') {
-            const getScheduleId = (droppableId) => droppableId.startsWith('exercises-') ? droppableId.substring('exercises-'.length) : droppableId;
-            const sourceScheduleId = getScheduleId(source.droppableId);
-            const destScheduleId = getScheduleId(destination.droppableId);
+            onProgramDataChange(currentProgramData => {
+                const getScheduleId = (droppableId) => droppableId.startsWith('exercises-') ? droppableId.substring('exercises-'.length) : droppableId;
+                const sourceScheduleId = getScheduleId(source.droppableId);
+                const destScheduleId = getScheduleId(destination.droppableId);
 
-            const newProgramStructure = JSON.parse(JSON.stringify(programData.programStructure));
+                const newProgramStructure = JSON.parse(JSON.stringify(currentProgramData.programStructure));
 
-            const sourceScheduleItem = programData.weeklySchedule.find(item => item.id === sourceScheduleId);
-            const destScheduleItem = programData.weeklySchedule.find(item => item.id === destScheduleId);
+                const sourceScheduleItem = currentProgramData.weeklySchedule.find(item => item.id === sourceScheduleId);
+                const destScheduleItem = currentProgramData.weeklySchedule.find(item => item.id === destScheduleId);
 
-            if (!sourceScheduleItem || !destScheduleItem) return;
+                if (!sourceScheduleItem || !destScheduleItem) return currentProgramData;
 
-            const sourceWorkout = newProgramStructure[sourceScheduleItem.workout];
-            const destWorkout = newProgramStructure[destScheduleItem.workout];
+                const sourceWorkout = newProgramStructure[sourceScheduleItem.workout];
+                const destWorkout = newProgramStructure[destScheduleItem.workout];
 
-            if (sourceScheduleId === destScheduleId) {
-                const [movedItem] = sourceWorkout.exercises.splice(source.index, 1);
-                sourceWorkout.exercises.splice(destination.index, 0, movedItem);
-            } else {
-                const [movedItem] = sourceWorkout.exercises.splice(source.index, 1);
-                destWorkout.exercises.splice(destination.index, 0, movedItem);
-            }
-    
-            onProgramDataChange({ ...programData, programStructure: newProgramStructure });
+                if (!sourceWorkout || !destWorkout) return currentProgramData;
+
+                if (sourceScheduleId === destScheduleId) {
+                    const [movedItem] = sourceWorkout.exercises.splice(source.index, 1);
+                    sourceWorkout.exercises.splice(destination.index, 0, movedItem);
+                } else {
+                    const [movedItem] = sourceWorkout.exercises.splice(source.index, 1);
+                    destWorkout.exercises.splice(destination.index, 0, movedItem);
+                }
+
+                return { ...currentProgramData, programStructure: newProgramStructure };
+            });
         }
     };
     
@@ -3143,97 +3177,104 @@ const EditProgramView = ({ programData, onProgramDataChange, onBack, onNavigate 
     };
 
     const handleEditDay = (week, dayKey) => {
-        const baseWorkoutName = getWorkoutNameForDay(programData, week, dayKey);
-        const existingOverride = programData.weeklyOverrides?.[week]?.[dayKey];
+        onProgramDataChange(currentProgramData => {
+            const baseWorkoutName = getWorkoutNameForDay(currentProgramData, week, dayKey);
+            const existingOverride = currentProgramData.weeklyOverrides?.[week]?.[dayKey];
 
-        const onSaveFromModal = (workoutName, updatedWorkout) => {
-            onProgramDataChange(currentProgramData => {
-                const newProgramStructure = {
-                    ...currentProgramData.programStructure,
-                    [workoutName]: updatedWorkout,
+            const onSaveFromModal = (workoutName, updatedWorkout) => {
+                onProgramDataChange(currentProgramData => {
+                    const newProgramStructure = {
+                        ...currentProgramData.programStructure,
+                        [workoutName]: updatedWorkout,
+                    };
+                    return { ...currentProgramData, programStructure: newProgramStructure };
+                });
+                closeModal();
+            };
+
+            const onSetRestFromModal = () => {
+                onProgramDataChange(currentProgramData => {
+                    let newOverrides = JSON.parse(JSON.stringify(currentProgramData.weeklyOverrides || {}));
+                    if (!newOverrides[week]) {
+                        newOverrides[week] = {};
+                    }
+                    const restTemplate = Object.keys(currentProgramData.programStructure).find(name => currentProgramData.programStructure[name]?.isRest) || 'Rest Day';
+                    newOverrides[week][dayKey] = restTemplate;
+                    return { ...currentProgramData, weeklyOverrides: newOverrides };
+                });
+                closeModal();
+            };
+
+            const onAddExerciseFromModal = (addExerciseCallback) => {
+                openModal(
+                    <AddExerciseToWorkoutModal
+                        masterExerciseList={currentProgramData.masterExerciseList}
+                        onAdd={(exerciseName, exerciseDetails) => {
+                            addExerciseCallback(exerciseName, exerciseDetails);
+
+                            if (exerciseDetails && !currentProgramData.masterExerciseList[exerciseName]) {
+                                onProgramDataChange(cpd => {
+                                    const newMasterList = { ...cpd.masterExerciseList, [exerciseName]: exerciseDetails };
+                                    return { ...cpd, masterExerciseList: newMasterList };
+                                });
+                            }
+
+                            closeModal();
+                        }}
+                        onClose={closeModal}
+                    />, 'lg'
+                );
+            };
+
+            if (existingOverride) {
+                const workoutToEdit = currentProgramData.programStructure[existingOverride];
+                openModal(
+                    <EditDayWorkoutModal
+                        workout={workoutToEdit}
+                        workoutName={existingOverride}
+                        onSave={onSaveFromModal}
+                        onClose={closeModal}
+                        onEditExercise={handleEditExerciseDetails}
+                        onAddExercise={onAddExerciseFromModal}
+                        onSetRest={onSetRestFromModal}
+                    />,
+                    'lg'
+                );
+                return currentProgramData; // No state change here, just opening modal
+            } else {
+                const customWorkoutName = `${currentProgramData.programStructure[baseWorkoutName]?.isRest ? 'New Workout' : baseWorkoutName} (Custom W${week}-${dayKey})`;
+
+                const baseWorkout = currentProgramData.programStructure[baseWorkoutName];
+                const newCustomWorkout = baseWorkout ? JSON.parse(JSON.stringify(baseWorkout)) : { exercises: [], label: `Custom ${dayKey}`, isRest: false };
+
+                const newProgramStructure = { ...currentProgramData.programStructure, [customWorkoutName]: newCustomWorkout };
+                const newWorkoutOrder = currentProgramData.workoutOrder.includes(customWorkoutName) ? currentProgramData.workoutOrder : [...currentProgramData.workoutOrder, customWorkoutName];
+
+                let newOverrides = JSON.parse(JSON.stringify(currentProgramData.weeklyOverrides || {}));
+                if (!newOverrides[week]) newOverrides[week] = {};
+                newOverrides[week][dayKey] = customWorkoutName;
+
+                openModal(
+                    <EditDayWorkoutModal
+                        workout={newCustomWorkout}
+                        workoutName={customWorkoutName}
+                        onSave={onSaveFromModal}
+                        onClose={closeModal}
+                        onEditExercise={handleEditExerciseDetails}
+                        onAddExercise={onAddExerciseFromModal}
+                        onSetRest={onSetRestFromModal}
+                    />,
+                    'lg'
+                );
+
+                return {
+                    ...currentProgramData,
+                    programStructure: newProgramStructure,
+                    workoutOrder: newWorkoutOrder,
+                    weeklyOverrides: newOverrides,
                 };
-                return { ...currentProgramData, programStructure: newProgramStructure };
-            });
-            closeModal();
-        };
-
-        const onSetRestFromModal = () => {
-            let newOverrides = JSON.parse(JSON.stringify(programData.weeklyOverrides || {}));
-            if (!newOverrides[week]) {
-                newOverrides[week] = {};
             }
-            const restTemplate = Object.keys(programData.programStructure).find(name => programData.programStructure[name]?.isRest) || 'Rest Day';
-            newOverrides[week][dayKey] = restTemplate;
-            onProgramDataChange({ ...programData, weeklyOverrides: newOverrides });
-            closeModal();
-        };
-
-        const onAddExerciseFromModal = (addExerciseCallback) => {
-            openModal(
-                <AddExerciseToWorkoutModal
-                    masterExerciseList={programData.masterExerciseList}
-                    onAdd={(exerciseName, exerciseDetails) => {
-                        addExerciseCallback(exerciseName, exerciseDetails);
-
-                        if (exerciseDetails && !programData.masterExerciseList[exerciseName]) {
-                             const newMasterList = { ...programData.masterExerciseList, [exerciseName]: exerciseDetails };
-                             onProgramDataChange({ ...programData, masterExerciseList: newMasterList });
-                        }
-
-                        closeModal();
-                    }}
-                    onClose={closeModal}
-                />, 'lg'
-            );
-        };
-
-        if (existingOverride) {
-            const workoutToEdit = programData.programStructure[existingOverride];
-            openModal(
-                <EditDayWorkoutModal
-                    workout={workoutToEdit}
-                    workoutName={existingOverride}
-                    onSave={onSaveFromModal}
-                    onClose={closeModal}
-                    onEditExercise={handleEditExerciseDetails}
-                    onAddExercise={onAddExerciseFromModal}
-                    onSetRest={onSetRestFromModal}
-                />,
-                'lg'
-            );
-        } else {
-            const customWorkoutName = `${programData.programStructure[baseWorkoutName]?.isRest ? 'New Workout' : baseWorkoutName} (Custom W${week}-${dayKey})`;
-
-            const baseWorkout = programData.programStructure[baseWorkoutName];
-            const newCustomWorkout = baseWorkout ? JSON.parse(JSON.stringify(baseWorkout)) : { exercises: [], label: `Custom ${dayKey}`, isRest: false };
-
-            const newProgramStructure = { ...programData.programStructure, [customWorkoutName]: newCustomWorkout };
-            const newWorkoutOrder = programData.workoutOrder.includes(customWorkoutName) ? programData.workoutOrder : [...programData.workoutOrder, customWorkoutName];
-
-            let newOverrides = JSON.parse(JSON.stringify(programData.weeklyOverrides || {}));
-            if (!newOverrides[week]) newOverrides[week] = {};
-            newOverrides[week][dayKey] = customWorkoutName;
-
-            onProgramDataChange({
-                ...programData,
-                programStructure: newProgramStructure,
-                workoutOrder: newWorkoutOrder,
-                weeklyOverrides: newOverrides,
-            });
-
-            openModal(
-                <EditDayWorkoutModal
-                    workout={newCustomWorkout}
-                    workoutName={customWorkoutName}
-                    onSave={onSaveFromModal}
-                    onClose={closeModal}
-                    onEditExercise={handleEditExerciseDetails}
-                    onAddExercise={onAddExerciseFromModal}
-                    onSetRest={onSetRestFromModal}
-                />,
-                'lg'
-            );
-        }
+        });
     };
 
     return (
@@ -5116,7 +5157,7 @@ const AppCore = () => {
         if (isDataLoading) return;
 
         const verifyAchievements = () => {
-            const newUnlocks = {};
+            const newUnlocks = { ...unlockedAchievements };
             let achievementsChanged = false;
 
             Object.entries(achievementsList).forEach(([id, achievement]) => {
