@@ -4962,10 +4962,23 @@ const AppCore = () => {
                 }
                 return p;
             });
-            handleUpdateAndSave({ programInstances: newInstances });
             return newInstances;
         });
     };
+
+    // This useEffect hook will persist programInstances to Firebase whenever it changes.
+    const isInitialMount = useRef(true);
+    useEffect(() => {
+        if (isInitialMount.current) {
+            isInitialMount.current = false;
+            return;
+        }
+
+        // Only save when programInstances changes *after* the initial load from Firebase.
+        if (db && customId && programInstances.length > 0) {
+            handleUpdateAndSave({ programInstances });
+        }
+    }, [programInstances, handleUpdateAndSave, db, customId]);
 
     const navigate = useCallback((view, data = {}) => {
         const newPageState = { view, data };
