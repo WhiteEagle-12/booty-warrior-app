@@ -3325,7 +3325,10 @@ const EditProgramView = ({ programData, onProgramDataChange, onBack, onNavigate 
                                                             </div>
                                                         </div>
                                                         <div className="flex items-center gap-2">
-                                                             <button onClick={() => handleDeleteWorkoutDay(workoutName)} className="p-1 hover:text-red-500"><XCircle size={20}/></button>
+                                                            <button onClick={() => handleToggleTemplateType(workoutName)} className="p-2 rounded-md hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors" title={isRest ? "Change to Workout Day" : "Change to Rest Day"}>
+                                                                {isRest ? <Dumbbell size={20} className="text-green-500 dark:text-green-400" /> : <Shield size={20} className="text-indigo-500 dark:text-indigo-400" />}
+                                                            </button>
+                                                            <button onClick={() => handleDeleteWorkoutDay(workoutName)} className="p-2 rounded-md hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors text-red-500 dark:text-red-400"><XCircle size={20}/></button>
                                                         </div>
                                                     </div>
                                                     {!isRest && (
