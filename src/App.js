@@ -2817,59 +2817,40 @@ const MasterScheduleEditor = ({ program, onProgramDataChange }) => {
 
 const EditProgramView = ({ programData, onProgramDataChange, onBack, onNavigate }) => {
     const { openModal, closeModal } = useContext(AppStateContext);
-    const [program, setProgram] = useState(programData);
-    const [isScheduleOpen, setScheduleOpen] = useState(false); // State for collapsible schedule
-
-    useEffect(() => {
-        setProgram(programData);
-    }, [programData]);
-
-    const updateProgram = (updates) => {
-        const newProgram = { ...program, ...updates };
-        setProgram(newProgram);
-        onProgramDataChange(newProgram);
-    };
+    const [isScheduleOpen, setScheduleOpen] = useState(false);
 
     const handleInfoChange = (field, value) => {
-        updateProgram({ info: { ...program.info, [field]: value } });
+        onProgramDataChange({ ...programData, info: { ...programData.info, [field]: value } });
     };
 
     const handleAddDayToSchedule = () => {
-        const newSchedule = [...program.weeklySchedule];
+        const newSchedule = [...programData.weeklySchedule];
         const newDayName = `Day ${newSchedule.length + 1}`;
-        const restTemplate = Object.keys(program.programStructure).find(name => program.programStructure[name]?.isRest) || 'Rest Day';
+        const restTemplate = Object.keys(programData.programStructure).find(name => programData.programStructure[name]?.isRest) || 'Rest Day';
         newSchedule.push({ day: newDayName, workout: restTemplate, id: crypto.randomUUID() });
-        updateProgram({ weeklySchedule: newSchedule });
+        onProgramDataChange({ ...programData, weeklySchedule: newSchedule });
     };
 
     const handleRemoveLastDayFromSchedule = () => {
-        if (program.weeklySchedule.length > 1) {
-            const newSchedule = program.weeklySchedule.slice(0, -1);
-            updateProgram({ weeklySchedule: newSchedule });
+        if (programData.weeklySchedule.length > 1) {
+            const newSchedule = programData.weeklySchedule.slice(0, -1);
+            onProgramDataChange({ ...programData, weeklySchedule: newSchedule });
         }
     };
 
     const handleAddWorkoutDay = () => {
-        // 1. Create a unique name for the new template
-        const newWorkoutName = `New Workout ${Object.keys(program.programStructure).length + 1}`;
-
-        // 2. Create the new template in the program structure
+        const newWorkoutName = `New Workout ${Object.keys(programData.programStructure).length + 1}`;
         const newProgramStructure = {
-            ...program.programStructure,
+            ...programData.programStructure,
             [newWorkoutName]: { exercises: [], label: 'New', isRest: false }
         };
-
-        // 3. Add the template to the workout order
-        const newWorkoutOrder = [...program.workoutOrder, newWorkoutName];
-
-        // 4. Add a corresponding day to the end of the weekly schedule
+        const newWorkoutOrder = [...programData.workoutOrder, newWorkoutName];
         const newSchedule = [
-            ...program.weeklySchedule,
-            { day: `Day ${program.weeklySchedule.length + 1}`, workout: newWorkoutName, id: crypto.randomUUID() }
+            ...programData.weeklySchedule,
+            { day: `Day ${programData.weeklySchedule.length + 1}`, workout: newWorkoutName, id: crypto.randomUUID() }
         ];
-
-        // 5. Update the program state
-        updateProgram({
+        onProgramDataChange({
+            ...programData,
             programStructure: newProgramStructure,
             workoutOrder: newWorkoutOrder,
             weeklySchedule: newSchedule
@@ -2877,17 +2858,18 @@ const EditProgramView = ({ programData, onProgramDataChange, onBack, onNavigate 
     };
 
     const handleAddNewRestDay = () => {
-        const newRestDayName = `Rest Day ${Object.values(program.programStructure).filter(p => p.isRest).length + 1}`;
+        const newRestDayName = `Rest Day ${Object.values(programData.programStructure).filter(p => p.isRest).length + 1}`;
         const newProgramStructure = {
-            ...program.programStructure,
+            ...programData.programStructure,
             [newRestDayName]: { exercises: [], label: 'Rest', isRest: true }
         };
-        const newWorkoutOrder = [...program.workoutOrder, newRestDayName];
+        const newWorkoutOrder = [...programData.workoutOrder, newRestDayName];
         const newSchedule = [
-            ...program.weeklySchedule,
-            { day: `Day ${program.weeklySchedule.length + 1}`, workout: newRestDayName, id: crypto.randomUUID() }
+            ...programData.weeklySchedule,
+            { day: `Day ${programData.weeklySchedule.length + 1}`, workout: newRestDayName, id: crypto.randomUUID() }
         ];
-        updateProgram({
+        onProgramDataChange({
+            ...programData,
             programStructure: newProgramStructure,
             workoutOrder: newWorkoutOrder,
             weeklySchedule: newSchedule
@@ -2895,17 +2877,16 @@ const EditProgramView = ({ programData, onProgramDataChange, onBack, onNavigate 
     };
 
     const handleToggleTemplateType = (workoutName) => {
-        const newProgramStructure = JSON.parse(JSON.stringify(program.programStructure));
+        const newProgramStructure = JSON.parse(JSON.stringify(programData.programStructure));
         const template = newProgramStructure[workoutName];
         if (template) {
             template.isRest = !template.isRest;
         }
-        updateProgram({ programStructure: newProgramStructure });
+        onProgramDataChange({ ...programData, programStructure: newProgramStructure });
     };
-    
+
     const handleDeleteWorkoutDay = (workoutNameToDelete) => {
-        // Find a suitable rest day template to fall back on, EXCLUDING the one being deleted.
-        const fallbackRestTemplate = Object.keys(program.programStructure).find(name => name !== workoutNameToDelete && program.programStructure[name]?.isRest) || 'Rest Day';
+        const fallbackRestTemplate = Object.keys(programData.programStructure).find(name => name !== workoutNameToDelete && programData.programStructure[name]?.isRest) || 'Rest Day';
 
         openModal(
             <div>
@@ -2914,12 +2895,11 @@ const EditProgramView = ({ programData, onProgramDataChange, onBack, onNavigate 
                 <div className="flex justify-end gap-2 mt-6">
                     <button onClick={closeModal} className="px-4 py-2 bg-gray-200 dark:bg-gray-600 rounded-lg">Cancel</button>
                     <button onClick={() => {
-                        let newProgramStructure = { ...program.programStructure };
+                        let newProgramStructure = { ...programData.programStructure };
                         delete newProgramStructure[workoutNameToDelete];
                         
-                        let newWorkoutOrder = program.workoutOrder.filter(name => name !== workoutNameToDelete);
+                        let newWorkoutOrder = programData.workoutOrder.filter(name => name !== workoutNameToDelete);
 
-                        // Ensure at least one rest day template always exists.
                         let finalRestTemplate = Object.keys(newProgramStructure).find(name => newProgramStructure[name]?.isRest);
                         if (!finalRestTemplate) {
                             finalRestTemplate = 'Rest Day';
@@ -2929,10 +2909,9 @@ const EditProgramView = ({ programData, onProgramDataChange, onBack, onNavigate 
                             }
                         }
 
-                        const newSchedule = program.weeklySchedule.filter(d => d.workout !== workoutNameToDelete);
+                        const newSchedule = programData.weeklySchedule.filter(d => d.workout !== workoutNameToDelete);
 
-                        // Also update any weekly overrides that might be using the deleted template.
-                        const newOverrides = JSON.parse(JSON.stringify(program.weeklyOverrides || {}));
+                        const newOverrides = JSON.parse(JSON.stringify(programData.weeklyOverrides || {}));
                         for (const week in newOverrides) {
                             for (const day in newOverrides[week]) {
                                 if (newOverrides[week][day] === workoutNameToDelete) {
@@ -2941,7 +2920,8 @@ const EditProgramView = ({ programData, onProgramDataChange, onBack, onNavigate 
                             }
                         }
 
-                        updateProgram({
+                        onProgramDataChange({
+                            ...programData,
                             programStructure: newProgramStructure,
                             workoutOrder: newWorkoutOrder,
                             weeklySchedule: newSchedule,
@@ -2955,19 +2935,19 @@ const EditProgramView = ({ programData, onProgramDataChange, onBack, onNavigate 
     };
 
     const handleRenameWorkoutDay = (oldName, newName) => {
-        if (!newName || newName === oldName || program.programStructure[newName]) {
+        if (!newName || newName === oldName || programData.programStructure[newName]) {
             closeModal();
             return;
         }
 
-        const newProgramStructure = { ...program.programStructure };
+        const newProgramStructure = { ...programData.programStructure };
         newProgramStructure[newName] = { ...newProgramStructure[oldName] };
         delete newProgramStructure[oldName];
 
-        const newWorkoutOrder = program.workoutOrder.map(name => name === oldName ? newName : name);
-        const newSchedule = program.weeklySchedule.map(d => d.workout === oldName ? { ...d, workout: newName } : d);
+        const newWorkoutOrder = programData.workoutOrder.map(name => name === oldName ? newName : name);
+        const newSchedule = programData.weeklySchedule.map(d => d.workout === oldName ? { ...d, workout: newName } : d);
 
-        const newOverrides = JSON.parse(JSON.stringify(program.weeklyOverrides || {}));
+        const newOverrides = JSON.parse(JSON.stringify(programData.weeklyOverrides || {}));
         for (const week in newOverrides) {
             for (const day in newOverrides[week]) {
                 if (newOverrides[week][day] === oldName) {
@@ -2976,7 +2956,8 @@ const EditProgramView = ({ programData, onProgramDataChange, onBack, onNavigate 
             }
         }
 
-        updateProgram({
+        onProgramDataChange({
+            ...programData,
             programStructure: newProgramStructure,
             workoutOrder: newWorkoutOrder,
             weeklySchedule: newSchedule,
@@ -2989,23 +2970,23 @@ const EditProgramView = ({ programData, onProgramDataChange, onBack, onNavigate 
         openModal(<RenameWorkoutModal oldName={name} onSave={(newName) => handleRenameWorkoutDay(name, newName)} onClose={closeModal} />)
     };
     
-
     const handleAddExerciseToWorkout = (workoutName) => {
-        const myExercises = program.masterExerciseList;
+        const myExercises = programData.masterExerciseList;
 
         openModal(
             <AddExerciseToWorkoutModal 
                 masterExerciseList={myExercises}
                 onAdd={(exerciseName, exerciseDetails) => {
-                    const newProgramStructure = JSON.parse(JSON.stringify(program.programStructure));
+                    const newProgramStructure = JSON.parse(JSON.stringify(programData.programStructure));
                     newProgramStructure[workoutName].exercises.push({ id: crypto.randomUUID(), name: exerciseName });
 
-                    let newMasterList = { ...program.masterExerciseList };
+                    let newMasterList = { ...programData.masterExerciseList };
                     if (exerciseDetails && !newMasterList[exerciseName]) {
                         newMasterList[exerciseName] = exerciseDetails;
                     }
 
-                    updateProgram({ 
+                    onProgramDataChange({
+                        ...programData,
                         programStructure: newProgramStructure,
                         masterExerciseList: newMasterList
                     });
@@ -3017,37 +2998,36 @@ const EditProgramView = ({ programData, onProgramDataChange, onBack, onNavigate 
     };
 
     const handleEditExerciseDetails = (exerciseName) => {
-        const exerciseDetails = program.masterExerciseList[exerciseName];
+        const exerciseDetails = programData.masterExerciseList[exerciseName];
         openModal(
             <EditExerciseModal
                 exerciseName={exerciseName}
                 exercise={exerciseDetails}
                 onSave={(newDetails, newName) => {
-                    const newMasterList = { ...program.masterExerciseList };
+                    const newMasterList = { ...programData.masterExerciseList };
                     if(exerciseName !== newName) {
                         delete newMasterList[exerciseName];
                     }
                     newMasterList[newName] = newDetails;
 
-                    // Update all workout structures
-                    const newProgramStructure = JSON.parse(JSON.stringify(program.programStructure));
+                    const newProgramStructure = JSON.parse(JSON.stringify(programData.programStructure));
                     Object.keys(newProgramStructure).forEach(workoutKey => {
                         newProgramStructure[workoutKey].exercises = newProgramStructure[workoutKey].exercises.map(ex => ex.name === exerciseName ? { ...ex, name: newName } : ex);
                     });
 
-                    updateProgram({ masterExerciseList: newMasterList, programStructure: newProgramStructure });
+                    onProgramDataChange({ ...programData, masterExerciseList: newMasterList, programStructure: newProgramStructure });
                     closeModal();
                 }}
                 onDelete={(nameToDelete) => {
-                    const newMasterList = { ...program.masterExerciseList };
+                    const newMasterList = { ...programData.masterExerciseList };
                     delete newMasterList[nameToDelete];
 
-                    const newProgramStructure = JSON.parse(JSON.stringify(program.programStructure));
+                    const newProgramStructure = JSON.parse(JSON.stringify(programData.programStructure));
                     Object.keys(newProgramStructure).forEach(workoutKey => {
                         newProgramStructure[workoutKey].exercises = newProgramStructure[workoutKey].exercises.filter(ex => ex.name !== nameToDelete);
                     });
 
-                    updateProgram({ masterExerciseList: newMasterList, programStructure: newProgramStructure });
+                    onProgramDataChange({ ...programData, masterExerciseList: newMasterList, programStructure: newProgramStructure });
                     closeModal();
                 }}
                 onClose={closeModal}
@@ -3061,8 +3041,8 @@ const EditProgramView = ({ programData, onProgramDataChange, onBack, onNavigate 
             <EditExerciseModal
                 isNew={true}
                 onSave={(newDetails, newName) => {
-                    const newMasterList = { ...program.masterExerciseList, [newName]: newDetails };
-                    updateProgram({ masterExerciseList: newMasterList });
+                    const newMasterList = { ...programData.masterExerciseList, [newName]: newDetails };
+                    onProgramDataChange({ ...programData, masterExerciseList: newMasterList });
                     closeModal();
                 }}
                 onClose={closeModal}
@@ -3072,48 +3052,40 @@ const EditProgramView = ({ programData, onProgramDataChange, onBack, onNavigate 
     };
 
     const handleRemoveExerciseFromWorkout = (workoutName, exerciseIndex) => {
-        const newProgramStructure = JSON.parse(JSON.stringify(program.programStructure));
+        const newProgramStructure = JSON.parse(JSON.stringify(programData.programStructure));
         newProgramStructure[workoutName].exercises.splice(exerciseIndex, 1);
-        updateProgram({ programStructure: newProgramStructure });
+        onProgramDataChange({ ...programData, programStructure: newProgramStructure });
     };
     
     const handleToggleRestDay = (week, dayKey) => {
-        const currentWorkoutName = getWorkoutNameForDay(program, week, dayKey);
-        const isCurrentlyRest = program.programStructure[currentWorkoutName]?.isRest;
-        let newOverrides = JSON.parse(JSON.stringify(program.weeklyOverrides || {}));
+        const currentWorkoutName = getWorkoutNameForDay(programData, week, dayKey);
+        const isCurrentlyRest = programData.programStructure[currentWorkoutName]?.isRest;
+        let newOverrides = JSON.parse(JSON.stringify(programData.weeklyOverrides || {}));
         if (!newOverrides[week]) {
             newOverrides[week] = {};
         }
 
         if (!isCurrentlyRest) {
-            // If it's a workout day, toggle to a rest day.
-            const restTemplate = Object.keys(program.programStructure).find(name => program.programStructure[name]?.isRest) || 'Rest Day';
+            const restTemplate = Object.keys(programData.programStructure).find(name => programData.programStructure[name]?.isRest) || 'Rest Day';
             newOverrides[week][dayKey] = restTemplate;
         } else {
-            // If it's a rest day, toggle back to a workout day.
-            const masterWorkout = program.weeklySchedule.find(d => d.day === dayKey)?.workout;
-            // Check if the master schedule for this day is a valid, non-rest workout.
-            if (masterWorkout && !program.programStructure[masterWorkout]?.isRest) {
-                // If so, reverting is as simple as removing the override.
+            const masterWorkout = programData.weeklySchedule.find(d => d.day === dayKey)?.workout;
+            if (masterWorkout && !programData.programStructure[masterWorkout]?.isRest) {
                 delete newOverrides[week][dayKey];
             } else {
-                // Otherwise, we need to find a workout to assign.
-                const firstWorkout = program.workoutOrder.find(name => !program.programStructure[name]?.isRest);
+                const firstWorkout = programData.workoutOrder.find(name => !programData.programStructure[name]?.isRest);
                 if (firstWorkout) {
                     newOverrides[week][dayKey] = firstWorkout;
                 } else {
-                    // No workout days exist, so we can't switch. For now, do nothing.
-                    // This could be improved with a user alert.
                     return;
                 }
             }
         }
 
-        // Clean up empty week objects in overrides.
         if (Object.keys(newOverrides[week]).length === 0) {
             delete newOverrides[week];
         }
-        updateProgram({ weeklyOverrides: newOverrides });
+        onProgramDataChange({ ...programData, weeklyOverrides: newOverrides });
     };
 
     const onDragEnd = (result) => {
@@ -3121,10 +3093,10 @@ const EditProgramView = ({ programData, onProgramDataChange, onBack, onNavigate 
         const { source, destination, type } = result;
 
         if (type === 'workoutDay') {
-            const reorderedSchedule = Array.from(program.weeklySchedule);
+            const reorderedSchedule = Array.from(programData.weeklySchedule);
             const [movedItem] = reorderedSchedule.splice(source.index, 1);
             reorderedSchedule.splice(destination.index, 0, movedItem);
-            updateProgram({ weeklySchedule: reorderedSchedule });
+            onProgramDataChange({ ...programData, weeklySchedule: reorderedSchedule });
             return;
         }
     
@@ -3133,11 +3105,10 @@ const EditProgramView = ({ programData, onProgramDataChange, onBack, onNavigate 
             const sourceScheduleId = getScheduleId(source.droppableId);
             const destScheduleId = getScheduleId(destination.droppableId);
 
-            const newProgramStructure = JSON.parse(JSON.stringify(program.programStructure));
+            const newProgramStructure = JSON.parse(JSON.stringify(programData.programStructure));
 
-            // Find the workout name associated with the droppable ID (which is now a schedule item ID)
-            const sourceScheduleItem = program.weeklySchedule.find(item => item.id === sourceScheduleId);
-            const destScheduleItem = program.weeklySchedule.find(item => item.id === destScheduleId);
+            const sourceScheduleItem = programData.weeklySchedule.find(item => item.id === sourceScheduleId);
+            const destScheduleItem = programData.weeklySchedule.find(item => item.id === destScheduleId);
 
             if (!sourceScheduleItem || !destScheduleItem) return;
 
@@ -3145,16 +3116,14 @@ const EditProgramView = ({ programData, onProgramDataChange, onBack, onNavigate 
             const destWorkout = newProgramStructure[destScheduleItem.workout];
 
             if (sourceScheduleId === destScheduleId) {
-                // Reordering within the same list
                 const [movedItem] = sourceWorkout.exercises.splice(source.index, 1);
                 sourceWorkout.exercises.splice(destination.index, 0, movedItem);
             } else {
-                // Moving from one list to another
                 const [movedItem] = sourceWorkout.exercises.splice(source.index, 1);
                 destWorkout.exercises.splice(destination.index, 0, movedItem);
             }
     
-            updateProgram({ programStructure: newProgramStructure });
+            onProgramDataChange({ ...programData, programStructure: newProgramStructure });
         }
     };
     
@@ -3171,40 +3140,39 @@ const EditProgramView = ({ programData, onProgramDataChange, onBack, onNavigate 
     };
 
     const handleEditDay = (week, dayKey) => {
-        const baseWorkoutName = getWorkoutNameForDay(program, week, dayKey);
-        const existingOverride = program.weeklyOverrides?.[week]?.[dayKey];
+        const baseWorkoutName = getWorkoutNameForDay(programData, week, dayKey);
+        const existingOverride = programData.weeklyOverrides?.[week]?.[dayKey];
 
         const onSaveFromModal = (workoutName, updatedWorkout) => {
             const newProgramStructure = {
-                ...program.programStructure,
+                ...programData.programStructure,
                 [workoutName]: updatedWorkout,
             };
-            updateProgram({ ...program, programStructure: newProgramStructure });
+            onProgramDataChange({ ...programData, programStructure: newProgramStructure });
             closeModal();
         };
 
         const onSetRestFromModal = () => {
-            let newOverrides = JSON.parse(JSON.stringify(program.weeklyOverrides || {}));
+            let newOverrides = JSON.parse(JSON.stringify(programData.weeklyOverrides || {}));
             if (!newOverrides[week]) {
                 newOverrides[week] = {};
             }
-            const restTemplate = Object.keys(program.programStructure).find(name => program.programStructure[name]?.isRest) || 'Rest Day';
+            const restTemplate = Object.keys(programData.programStructure).find(name => programData.programStructure[name]?.isRest) || 'Rest Day';
             newOverrides[week][dayKey] = restTemplate;
-            updateProgram({ weeklyOverrides: newOverrides });
+            onProgramDataChange({ ...programData, weeklyOverrides: newOverrides });
             closeModal();
         };
 
         const onAddExerciseFromModal = (addExerciseCallback) => {
-            const availableWorkouts = [...program.workoutOrder];
             openModal(
                 <AddExerciseToWorkoutModal
-                    masterExerciseList={program.masterExerciseList}
+                    masterExerciseList={programData.masterExerciseList}
                     onAdd={(exerciseName, exerciseDetails) => {
                         addExerciseCallback(exerciseName, exerciseDetails);
 
-                        if (exerciseDetails && !program.masterExerciseList[exerciseName]) {
-                             const newMasterList = { ...program.masterExerciseList, [exerciseName]: exerciseDetails };
-                             updateProgram({ ...program, masterExerciseList: newMasterList });
+                        if (exerciseDetails && !programData.masterExerciseList[exerciseName]) {
+                             const newMasterList = { ...programData.masterExerciseList, [exerciseName]: exerciseDetails };
+                             onProgramDataChange({ ...programData, masterExerciseList: newMasterList });
                         }
 
                         closeModal();
@@ -3215,7 +3183,7 @@ const EditProgramView = ({ programData, onProgramDataChange, onBack, onNavigate 
         };
 
         if (existingOverride) {
-            const workoutToEdit = program.programStructure[existingOverride];
+            const workoutToEdit = programData.programStructure[existingOverride];
             openModal(
                 <EditDayWorkoutModal
                     workout={workoutToEdit}
@@ -3229,27 +3197,24 @@ const EditProgramView = ({ programData, onProgramDataChange, onBack, onNavigate 
                 'lg'
             );
         } else {
-            const customWorkoutName = `${program.programStructure[baseWorkoutName]?.isRest ? 'New Workout' : baseWorkoutName} (Custom W${week}-${dayKey})`;
+            const customWorkoutName = `${programData.programStructure[baseWorkoutName]?.isRest ? 'New Workout' : baseWorkoutName} (Custom W${week}-${dayKey})`;
 
-            const baseWorkout = program.programStructure[baseWorkoutName];
+            const baseWorkout = programData.programStructure[baseWorkoutName];
             const newCustomWorkout = baseWorkout ? JSON.parse(JSON.stringify(baseWorkout)) : { exercises: [], label: `Custom ${dayKey}`, isRest: false };
 
-            const newProgramStructure = { ...program.programStructure, [customWorkoutName]: newCustomWorkout };
-            const newWorkoutOrder = program.workoutOrder.includes(customWorkoutName) ? program.workoutOrder : [...program.workoutOrder, customWorkoutName];
-            const newOverrides = JSON.parse(JSON.stringify(program.weeklyOverrides || {}));
-            if (!newOverrides[week]) {
-                newOverrides[week] = {};
-            }
+            const newProgramStructure = { ...programData.programStructure, [customWorkoutName]: newCustomWorkout };
+            const newWorkoutOrder = programData.workoutOrder.includes(customWorkoutName) ? programData.workoutOrder : [...programData.workoutOrder, customWorkoutName];
+
+            let newOverrides = JSON.parse(JSON.stringify(programData.weeklyOverrides || {}));
+            if (!newOverrides[week]) newOverrides[week] = {};
             newOverrides[week][dayKey] = customWorkoutName;
 
-            const newProgramData = {
-                ...program,
+            onProgramDataChange({
+                ...programData,
                 programStructure: newProgramStructure,
                 workoutOrder: newWorkoutOrder,
                 weeklyOverrides: newOverrides,
-            };
-
-            updateProgram(newProgramData);
+            });
 
             openModal(
                 <EditDayWorkoutModal
@@ -3287,11 +3252,11 @@ const EditProgramView = ({ programData, onProgramDataChange, onBack, onNavigate 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div>
                             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Program Name</label>
-                            <input type="text" value={program.info.name} onChange={(e) => handleInfoChange('name', e.target.value)} className="w-full p-2 bg-white dark:bg-gray-700 rounded-md border-gray-300 dark:border-gray-600" />
+                            <input type="text" value={programData.info.name} onChange={(e) => handleInfoChange('name', e.target.value)} className="w-full p-2 bg-white dark:bg-gray-700 rounded-md border-gray-300 dark:border-gray-600" />
                         </div>
                         <div>
                             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Weeks</label>
-                            <input type="number" value={program.info.weeks} onChange={(e) => handleInfoChange('weeks', parseInt(e.target.value, 10) || 1)} className="w-full p-2 bg-white dark:bg-gray-700 rounded-md border-gray-300 dark:border-gray-600" />
+                            <input type="number" value={programData.info.weeks} onChange={(e) => handleInfoChange('weeks', parseInt(e.target.value, 10) || 1)} className="w-full p-2 bg-white dark:bg-gray-700 rounded-md border-gray-300 dark:border-gray-600" />
                         </div>
                     </div>
                 </div>
@@ -3304,11 +3269,11 @@ const EditProgramView = ({ programData, onProgramDataChange, onBack, onNavigate 
                     </button>
                     {isScheduleOpen && (
                         <div className="mt-4 space-y-2">
-                            {Array.from({ length: program.info.weeks }, (_, i) => i + 1).map(week => (
+                            {Array.from({ length: programData.info.weeks }, (_, i) => i + 1).map(week => (
                                 <EditWeekCard
                                     key={week}
                                     week={week}
-                                    program={program}
+                                    program={programData}
                                     onEditDay={handleEditDay}
                                     onToggleRest={handleToggleRestDay}
                                 />
@@ -3317,7 +3282,7 @@ const EditProgramView = ({ programData, onProgramDataChange, onBack, onNavigate 
                                 <button onClick={handleAddDayToSchedule} className="w-full flex items-center justify-center gap-2 p-2 rounded-lg bg-green-100 dark:bg-green-900/50 text-green-700 dark:text-green-300 hover:bg-green-200 dark:hover:bg-green-800/50">
                                     <PlusCircle size={16}/> Add Day
                                 </button>
-                                <button onClick={handleRemoveLastDayFromSchedule} disabled={program.weeklySchedule.length <= 1} className="w-full flex items-center justify-center gap-2 p-2 rounded-lg bg-red-100 dark:bg-red-900/50 text-red-700 dark:text-red-300 hover:bg-red-200 dark:hover:bg-red-800/50 disabled:opacity-50 disabled:cursor-not-allowed">
+                                <button onClick={handleRemoveLastDayFromSchedule} disabled={programData.weeklySchedule.length <= 1} className="w-full flex items-center justify-center gap-2 p-2 rounded-lg bg-red-100 dark:bg-red-900/50 text-red-700 dark:text-red-300 hover:bg-red-200 dark:hover:bg-red-800/50 disabled:opacity-50 disabled:cursor-not-allowed">
                                     <XCircle size={16}/> Remove Last Day
                                 </button>
                             </div>
@@ -3331,9 +3296,9 @@ const EditProgramView = ({ programData, onProgramDataChange, onBack, onNavigate 
                 <Droppable droppableId="weekly-schedule-editor" direction="vertical" type="workoutDay">
                     {(provided) => (
                         <div {...provided.droppableProps} ref={provided.innerRef} className="space-y-4">
-                            {program.weeklySchedule.map((scheduleItem, index) => {
+                            {programData.weeklySchedule.map((scheduleItem, index) => {
                                 const workoutName = scheduleItem.workout;
-                                const workoutDetails = program.programStructure[workoutName];
+                                const workoutDetails = programData.programStructure[workoutName];
                                 if (!workoutDetails) return null;
                                 const isRest = workoutDetails.isRest;
 
@@ -4963,7 +4928,7 @@ const AppCore = () => {
         }
     }, [db, customId]);
 
-    const handleProgramDataChange = useCallback((newProgramData) => {
+    const handleProgramDataChange = (newProgramData) => {
         setProgramInstances(prevInstances => {
             const newInstances = prevInstances.map(p => {
                 if (p.id === activeInstanceId) {
@@ -4974,7 +4939,7 @@ const AppCore = () => {
             handleUpdateAndSave({ programInstances: newInstances });
             return newInstances;
         });
-    }, [activeInstanceId, handleUpdateAndSave]);
+    };
 
     const navigate = useCallback((view, data = {}) => {
         const newPageState = { view, data };
