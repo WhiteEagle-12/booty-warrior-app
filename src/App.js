@@ -2783,6 +2783,32 @@ const EditWeekCard = ({ week, program, onEditDay, onToggleRest }) => {
 };
 
 
+const SelectWorkoutOverrideModal = ({ availableWorkouts, currentWorkoutName, onSelect, onClose, programStructure }) => {
+    return (
+        <div>
+            <h2 className="text-xl font-bold mb-4">Change Workout</h2>
+            <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">Select a new master workout template for this day.</p>
+            <div className="space-y-2 max-h-60 overflow-y-auto pr-2">
+                {availableWorkouts.map(woName => (
+                    <button
+                        key={woName}
+                        onClick={() => {
+                            onSelect(woName);
+                            onClose();
+                        }}
+                        className={`w-full text-left p-3 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center gap-2 ${currentWorkoutName === woName ? 'bg-blue-100 dark:bg-blue-900/50' : ''}`}
+                    >
+                        {programStructure[woName]?.label || woName}
+                    </button>
+                ))}
+            </div>
+            <div className="flex justify-end gap-2 mt-6">
+                <button onClick={onClose} className="px-4 py-2 bg-gray-200 dark:bg-gray-600 rounded-lg">Cancel</button>
+            </div>
+        </div>
+    );
+};
+
 const MasterScheduleEditor = ({ program, onProgramDataChange }) => {
     const [editingDay, setEditingDay] = useState(null);
 
@@ -3203,103 +3229,38 @@ const EditProgramView = ({ programData, onProgramDataChange, onBack, onNavigate 
     };
 
     const handleEditDay = (week, dayKey) => {
-        const onSaveFromModal = (workoutName, updatedWorkout) => {
-            onProgramDataChange(p => ({
-                ...p,
-                programStructure: {
-                    ...p.programStructure,
-                    [workoutName]: updatedWorkout,
-                }
-            }));
-            closeModal();
-        };
+        const currentWorkoutName = getWorkoutNameForDay(programData, week, dayKey);
 
-        const onSetRestFromModal = () => {
+        const handleSelectOverride = (newWorkoutName) => {
             onProgramDataChange(p => {
-                let newOverrides = JSON.parse(JSON.stringify(p.weeklyOverrides || {}));
-                if (!newOverrides[week]) {
-                    newOverrides[week] = {};
-                }
-                const restTemplate = Object.keys(p.programStructure).find(name => p.programStructure[name]?.isRest) || 'Rest Day';
-                newOverrides[week][dayKey] = restTemplate;
-                return { ...p, weeklyOverrides: newOverrides };
-            });
-            closeModal();
-        };
-
-        const onAddExerciseFromModal = (addExerciseCallback) => {
-            openModal(
-                <AddExerciseToWorkoutModal
-                    masterExerciseList={programData.masterExerciseList}
-                    onAdd={(exerciseName, exerciseDetails) => {
-                        addExerciseCallback(exerciseName, exerciseDetails);
-
-                        if (exerciseDetails && !programData.masterExerciseList[exerciseName]) {
-                             onProgramDataChange(p => ({
-                                 ...p,
-                                 masterExerciseList: { ...p.masterExerciseList, [exerciseName]: exerciseDetails }
-                             }));
-                        }
-
-                        closeModal();
-                    }}
-                    onClose={closeModal}
-                />, 'lg'
-            );
-        };
-
-        const baseWorkoutName = getWorkoutNameForDay(programData, week, dayKey);
-        const existingOverride = programData.weeklyOverrides?.[week]?.[dayKey];
-
-        if (existingOverride) {
-            const workoutToEdit = programData.programStructure[existingOverride];
-            openModal(
-                <EditDayWorkoutModal
-                    workout={workoutToEdit}
-                    workoutName={existingOverride}
-                    onSave={onSaveFromModal}
-                    onClose={closeModal}
-                    onEditExercise={handleEditExerciseDetails}
-                    onAddExercise={onAddExerciseFromModal}
-                    onSetRest={onSetRestFromModal}
-                />,
-                'lg'
-            );
-        } else {
-            const customWorkoutName = `${programData.programStructure[baseWorkoutName]?.isRest ? 'New Workout' : baseWorkoutName} (Custom W${week}-${dayKey})`;
-            const baseWorkout = programData.programStructure[baseWorkoutName];
-            const newCustomWorkout = baseWorkout ? JSON.parse(JSON.stringify(baseWorkout)) : { exercises: [], label: `Custom ${dayKey}`, isRest: false };
-
-            onProgramDataChange(p => {
-                const newProgramStructure = { ...p.programStructure, [customWorkoutName]: newCustomWorkout };
-                const newWorkoutOrder = p.workoutOrder.includes(customWorkoutName) ? p.workoutOrder : [...p.workoutOrder, customWorkoutName];
                 const newOverrides = JSON.parse(JSON.stringify(p.weeklyOverrides || {}));
                 if (!newOverrides[week]) {
                     newOverrides[week] = {};
                 }
-                newOverrides[week][dayKey] = customWorkoutName;
 
-                return {
-                    ...p,
-                    programStructure: newProgramStructure,
-                    workoutOrder: newWorkoutOrder,
-                    weeklyOverrides: newOverrides,
-                };
+                const masterDefault = p.weeklySchedule.find(d => d.day === dayKey)?.workout;
+                if (newWorkoutName === masterDefault) {
+                    delete newOverrides[week][dayKey];
+                    if (Object.keys(newOverrides[week]).length === 0) {
+                        delete newOverrides[week];
+                    }
+                } else {
+                    newOverrides[week][dayKey] = newWorkoutName;
+                }
+
+                return { ...p, weeklyOverrides: newOverrides };
             });
+        };
 
-            openModal(
-                <EditDayWorkoutModal
-                    workout={newCustomWorkout}
-                    workoutName={customWorkoutName}
-                    onSave={onSaveFromModal}
-                    onClose={closeModal}
-                    onEditExercise={handleEditExerciseDetails}
-                    onAddExercise={onAddExerciseFromModal}
-                    onSetRest={onSetRestFromModal}
-                />,
-                'lg'
-            );
-        }
+        openModal(
+            <SelectWorkoutOverrideModal
+                availableWorkouts={programData.workoutOrder}
+                currentWorkoutName={currentWorkoutName}
+                onSelect={handleSelectOverride}
+                onClose={closeModal}
+                programStructure={programData.programStructure}
+            />
+        );
     };
 
     return (
@@ -3347,8 +3308,6 @@ const EditProgramView = ({ programData, onProgramDataChange, onBack, onNavigate 
                         </button>
                     </div>
                 </div>
-
-                <MasterScheduleEditor program={programData} onProgramDataChange={onProgramDataChange} />
 
                 {/* Weekly Schedule Editor - Collapsible */}
                 <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-4 mb-6">
