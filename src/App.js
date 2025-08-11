@@ -2850,10 +2850,30 @@ const EditProgramView = ({ programData, onProgramDataChange, onBack, onNavigate 
     };
 
     const handleAddWorkoutDay = () => {
+        // 1. Create a unique name for the new template
         const newWorkoutName = `New Workout ${Object.keys(program.programStructure).length + 1}`;
-        const newProgramStructure = { ...program.programStructure, [newWorkoutName]: { exercises: [], label: 'New', isRest: false } };
+
+        // 2. Create the new template in the program structure
+        const newProgramStructure = {
+            ...program.programStructure,
+            [newWorkoutName]: { exercises: [], label: 'New', isRest: false }
+        };
+
+        // 3. Add the template to the workout order
         const newWorkoutOrder = [...program.workoutOrder, newWorkoutName];
-        updateProgram({ programStructure: newProgramStructure, workoutOrder: newWorkoutOrder });
+
+        // 4. Add a corresponding day to the end of the weekly schedule
+        const newSchedule = [
+            ...program.weeklySchedule,
+            { day: `Day ${program.weeklySchedule.length + 1}`, workout: newWorkoutName, id: crypto.randomUUID() }
+        ];
+
+        // 5. Update the program state
+        updateProgram({
+            programStructure: newProgramStructure,
+            workoutOrder: newWorkoutOrder,
+            weeklySchedule: newSchedule
+        });
     };
 
     const handleAddNewRestDay = () => {
@@ -2863,7 +2883,15 @@ const EditProgramView = ({ programData, onProgramDataChange, onBack, onNavigate 
             [newRestDayName]: { exercises: [], label: 'Rest', isRest: true }
         };
         const newWorkoutOrder = [...program.workoutOrder, newRestDayName];
-        updateProgram({ programStructure: newProgramStructure, workoutOrder: newWorkoutOrder });
+        const newSchedule = [
+            ...program.weeklySchedule,
+            { day: `Day ${program.weeklySchedule.length + 1}`, workout: newRestDayName, id: crypto.randomUUID() }
+        ];
+        updateProgram({
+            programStructure: newProgramStructure,
+            workoutOrder: newWorkoutOrder,
+            weeklySchedule: newSchedule
+        });
     };
 
     const handleToggleTemplateType = (workoutName) => {
@@ -2901,7 +2929,7 @@ const EditProgramView = ({ programData, onProgramDataChange, onBack, onNavigate 
                             }
                         }
 
-                        const newSchedule = program.weeklySchedule.map(d => d.workout === workoutNameToDelete ? { ...d, workout: finalRestTemplate } : d);
+                        const newSchedule = program.weeklySchedule.filter(d => d.workout !== workoutNameToDelete);
 
                         // Also update any weekly overrides that might be using the deleted template.
                         const newOverrides = JSON.parse(JSON.stringify(program.weeklyOverrides || {}));
