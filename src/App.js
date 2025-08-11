@@ -1511,49 +1511,58 @@ const LiftingSession = ({ week, dayKey, onBack, allLogs, setAllLogs, onSkipDay, 
     }, [programData, week, dayKey, sequentialWorkoutIndex]);
 
     const workout = getWorkoutForWeek(programData, week, workoutName);
+    const debounceTimeout = useRef(null);
 
-    const handleLogChange = (exerciseName, setNumber, field, value, isDropSet = false) => {
+    const handleLogChange = useCallback((exerciseName, setNumber, field, value, isDropSet = false) => {
         const logId = `${week}-${dayKey}-${exerciseName}-${setNumber}`;
-        const currentLog = allLogs[logId] || { week, dayKey, session: workoutName, exercise: exerciseName, set: setNumber, date: new Date().toISOString() };
         
-        const wasCompleteBefore = isSetLogComplete(currentLog);
+        setAllLogs(prevLogs => {
+            const currentLog = prevLogs[logId] || { week, dayKey, session: workoutName, exercise: exerciseName, set: setNumber, date: new Date().toISOString() };
+            const wasCompleteBefore = isSetLogComplete(currentLog);
+            let newLogEntry = { ...currentLog };
 
-        let newLogEntry = { ...currentLog };
-
-        if (field === 'skip') {
-            newLogEntry.skipped = true;
-            newLogEntry.load = '';
-            newLogEntry.reps = '';
-            newLogEntry.rir = '';
-        } else if (field === 'unskip') {
-            newLogEntry.skipped = false;
-        } else if (field === 'load') {
-            newLogEntry.displayLoad = value;
-            const parsedValue = parseFloat(value);
-            if (isNaN(parsedValue)) {
-                newLogEntry.load = '';
-            } else if (weightUnit === 'kg') {
-                newLogEntry.load = parsedValue * 2.20462;
+            if (field === 'skip') {
+                newLogEntry.skipped = true;
+                newLogEntry.load = ''; newLogEntry.reps = ''; newLogEntry.rir = '';
+            } else if (field === 'unskip') {
+                newLogEntry.skipped = false;
+            } else if (field === 'load') {
+                newLogEntry.displayLoad = value;
+                const parsedValue = parseFloat(value);
+                if (!isNaN(parsedValue)) {
+                    newLogEntry.load = weightUnit === 'kg' ? parsedValue * 2.20462 : parsedValue;
+                } else {
+                    newLogEntry.load = '';
+                }
             } else {
-                newLogEntry.load = parsedValue;
+                newLogEntry[field] = value;
             }
-        } else {
-            newLogEntry[field] = value;
-        }
 
-        const isCompleteNow = isSetLogComplete(newLogEntry);
+            const isCompleteNow = isSetLogComplete(newLogEntry);
+            if (!isDropSet && !wasCompleteBefore && isCompleteNow && !newLogEntry.skipped) {
+                onStartTimer();
+            }
 
-        setAllLogs(prev => ({ ...prev, [logId]: newLogEntry }));
+            if (debounceTimeout.current) clearTimeout(debounceTimeout.current);
+            debounceTimeout.current = setTimeout(() => {
+                if (db && customId) {
+                    const userDocRef = doc(db, 'workoutLogs', customId);
+                    updateDoc(userDocRef, { [`logs.${logId}`]: newLogEntry });
+                }
+            }, 1200);
 
-        if (db && customId) {
-            const userDocRef = doc(db, 'workoutLogs', customId);
-            updateDoc(userDocRef, { [`logs.${logId}`]: newLogEntry });
-        }
-        
-        if (!isDropSet && !wasCompleteBefore && isCompleteNow && !newLogEntry.skipped) {
-            onStartTimer();
-        }
-    };
+            return { ...prevLogs, [logId]: newLogEntry };
+        });
+    }, [week, dayKey, workoutName, weightUnit, db, customId, onStartTimer]);
+
+    useEffect(() => {
+        return () => {
+            if (debounceTimeout.current) {
+                clearTimeout(debounceTimeout.current);
+            }
+        };
+    }, []);
+
 
     if (!workout) return (
        <div className="p-4 md:p-6 pb-24 text-center">
@@ -4968,6 +4977,7 @@ const AppCore = () => {
         });
     };
 
+    const programSaveDebounceTimeout = useRef(null);
     // This useEffect hook will persist programInstances to Firebase whenever it changes.
     const isInitialMount = useRef(true);
     useEffect(() => {
@@ -4976,9 +4986,19 @@ const AppCore = () => {
             return;
         }
 
-        // Only save when programInstances changes *after* the initial load from Firebase.
-        if (db && customId && programInstances.length > 0) {
-            handleUpdateAndSave({ programInstances });
+        if (programSaveDebounceTimeout.current) clearTimeout(programSaveDebounceTimeout.current);
+
+        programSaveDebounceTimeout.current = setTimeout(() => {
+            // Only save when programInstances changes *after* the initial load from Firebase.
+            if (db && customId && programInstances.length > 0) {
+                handleUpdateAndSave({ programInstances });
+            }
+        }, 1500); // Debounce program saves by 1.5s
+
+        return () => {
+            if (programSaveDebounceTimeout.current) {
+                clearTimeout(programSaveDebounceTimeout.current);
+            }
         }
     }, [programInstances, handleUpdateAndSave, db, customId]);
 
