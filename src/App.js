@@ -775,10 +775,12 @@ const migrateProgramData = (program) => {
     for (const key in newProgram.programStructure) {
         const template = newProgram.programStructure[key];
         if (template && template.exercises && template.exercises.length > 0 && typeof template.exercises[0] === 'string') {
-            template.exercises = template.exercises.map(exName => ({
-                id: crypto.randomUUID(),
-                name: exName
-            }));
+            template.exercises = template.exercises
+                .filter(exName => exName && exName.trim())
+                .map(exName => ({
+                    id: crypto.randomUUID(),
+                    name: exName
+                }));
         }
     }
 
@@ -1576,7 +1578,7 @@ const LiftingSession = ({ week, dayKey, onBack, allLogs, setAllLogs, onSkipDay, 
                 <p className="text-lg text-gray-600 dark:text-gray-400">{workoutDisplayName}</p>
             </div>
             <div className="space-y-4">
-                {workout.exercises.map(ex =>
+                {workout.exercises.filter(ex => ex && ex.name).map(ex =>
                     <ExerciseCard 
                         key={ex.id}
                         exerciseName={ex.name}
