@@ -3348,6 +3348,8 @@ const EditProgramView = ({ programData, onProgramDataChange, onBack, onNavigate 
                     </div>
                 </div>
 
+                <MasterScheduleEditor program={programData} onProgramDataChange={onProgramDataChange} />
+
                 {/* Weekly Schedule Editor - Collapsible */}
                 <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-4 mb-6">
                     <button onClick={() => setScheduleOpen(!isScheduleOpen)} className="w-full flex justify-between items-center text-left">
