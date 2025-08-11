@@ -1527,10 +1527,13 @@ const LiftingSession = ({ week, dayKey, onBack, allLogs, setAllLogs, onSkipDay, 
             newLogEntry.skipped = false;
         } else if (field === 'load') {
             newLogEntry.displayLoad = value;
-            if (weightUnit === 'kg') {
-                newLogEntry.load = parseFloat(value) * 2.20462;
+            const parsedValue = parseFloat(value);
+            if (isNaN(parsedValue)) {
+                newLogEntry.load = '';
+            } else if (weightUnit === 'kg') {
+                newLogEntry.load = parsedValue * 2.20462;
             } else {
-                newLogEntry.load = parseFloat(value);
+                newLogEntry.load = parsedValue;
             }
         } else {
             newLogEntry[field] = value;
@@ -3144,11 +3147,13 @@ const EditProgramView = ({ programData, onProgramDataChange, onBack, onNavigate 
         const existingOverride = programData.weeklyOverrides?.[week]?.[dayKey];
 
         const onSaveFromModal = (workoutName, updatedWorkout) => {
-            const newProgramStructure = {
-                ...programData.programStructure,
-                [workoutName]: updatedWorkout,
-            };
-            onProgramDataChange({ ...programData, programStructure: newProgramStructure });
+            onProgramDataChange(currentProgramData => {
+                const newProgramStructure = {
+                    ...currentProgramData.programStructure,
+                    [workoutName]: updatedWorkout,
+                };
+                return { ...currentProgramData, programStructure: newProgramStructure };
+            });
             closeModal();
         };
 
@@ -4225,44 +4230,23 @@ const getMaxE1RMFor = (logs, exerciseSubstring) => {
     return Math.max(0, ...relevantLogs.map(l => calculateE1RM(l.load, l.reps, l.rir)));
 };
 
-const getBodyweightRatioFor = (logs, exerciseSubstring, bodyWeightHistory) => {
+const getBodyweightRatioFor = (logs, exerciseSubstring, bodyWeight, bodyWeightHistory) => {
     const exerciseLogs = Object.values(logs).filter(
-        l => !l.skipped && l.exercise.toLowerCase().includes(exerciseSubstring) && l.date && (l.load || l.load === 0) && l.reps
+        l => !l.skipped && l.exercise.toLowerCase().includes(exerciseSubstring) && (l.load || l.load === 0) && l.reps
     );
 
-    if (exerciseLogs.length === 0 || !bodyWeightHistory || bodyWeightHistory.length === 0) {
+    if (exerciseLogs.length === 0) {
         return 0;
     }
 
-    // Bodyweight history is stored with weight in lbs
-    const sortedBwHistory = [...bodyWeightHistory]
-        .map(e => ({ ...e, date: new Date(e.date) }))
-        .sort((a, b) => a.date - b.date);
-
-    if (sortedBwHistory.length === 0) return 0;
-
-    let maxRatio = 0;
-
-    for (const log of exerciseLogs) {
-        const logDate = new Date(log.date);
-
-        // Find the most recent bodyweight entry on or before the log date
-        const suitableBwEntry = sortedBwHistory.filter(bw => bw.date <= logDate).pop();
-
-        if (suitableBwEntry && suitableBwEntry.weight > 0) {
-            const e1rm = calculateE1RM(log.load, log.reps, log.rir);
-            const bodyWeightInLbs = suitableBwEntry.weight; // Guaranteed to be in lbs
-
-            if (bodyWeightInLbs > 0) {
-                const ratio = e1rm / bodyWeightInLbs;
-                if (ratio > maxRatio) {
-                    maxRatio = ratio;
-                }
-            }
-        }
+    const latestBw = bodyWeight > 0 ? bodyWeight : (bodyWeightHistory && bodyWeightHistory.length > 0 ? [...bodyWeightHistory].sort((a, b) => new Date(b.date) - new Date(a.date))[0]?.weight || 0 : 0);
+    if (latestBw <= 0) {
+        return 0;
     }
 
-    return maxRatio;
+    const maxE1RM = Math.max(0, ...exerciseLogs.map(l => calculateE1RM(l.load, l.reps, l.rir)));
+
+    return maxE1RM / latestBw;
 };
 
 const achievementsList = {
@@ -4333,7 +4317,7 @@ const achievementsList = {
             { name: "2.0x BW", value: 2.0, description: () => "Benching double your bodyweight is elite." },
         ],
         getValue: (logs, program, bodyWeight, weightUnit, bodyWeightHistory) => {
-            return getBodyweightRatioFor(logs, 'bench', bodyWeightHistory);
+            return getBodyweightRatioFor(logs, 'bench', bodyWeight, bodyWeightHistory);
         }
     },
     bodyweight_squat: {
@@ -4348,7 +4332,7 @@ const achievementsList = {
             { name: "2.5x BW", value: 2.5, description: () => "Squatting 2.5x your bodyweight. Powerful!" },
         ],
         getValue: (logs, program, bodyWeight, weightUnit, bodyWeightHistory) => {
-            return getBodyweightRatioFor(logs, 'squat', bodyWeightHistory);
+            return getBodyweightRatioFor(logs, 'squat', bodyWeight, bodyWeightHistory);
         }
     },
      bodyweight_deadlift: {
@@ -4363,7 +4347,7 @@ const achievementsList = {
             { name: "3.0x BW", value: 3.0, description: () => "Deadlifting 3x your bodyweight. Incredible!" },
         ],
         getValue: (logs, program, bodyWeight, weightUnit, bodyWeightHistory) => {
-            return getBodyweightRatioFor(logs, 'deadlift', bodyWeightHistory);
+            return getBodyweightRatioFor(logs, 'deadlift', bodyWeight, bodyWeightHistory);
         }
     },
     overhead_overlord: {
@@ -4928,10 +4912,11 @@ const AppCore = () => {
         }
     }, [db, customId]);
 
-    const handleProgramDataChange = (newProgramData) => {
+    const handleProgramDataChange = (updater) => {
         setProgramInstances(prevInstances => {
             const newInstances = prevInstances.map(p => {
                 if (p.id === activeInstanceId) {
+                    const newProgramData = typeof updater === 'function' ? updater(p.program) : updater;
                     return { ...p, program: newProgramData, lastModified: new Date().toISOString() };
                 }
                 return p;
