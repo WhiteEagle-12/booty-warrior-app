@@ -3267,7 +3267,16 @@ const EditProgramView = ({ programData, onProgramDataChange, onBack, onNavigate 
             );
         } else {
             const customWorkoutName = `${programData.programStructure[baseWorkoutName]?.isRest ? 'New Workout' : baseWorkoutName} (Custom W${week}-${dayKey})`;
-            const baseWorkout = programData.programStructure[baseWorkoutName];
+            let baseWorkout = programData.programStructure[baseWorkoutName];
+            if (!baseWorkout) {
+                console.warn(`Dangling reference found for workout "${baseWorkoutName}". Using fallback.`);
+                const fallbackWorkoutName = programData.workoutOrder.find(name => programData.programStructure[name] && !programData.programStructure[name].isRest);
+                if (fallbackWorkoutName) {
+                    baseWorkout = programData.programStructure[fallbackWorkoutName];
+                } else {
+                    baseWorkout = { exercises: [], label: 'New Workout', isRest: false };
+                }
+            }
             const newCustomWorkout = baseWorkout ? JSON.parse(JSON.stringify(baseWorkout)) : { exercises: [], label: `Custom ${dayKey}`, isRest: false };
 
             onProgramDataChange(p => {
