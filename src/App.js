@@ -4974,11 +4974,12 @@ const AppCore = () => {
 
     const programData = useMemo(() => {
         let programToMigrate;
-        if (!activeInstanceId || programInstances.length === 0) {
+        if (programInstances.length === 0) {
             programToMigrate = presets['optimal-ppl-ul'];
         } else {
-            const activeInstance = programInstances.find(p => p.id === activeInstanceId);
-            programToMigrate = activeInstance ? activeInstance.program : presets['optimal-ppl-ul'];
+            const activeInstance =
+                programInstances.find(p => p.id === activeInstanceId) || programInstances[0];
+            programToMigrate = activeInstance.program;
         }
         return migrateProgramData(programToMigrate);
     }, [activeInstanceId, programInstances]);
@@ -4992,14 +4993,21 @@ const AppCore = () => {
 
     const handleProgramDataChange = useCallback((updater) => {
         setProgramInstances(prevInstances => {
+            if (prevInstances.length === 0) {
+                return prevInstances;
+            }
+            const targetId = activeInstanceId || prevInstances[0].id;
             const newInstances = prevInstances.map(p => {
-                if (p.id === activeInstanceId) {
+                if (p.id === targetId) {
                     const newProgram = typeof updater === 'function' ? updater(p.program) : updater;
                     return { ...p, program: newProgram, lastModified: new Date().toISOString() };
                 }
                 return p;
             });
             handleUpdateAndSave({ programInstances: newInstances });
+            if (!activeInstanceId) {
+                setActiveInstanceId(targetId);
+            }
             return newInstances;
         });
     }, [activeInstanceId, handleUpdateAndSave]);
@@ -5100,6 +5108,15 @@ const AppCore = () => {
             return;
         }
         if (!customId) {
+            const defaultProgram = migrateProgramData(presets['optimal-ppl-ul']);
+            const localInstance = {
+                id: crypto.randomUUID(),
+                program: defaultProgram,
+                createdAt: new Date().toISOString(),
+                lastModified: new Date().toISOString()
+            };
+            setProgramInstances([localInstance]);
+            setActiveInstanceId(localInstance.id);
             setIsDataLoading(false);
             showTutorial(false);
             return;
