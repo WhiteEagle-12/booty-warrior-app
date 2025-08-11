@@ -1616,6 +1616,13 @@ const WeekView = ({ week, completedDays, onSessionSelect, firstIncompleteWeek, o
         setIsOpen(week === firstIncompleteWeek);
     }, [firstIncompleteWeek, week]);
     
+    const gridColsMap = {
+        1: 'lg:grid-cols-1', 2: 'lg:grid-cols-2', 3: 'lg:grid-cols-3', 4: 'lg:grid-cols-4',
+        5: 'lg:grid-cols-5', 6: 'lg:grid-cols-6', 7: 'lg:grid-cols-7', 8: 'lg:grid-cols-8',
+        9: 'lg:grid-cols-9', 10: 'lg:grid-cols-10', 11: 'lg:grid-cols-11', 12: 'lg:grid-cols-12',
+    };
+    const gridColsClass = gridColsMap[weeklySchedule.length] || 'lg:grid-cols-7';
+
     return (
         <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-4">
             <button onClick={() => setIsOpen(!isOpen)} className="w-full flex justify-between items-center text-left">
@@ -1623,7 +1630,7 @@ const WeekView = ({ week, completedDays, onSessionSelect, firstIncompleteWeek, o
                 <div className="flex items-center gap-2">{isWeekComplete && <CheckCircle className="text-green-500" />}{isOpen ? <ChevronUp className="text-gray-500 dark:text-gray-400" /> : <ChevronDown className="text-gray-500 dark:text-gray-400" />}</div>
             </button>
             {isOpen && (
-                <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3 mt-4">
+                <div className={`grid grid-cols-2 sm:grid-cols-4 ${gridColsClass} gap-3 mt-4`}>
                     {weeklySchedule.map(day => {
                         const dayKey = `${week}-${day.day}`;
                         const status = completedDays.get(dayKey);
@@ -3322,6 +3329,22 @@ const EditProgramView = ({ programData, onProgramDataChange, onBack, onNavigate 
                             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Weeks</label>
                             <input type="number" value={programData.info.weeks} onChange={(e) => handleInfoChange('weeks', parseInt(e.target.value, 10) || 1)} className="w-full p-2 bg-white dark:bg-gray-700 rounded-md border-gray-300 dark:border-gray-600" />
                         </div>
+                    </div>
+                </div>
+
+                {/* Schedule Length Editor */}
+                <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-4 mb-6">
+                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">Schedule Length</h3>
+                    <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
+                        Current schedule has {programData.weeklySchedule.length} days.
+                    </p>
+                    <div className="flex gap-2">
+                        <button onClick={handleAddDayToSchedule} className="w-full flex items-center justify-center gap-2 p-2 rounded-lg bg-green-100 dark:bg-green-900/50 text-green-700 dark:text-green-300 hover:bg-green-200 dark:hover:bg-green-800/50">
+                            <PlusCircle size={16}/> Add Day
+                        </button>
+                        <button onClick={handleRemoveLastDayFromSchedule} disabled={programData.weeklySchedule.length <= 1} className="w-full flex items-center justify-center gap-2 p-2 rounded-lg bg-red-100 dark:bg-red-900/50 text-red-700 dark:text-red-300 hover:bg-red-200 dark:hover:bg-red-800/50 disabled:opacity-50 disabled:cursor-not-allowed">
+                            <XCircle size={16}/> Remove Last Day
+                        </button>
                     </div>
                 </div>
 
