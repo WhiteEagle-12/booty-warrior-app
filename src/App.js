@@ -4991,18 +4991,15 @@ const AppCore = () => {
     }, [db, customId]);
 
     const handleProgramDataChange = useCallback((updater) => {
-        setProgramInstances(prevInstances => {
-            const newInstances = prevInstances.map(p => {
-                if (p.id === activeInstanceId) {
-                    const newProgram = typeof updater === 'function' ? updater(p.program) : updater;
-                    return { ...p, program: newProgram, lastModified: new Date().toISOString() };
-                }
-                return p;
-            });
-            handleUpdateAndSave({ programInstances: newInstances });
-            return newInstances;
+        const newInstances = programInstances.map(p => {
+            if (p.id === activeInstanceId) {
+                const newProgram = typeof updater === 'function' ? updater(p.program) : updater;
+                return { ...p, program: newProgram, lastModified: new Date().toISOString() };
+            }
+            return p;
         });
-    }, [activeInstanceId, handleUpdateAndSave]);
+        handleUpdateAndSave({ programInstances: newInstances });
+    }, [activeInstanceId, programInstances, handleUpdateAndSave]);
 
     const navigate = useCallback((view, data = {}) => {
         const newPageState = { view, data };
