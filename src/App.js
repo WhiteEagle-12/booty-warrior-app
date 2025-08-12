@@ -3901,13 +3901,13 @@ const ProgramManagerView = ({ onProgramUpdate, activeProgram, programInstances, 
     };
 
     const handleExportProgramToCSV = () => {
-        const { name, masterExerciseList, programStructure, weeklySchedule } = activeProgram.program;
+        const { name, masterExerciseList, programStructure, weeklySchedule } = activeProgram;
         const headers = ['Workout Day', 'Day of Week', 'Exercise', 'Sets', 'Reps', 'RIR', 'Rest', 'Equipment', 'Last Set Technique', 'Muscles Primary', 'Muscles Secondary', 'Muscles Tertiary', 'Primary Contribution', 'Secondary Contribution', 'Tertiary Contribution'];
         const rows = [];
 
         weeklySchedule.forEach(({ day }) => {
-            const workoutName = getWorkoutNameForDay(activeProgram.program, 1, day); // Using week 1 for template
-            if (activeProgram.program.programStructure[workoutName] && !activeProgram.program.programStructure[workoutName].isRest) {
+            const workoutName = getWorkoutNameForDay(activeProgram, 1, day); // Using week 1 for template
+            if (programStructure[workoutName] && !programStructure[workoutName].isRest) {
                 const workoutDetails = programStructure[workoutName];
                 if (workoutDetails) {
                     workoutDetails.exercises.forEach(ex => {
