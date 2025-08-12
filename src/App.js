@@ -3740,58 +3740,70 @@ const RestoreProgramModal = ({ csvData, onRestore, onClose }) => {
             const lines = csvData.split('\n').filter(line => line.trim() !== '');
             if (lines.length < 2) throw new Error("CSV file must have a header and at least one data row.");
 
-            const headers = lines[0].split(',').map(h => h.trim());
-            const requiredHeaders = ['Exercise', 'Sets', 'Reps', 'RIR', 'Rest', 'Muscles Primary', 'Workout Day', 'Day of Week'];
-            for(const header of requiredHeaders) {
-                if(!headers.includes(header)) throw new Error(`Missing required CSV header: ${header}`);
+            const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
+            const requiredHeaders = ['Workout Day', 'Day of Week', 'Exercise', 'Sets', 'Reps', 'RIR', 'Rest', 'Equipment', 'Last Set Technique', 'Muscles Primary', 'Muscles Secondary', 'Muscles Tertiary', 'Primary Contribution', 'Secondary Contribution', 'Tertiary Contribution'];
+            for (const header of requiredHeaders) {
+                if (!headers.includes(header)) throw new Error(`Missing required CSV header: ${header}`);
             }
 
             const programName = "Restored Program";
             const masterExerciseList = {};
             const programStructure = {};
             const weeklySchedule = [
-                { day: 'Mon', workout: 'Rest' }, { day: 'Tue', workout: 'Rest' },
-                { day: 'Wed', workout: 'Rest' }, { day: 'Thu', workout: 'Rest' },
-                { day: 'Fri', workout: 'Rest' }, { day: 'Sat', workout: 'Rest' },
-                { day: 'Sun', workout: 'Rest' },
+                { day: 'Mon', workout: 'Rest Day' }, { day: 'Tue', workout: 'Rest Day' },
+                { day: 'Wed', workout: 'Rest Day' }, { day: 'Thu', workout: 'Rest Day' },
+                { day: 'Fri', workout: 'Rest Day' }, { day: 'Sat', workout: 'Rest Day' },
+                { day: 'Sun', workout: 'Rest Day' },
             ];
+            const workoutDays = new Set();
 
             lines.slice(1).forEach(line => {
-                const values = line.split(',');
+                const values = line.split(',').map(v => v.trim().replace(/"/g, ''));
                 const exerciseData = headers.reduce((obj, header, index) => {
-                    obj[header] = values[index]?.trim() || '';
+                    obj[header] = values[index] || '';
                     return obj;
                 }, {});
 
                 const exName = exerciseData['Exercise'];
                 if (!masterExerciseList[exName]) {
                     masterExerciseList[exName] = {
-                        sets: exerciseData['Sets'],
+                        sets: parseInt(exerciseData['Sets'], 10),
                         reps: exerciseData['Reps'],
                         rir: exerciseData['RIR'].split(';'),
                         rest: exerciseData['Rest'],
+                        equipment: exerciseData['Equipment'],
+                        lastSetTechnique: exerciseData['Last Set Technique'],
                         muscles: {
                             primary: exerciseData['Muscles Primary'],
                             secondary: exerciseData['Muscles Secondary'],
                             tertiary: exerciseData['Muscles Tertiary'],
+                            primaryContribution: parseFloat(exerciseData['Primary Contribution']),
+                            secondaryContribution: parseFloat(exerciseData['Secondary Contribution']),
+                            tertiaryContribution: parseFloat(exerciseData['Tertiary Contribution']),
                         }
                     };
                 }
 
                 const workoutDay = exerciseData['Workout Day'];
-                if (!programStructure[workoutDay]) {
-                    programStructure[workoutDay] = { exercises: [], label: workoutDay.charAt(0).toUpperCase() };
-                }
-                if (!programStructure[workoutDay].exercises.includes(exName)) {
-                    programStructure[workoutDay].exercises.push(exName);
-                }
+                if (workoutDay) {
+                    workoutDays.add(workoutDay);
+                    if (!programStructure[workoutDay]) {
+                        programStructure[workoutDay] = { exercises: [], label: workoutDay.charAt(0).toUpperCase() + workoutDay.slice(1, 3) };
+                    }
+                    if (!programStructure[workoutDay].exercises.some(ex => ex.name === exName)) {
+                         programStructure[workoutDay].exercises.push({ id: crypto.randomUUID(), name: exName });
+                    }
 
-                const dayOfWeek = exerciseData['Day of Week'];
-                const scheduleEntry = weeklySchedule.find(d => d.day === dayOfWeek);
-                if (scheduleEntry) {
-                    scheduleEntry.workout = workoutDay;
+                    const dayOfWeek = exerciseData['Day of Week'];
+                    const scheduleEntry = weeklySchedule.find(d => d.day === dayOfWeek);
+                    if (scheduleEntry) {
+                        scheduleEntry.workout = workoutDay;
+                    }
                 }
             });
+
+            programStructure['Rest Day'] = { exercises: [], label: 'Rest', isRest: true };
+            workoutDays.add('Rest Day');
 
             const restoredProgram = {
                 name: programName,
@@ -3799,8 +3811,8 @@ const RestoreProgramModal = ({ csvData, onRestore, onClose }) => {
                 masterExerciseList,
                 programStructure,
                 weeklySchedule,
-                workoutOrder: Object.keys(programStructure),
-                settings: presets['optimal-ppl-ul'].settings, // Default settings
+                workoutOrder: Array.from(workoutDays),
+                settings: presets['optimal-ppl-ul'].settings,
                 weeklyOverrides: {},
             };
 
@@ -3889,23 +3901,34 @@ const ProgramManagerView = ({ onProgramUpdate, activeProgram, programInstances, 
     };
 
     const handleExportProgramToCSV = () => {
-        const { name, masterExerciseList, programStructure, weeklySchedule, weeklyOverrides } = activeProgram.program;
-        const headers = ['Workout Day', 'Day of Week', 'Exercise', 'Sets', 'Reps', 'RIR', 'Rest', 'Muscles Primary', 'Muscles Secondary', 'Muscles Tertiary'];
+        const { name, masterExerciseList, programStructure, weeklySchedule } = activeProgram.program;
+        const headers = ['Workout Day', 'Day of Week', 'Exercise', 'Sets', 'Reps', 'RIR', 'Rest', 'Equipment', 'Last Set Technique', 'Muscles Primary', 'Muscles Secondary', 'Muscles Tertiary', 'Primary Contribution', 'Secondary Contribution', 'Tertiary Contribution'];
         const rows = [];
 
         weeklySchedule.forEach(({ day }) => {
-            const workoutName = getWorkoutNameForDay(activeProgram.program, 1, day); // Simplified week, assuming for structure
-            if (!program.programStructure[workoutName]?.isRest) {
+            const workoutName = getWorkoutNameForDay(activeProgram.program, 1, day); // Using week 1 for template
+            if (activeProgram.program.programStructure[workoutName] && !activeProgram.program.programStructure[workoutName].isRest) {
                 const workoutDetails = programStructure[workoutName];
                 if (workoutDetails) {
                     workoutDetails.exercises.forEach(ex => {
                         const exDetails = masterExerciseList[ex.name];
                         if (exDetails) {
                             rows.push([
-                                `"${workoutName}"`, day, `"${ex.name}"`, exDetails.sets, `"${exDetails.reps}"`,
+                                `"${workoutName}"`,
+                                `"${day}"`,
+                                `"${ex.name}"`,
+                                exDetails.sets,
+                                `"${exDetails.reps}"`,
                                 `"${Array.isArray(exDetails.rir) ? exDetails.rir.join(';') : exDetails.rir}"`,
-                                `"${exDetails.rest}"`, `"${exDetails.muscles?.primary || ''}"`,
-                                `"${exDetails.muscles?.secondary || ''}"`, `"${exDetails.muscles?.tertiary || ''}"`
+                                `"${exDetails.rest}"`,
+                                `"${exDetails.equipment || ''}"`,
+                                `"${exDetails.lastSetTechnique || ''}"`,
+                                `"${exDetails.muscles?.primary || ''}"`,
+                                `"${exDetails.muscles?.secondary || ''}"`,
+                                `"${exDetails.muscles?.tertiary || ''}"`,
+                                exDetails.muscles?.primaryContribution ?? 1,
+                                exDetails.muscles?.secondaryContribution ?? 0.5,
+                                exDetails.muscles?.tertiaryContribution ?? 0.25
                             ].join(','));
                         }
                     });
