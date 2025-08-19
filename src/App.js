@@ -3796,10 +3796,10 @@ const RestoreProgramModal = ({ csvData, onRestore, onClose }) => {
 
                 const workoutDay = exerciseData['Workout Day'];
                 if (!programStructure[workoutDay]) {
-                    programStructure[workoutDay] = { exercises: [], label: workoutDay.charAt(0).toUpperCase() };
+                    programStructure[workoutDay] = { exercises: [], label: workoutDay.charAt(0).toUpperCase(), isRest: false };
                 }
-                if (!programStructure[workoutDay].exercises.includes(exName)) {
-                    programStructure[workoutDay].exercises.push(exName);
+                if (!programStructure[workoutDay].exercises.find(e => e.name === exName)) {
+                    programStructure[workoutDay].exercises.push({ id: crypto.randomUUID(), name: exName });
                 }
 
                 const dayOfWeek = exerciseData['Day of Week'];
@@ -3808,6 +3808,8 @@ const RestoreProgramModal = ({ csvData, onRestore, onClose }) => {
                     scheduleEntry.workout = workoutDay;
                 }
             });
+
+            programStructure['Rest'] = { isRest: true, exercises: [], label: "Rest" };
 
             const restoredProgram = {
                 name: programName,
