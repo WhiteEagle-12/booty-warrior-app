@@ -6,7 +6,7 @@ import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
 
 // Firebase Imports - using modular v9+ syntax
 import { initializeApp } from "firebase/app";
-import { getFirestore, doc, onSnapshot, setDoc, updateDoc, arrayUnion, enablePersistence, CACHE_SIZE_UNLIMITED } from "firebase/firestore";
+import { getFirestore, doc, onSnapshot, setDoc, updateDoc, arrayUnion, enableIndexedDbPersistence } from "firebase/firestore";
 import { getAuth, onAuthStateChanged, signInAnonymously } from "firebase/auth";
 
 
@@ -1079,7 +1079,7 @@ const FirebaseProvider = ({ children }) => {
         const db = getFirestore(app);
 
         try {
-            enablePersistence(db, { synchronizeTabs: true, cacheSizeBytes: CACHE_SIZE_UNLIMITED });
+            enableIndexedDbPersistence(db);
         } catch (err) {
             if (err.code === 'failed-precondition') {
                 console.warn("Firebase persistence failed, can only be enabled in one tab at a time.");
