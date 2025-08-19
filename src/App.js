@@ -6,7 +6,7 @@ import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
 
 // Firebase Imports - using modular v9+ syntax
 import { initializeApp } from "firebase/app";
-import { getFirestore, doc, onSnapshot, setDoc, updateDoc, arrayUnion } from "firebase/firestore";
+import { getFirestore, doc, onSnapshot, setDoc, updateDoc, arrayUnion, enableIndexedDbPersistence } from "firebase/firestore";
 import { getAuth, onAuthStateChanged, signInAnonymously } from "firebase/auth";
 
 
@@ -1077,6 +1077,20 @@ const FirebaseProvider = ({ children }) => {
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const db = getFirestore(app);
+
+        enableIndexedDbPersistence(db)
+            .catch((err) => {
+                if (err.code === 'failed-precondition') {
+                    // Multiple tabs open, persistence can only be enabled
+                    // in one tab at a a time.
+                    console.warn("Firestore persistence failed: can only be enabled in one tab at a time.");
+                } else if (err.code === 'unimplemented') {
+                    // The current browser does not support all of the
+                    // features required to enable persistence
+                    console.warn("Firestore persistence is not available in this browser.");
+                }
+            });
+
         setFirebaseServices({ auth, db });
 
         const unsubscribe = onAuthStateChanged(auth, (user) => {
@@ -1104,12 +1118,26 @@ const FirebaseProvider = ({ children }) => {
         return null;
     }, []);
 
+    const [isOnline, setIsOnline] = useState(navigator.onLine);
+
+    useEffect(() => {
+        const goOnline = () => setIsOnline(true);
+        const goOffline = () => setIsOnline(false);
+        window.addEventListener("online", goOnline);
+        window.addEventListener("offline", goOffline);
+        return () => {
+            window.removeEventListener("online", goOnline);
+            window.removeEventListener("offline", goOffline);
+        };
+    }, []);
+
     const value = {
         ...firebaseServices,
         user,
         isLoading,
         customId,
-        handleSetCustomId
+        handleSetCustomId,
+        isOnline
     };
 
     if (configError) {
@@ -4842,16 +4870,24 @@ const WingIcon = ({ className }) => (
 
 const AppHeader = ({ programName, onNavChange }) => {
     const { setSidebarOpen } = useContext(AppStateContext);
+    const { isOnline } = useContext(FirebaseContext);
+
     return (
         <header className="bg-white dark:bg-gray-800/80 backdrop-blur-sm shadow-sm sticky top-0 z-40 p-4 flex justify-between items-center">
             <button onClick={() => setSidebarOpen(true)} className="p-2 md:hidden">
                 <Menu />
             </button>
-             <div className="flex-1 flex justify-center">
+             <div className="flex-1 flex justify-center items-center gap-4">
                 <button onClick={() => onNavChange('main')} className="flex items-center gap-2">
                      <WingIcon className="w-8 h-8" />
                      <h1 className="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-green-500 to-blue-600">Project Overload</h1>
                 </button>
+                {!isOnline && (
+                    <div className="flex items-center gap-2 text-yellow-500 bg-yellow-100 dark:bg-yellow-900/50 px-3 py-1 rounded-lg text-sm font-semibold">
+                        <AlertTriangle size={16} />
+                        <span>Offline</span>
+                    </div>
+                )}
             </div>
             <div className="w-8 md:invisible"></div> {/* Placeholder for balance */}
         </header>
@@ -5215,28 +5251,34 @@ const AppCore = () => {
                     // Save the new structure
                     handleUpdateAndSave({ programInstances: [initialInstance], activeInstanceId: initialInstance.id });
                 }
-            } else { 
-                const firstProgram = presets['optimal-ppl-ul'];
-                const firstInstance = {
-                    id: crypto.randomUUID(),
-                    program: firstProgram,
-                    createdAt: new Date().toISOString(),
-                    lastModified: new Date().toISOString()
-                };
-                const initialData = {
-                    programInstances: [firstInstance],
-                    activeInstanceId: firstInstance.id,
-                    logs: {}, 
-                    skippedDays: {}, 
-                    theme: 'dark', 
-                    weightUnit: 'lbs',
-                    bodyWeight: '',
-                    bodyWeightHistory: [],
-                    archivedLogs: [],
-                    unlockedAchievements: {},
-                    hasSeenTutorial: true 
-                };
-                setDoc(userDocRef, initialData);
+            } else {
+                // Safeguard against overwriting data on flaky connections.
+                // Only create a new profile if we get a definitive "doesn't exist" from the server.
+                if (!docSnap.metadata.fromCache) {
+                    const firstProgram = presets['optimal-ppl-ul'];
+                    const firstInstance = {
+                        id: crypto.randomUUID(),
+                        program: firstProgram,
+                        createdAt: new Date().toISOString(),
+                        lastModified: new Date().toISOString()
+                    };
+                    const initialData = {
+                        programInstances: [firstInstance],
+                        activeInstanceId: firstInstance.id,
+                        logs: {},
+                        skippedDays: {},
+                        theme: 'dark',
+                        weightUnit: 'lbs',
+                        bodyWeight: '',
+                        bodyWeightHistory: [],
+                        archivedLogs: [],
+                        unlockedAchievements: {},
+                        hasSeenTutorial: true
+                    };
+                    setDoc(userDocRef, initialData);
+                } else {
+                    console.log("Offline and no data in cache. Waiting for connection to create profile.");
+                }
             }
             setIsDataLoading(false);
         }, (error) => {
