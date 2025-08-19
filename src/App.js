@@ -6,7 +6,7 @@ import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
 
 // Firebase Imports - using modular v9+ syntax
 import { initializeApp } from "firebase/app";
-import { getFirestore, doc, onSnapshot, setDoc, updateDoc, arrayUnion } from "firebase/firestore";
+import { getFirestore, doc, onSnapshot, setDoc, updateDoc, arrayUnion, enablePersistence, CACHE_SIZE_UNLIMITED } from "firebase/firestore";
 import { getAuth, onAuthStateChanged, signInAnonymously } from "firebase/auth";
 
 
@@ -1077,6 +1077,17 @@ const FirebaseProvider = ({ children }) => {
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const db = getFirestore(app);
+
+        try {
+            enablePersistence(db, { synchronizeTabs: true, cacheSizeBytes: CACHE_SIZE_UNLIMITED });
+        } catch (err) {
+            if (err.code === 'failed-precondition') {
+                console.warn("Firebase persistence failed, can only be enabled in one tab at a time.");
+            } else if (err.code === 'unimplemented') {
+                console.warn("Firebase persistence not supported in this browser.");
+            }
+        }
+
         setFirebaseServices({ auth, db });
 
         const unsubscribe = onAuthStateChanged(auth, (user) => {
@@ -4994,6 +5005,7 @@ const AppCore = () => {
     const [isDataLoading, setIsDataLoading] = useState(true);
     const [activeTimer, setActiveTimer] = useState(null);
     const [unlockedAchievements, setUnlockedAchievements] = useState({});
+    const [isOffline, setIsOffline] = useState(false);
 
     const programData = useMemo(() => {
         let programToMigrate;
@@ -5147,7 +5159,8 @@ const AppCore = () => {
 
         setIsDataLoading(true);
         const userDocRef = doc(db, 'workoutLogs', customId);
-        const unsubscribe = onSnapshot(userDocRef, (docSnap) => {
+        const unsubscribe = onSnapshot(userDocRef, { includeMetadataChanges: true }, (docSnap) => {
+            setIsOffline(docSnap.metadata.fromCache);
             if (docSnap.exists()) {
                 const data = docSnap.data();
                 setAllLogs(data.logs || {});
@@ -5197,28 +5210,32 @@ const AppCore = () => {
                     // Save the new structure
                     handleUpdateAndSave({ programInstances: [initialInstance], activeInstanceId: initialInstance.id });
                 }
-            } else { 
-                const firstProgram = presets['optimal-ppl-ul'];
-                const firstInstance = {
-                    id: crypto.randomUUID(),
-                    program: firstProgram,
-                    createdAt: new Date().toISOString(),
-                    lastModified: new Date().toISOString()
-                };
-                const initialData = {
-                    programInstances: [firstInstance],
-                    activeInstanceId: firstInstance.id,
-                    logs: {}, 
-                    skippedDays: {}, 
-                    theme: 'dark', 
-                    weightUnit: 'lbs',
-                    bodyWeight: '',
-                    bodyWeightHistory: [],
-                    archivedLogs: [],
-                    unlockedAchievements: {},
-                    hasSeenTutorial: true 
-                };
-                setDoc(userDocRef, initialData);
+            } else {
+                // NEW GUARD: Only create a new document if we have a definitive response from the server.
+                // If fromCache is true, it means we're offline and just looking at an empty cache, so we should wait.
+                if (!docSnap.metadata.fromCache) {
+                    const firstProgram = presets['optimal-ppl-ul'];
+                    const firstInstance = {
+                        id: crypto.randomUUID(),
+                        program: firstProgram,
+                        createdAt: new Date().toISOString(),
+                        lastModified: new Date().toISOString()
+                    };
+                    const initialData = {
+                        programInstances: [firstInstance],
+                        activeInstanceId: firstInstance.id,
+                        logs: {},
+                        skippedDays: {},
+                        theme: 'dark',
+                        weightUnit: 'lbs',
+                        bodyWeight: '',
+                        bodyWeightHistory: [],
+                        archivedLogs: [],
+                        unlockedAchievements: {},
+                        hasSeenTutorial: true
+                    };
+                    setDoc(userDocRef, initialData);
+                }
             }
             setIsDataLoading(false);
         }, (error) => {
@@ -5549,6 +5566,12 @@ const AppCore = () => {
         <div className="bg-gray-100 dark:bg-gray-900 min-h-screen font-sans text-gray-900 dark:text-gray-100">
             <div className="md:pl-64">
                 <AppHeader programName={programData.info.name} onNavChange={navigate} />
+            {isOffline && (
+                <div className="bg-yellow-500 text-black text-center p-2 text-sm font-semibold z-50 relative flex items-center justify-center gap-2">
+                    <AlertTriangle size={16} />
+                    You are currently offline. Changes are being saved locally.
+                </div>
+            )}
                  <main className="flex-grow">
                     <div className="container mx-auto max-w-4xl">{renderContent()}</div>
                 </main>
