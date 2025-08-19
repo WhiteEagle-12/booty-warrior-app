@@ -718,7 +718,7 @@ const migrateProgramData = (program) => {
         let template = newProgram.programStructure[workoutName];
 
         // If the template doesn't exist or is a generic rest day, create a unique one.
-        if (!template || (template.isRest && workoutName === 'Rest Day')) {
+        if (!template) {
             let newName;
             do {
                 newName = `Rest Day ${restDayCounter++}`;
@@ -3796,10 +3796,10 @@ const RestoreProgramModal = ({ csvData, onRestore, onClose }) => {
 
                 const workoutDay = exerciseData['Workout Day'];
                 if (!programStructure[workoutDay]) {
-                    programStructure[workoutDay] = { exercises: [], label: workoutDay.charAt(0).toUpperCase(), isRest: false };
+                    programStructure[workoutDay] = { exercises: [], label: workoutDay.charAt(0).toUpperCase() };
                 }
-                if (!programStructure[workoutDay].exercises.find(e => e.name === exName)) {
-                    programStructure[workoutDay].exercises.push({ id: crypto.randomUUID(), name: exName });
+                if (!programStructure[workoutDay].exercises.includes(exName)) {
+                    programStructure[workoutDay].exercises.push(exName);
                 }
 
                 const dayOfWeek = exerciseData['Day of Week'];
@@ -3808,8 +3808,6 @@ const RestoreProgramModal = ({ csvData, onRestore, onClose }) => {
                     scheduleEntry.workout = workoutDay;
                 }
             });
-
-            programStructure['Rest'] = { isRest: true, exercises: [], label: "Rest" };
 
             const restoredProgram = {
                 name: programName,
