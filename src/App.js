@@ -6,7 +6,7 @@ import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
 
 // Firebase Imports - using modular v9+ syntax
 import { initializeApp } from "firebase/app";
-import { getFirestore, doc, onSnapshot, setDoc, updateDoc, arrayUnion } from "firebase/firestore";
+import { getFirestore, doc, onSnapshot, setDoc, updateDoc, arrayUnion, enableIndexedDbPersistence } from "firebase/firestore";
 import { getAuth, onAuthStateChanged, signInAnonymously } from "firebase/auth";
 
 
@@ -1077,6 +1077,20 @@ const FirebaseProvider = ({ children }) => {
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const db = getFirestore(app);
+
+        enableIndexedDbPersistence(db)
+            .catch((err) => {
+                if (err.code === 'failed-precondition') {
+                    // Multiple tabs open, persistence can only be enabled
+                    // in one tab at a a time.
+                    console.warn("Firestore persistence failed: can only be enabled in one tab at a time.");
+                } else if (err.code === 'unimplemented') {
+                    // The current browser does not support all of the
+                    // features required to enable persistence
+                    console.warn("Firestore persistence is not available in this browser.");
+                }
+            });
+
         setFirebaseServices({ auth, db });
 
         const unsubscribe = onAuthStateChanged(auth, (user) => {
@@ -1104,12 +1118,26 @@ const FirebaseProvider = ({ children }) => {
         return null;
     }, []);
 
+    const [isOnline, setIsOnline] = useState(navigator.onLine);
+
+    useEffect(() => {
+        const goOnline = () => setIsOnline(true);
+        const goOffline = () => setIsOnline(false);
+        window.addEventListener("online", goOnline);
+        window.addEventListener("offline", goOffline);
+        return () => {
+            window.removeEventListener("online", goOnline);
+            window.removeEventListener("offline", goOffline);
+        };
+    }, []);
+
     const value = {
         ...firebaseServices,
         user,
         isLoading,
         customId,
-        handleSetCustomId
+        handleSetCustomId,
+        isOnline
     };
 
     if (configError) {
@@ -2874,22 +2902,8 @@ const EditProgramView = ({ programData, onProgramDataChange, onBack, onNavigate 
     const handleRemoveLastDayFromSchedule = () => {
         onProgramDataChange(p => {
             if (p.weeklySchedule.length <= 1) return p;
-
-            const lastDay = p.weeklySchedule[p.weeklySchedule.length - 1];
-            const workoutNameToRemove = lastDay.workout;
             const newSchedule = p.weeklySchedule.slice(0, -1);
-
-            const isTemplateUsedElsewhere = newSchedule.some(d => d.workout === workoutNameToRemove) ||
-                Object.values(p.weeklyOverrides || {}).some(week => Object.values(week).includes(workoutNameToRemove));
-
-            if (!isTemplateUsedElsewhere) {
-                const newProgramStructure = { ...p.programStructure };
-                delete newProgramStructure[workoutNameToRemove];
-                const newWorkoutOrder = p.workoutOrder.filter(name => name !== workoutNameToRemove);
-                return { ...p, weeklySchedule: newSchedule, programStructure: newProgramStructure, workoutOrder: newWorkoutOrder };
-            } else {
-                return { ...p, weeklySchedule: newSchedule };
-            }
+            return { ...p, weeklySchedule: newSchedule };
         });
     };
 
@@ -3267,7 +3281,16 @@ const EditProgramView = ({ programData, onProgramDataChange, onBack, onNavigate 
             );
         } else {
             const customWorkoutName = `${programData.programStructure[baseWorkoutName]?.isRest ? 'New Workout' : baseWorkoutName} (Custom W${week}-${dayKey})`;
-            const baseWorkout = programData.programStructure[baseWorkoutName];
+            let baseWorkout = programData.programStructure[baseWorkoutName];
+            if (!baseWorkout) {
+                console.warn(`Dangling reference found for workout "${baseWorkoutName}". Using fallback.`);
+                const fallbackWorkoutName = programData.workoutOrder.find(name => programData.programStructure[name] && !programData.programStructure[name].isRest);
+                if (fallbackWorkoutName) {
+                    baseWorkout = programData.programStructure[fallbackWorkoutName];
+                } else {
+                    baseWorkout = { exercises: [], label: 'New Workout', isRest: false };
+                }
+            }
             const newCustomWorkout = baseWorkout ? JSON.parse(JSON.stringify(baseWorkout)) : { exercises: [], label: `Custom ${dayKey}`, isRest: false };
 
             onProgramDataChange(p => {
@@ -3745,58 +3768,70 @@ const RestoreProgramModal = ({ csvData, onRestore, onClose }) => {
             const lines = csvData.split('\n').filter(line => line.trim() !== '');
             if (lines.length < 2) throw new Error("CSV file must have a header and at least one data row.");
 
-            const headers = lines[0].split(',').map(h => h.trim());
-            const requiredHeaders = ['Exercise', 'Sets', 'Reps', 'RIR', 'Rest', 'Muscles Primary', 'Workout Day', 'Day of Week'];
-            for(const header of requiredHeaders) {
-                if(!headers.includes(header)) throw new Error(`Missing required CSV header: ${header}`);
+            const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
+            const requiredHeaders = ['Workout Day', 'Day of Week', 'Exercise', 'Sets', 'Reps', 'RIR', 'Rest', 'Equipment', 'Last Set Technique', 'Muscles Primary', 'Muscles Secondary', 'Muscles Tertiary', 'Primary Contribution', 'Secondary Contribution', 'Tertiary Contribution'];
+            for (const header of requiredHeaders) {
+                if (!headers.includes(header)) throw new Error(`Missing required CSV header: ${header}`);
             }
 
             const programName = "Restored Program";
             const masterExerciseList = {};
             const programStructure = {};
             const weeklySchedule = [
-                { day: 'Mon', workout: 'Rest' }, { day: 'Tue', workout: 'Rest' },
-                { day: 'Wed', workout: 'Rest' }, { day: 'Thu', workout: 'Rest' },
-                { day: 'Fri', workout: 'Rest' }, { day: 'Sat', workout: 'Rest' },
-                { day: 'Sun', workout: 'Rest' },
+                { day: 'Mon', workout: 'Rest Day' }, { day: 'Tue', workout: 'Rest Day' },
+                { day: 'Wed', workout: 'Rest Day' }, { day: 'Thu', workout: 'Rest Day' },
+                { day: 'Fri', workout: 'Rest Day' }, { day: 'Sat', workout: 'Rest Day' },
+                { day: 'Sun', workout: 'Rest Day' },
             ];
+            const workoutDays = new Set();
 
             lines.slice(1).forEach(line => {
-                const values = line.split(',');
+                const values = line.split(',').map(v => v.trim().replace(/"/g, ''));
                 const exerciseData = headers.reduce((obj, header, index) => {
-                    obj[header] = values[index]?.trim() || '';
+                    obj[header] = values[index] || '';
                     return obj;
                 }, {});
 
                 const exName = exerciseData['Exercise'];
                 if (!masterExerciseList[exName]) {
                     masterExerciseList[exName] = {
-                        sets: exerciseData['Sets'],
+                        sets: parseInt(exerciseData['Sets'], 10),
                         reps: exerciseData['Reps'],
                         rir: exerciseData['RIR'].split(';'),
                         rest: exerciseData['Rest'],
+                        equipment: exerciseData['Equipment'],
+                        lastSetTechnique: exerciseData['Last Set Technique'],
                         muscles: {
                             primary: exerciseData['Muscles Primary'],
                             secondary: exerciseData['Muscles Secondary'],
                             tertiary: exerciseData['Muscles Tertiary'],
+                            primaryContribution: parseFloat(exerciseData['Primary Contribution']),
+                            secondaryContribution: parseFloat(exerciseData['Secondary Contribution']),
+                            tertiaryContribution: parseFloat(exerciseData['Tertiary Contribution']),
                         }
                     };
                 }
 
                 const workoutDay = exerciseData['Workout Day'];
-                if (!programStructure[workoutDay]) {
-                    programStructure[workoutDay] = { exercises: [], label: workoutDay.charAt(0).toUpperCase() };
-                }
-                if (!programStructure[workoutDay].exercises.includes(exName)) {
-                    programStructure[workoutDay].exercises.push(exName);
-                }
+                if (workoutDay) {
+                    workoutDays.add(workoutDay);
+                    if (!programStructure[workoutDay]) {
+                        programStructure[workoutDay] = { exercises: [], label: workoutDay.charAt(0).toUpperCase() + workoutDay.slice(1, 3) };
+                    }
+                    if (!programStructure[workoutDay].exercises.some(ex => ex.name === exName)) {
+                         programStructure[workoutDay].exercises.push({ id: crypto.randomUUID(), name: exName });
+                    }
 
-                const dayOfWeek = exerciseData['Day of Week'];
-                const scheduleEntry = weeklySchedule.find(d => d.day === dayOfWeek);
-                if (scheduleEntry) {
-                    scheduleEntry.workout = workoutDay;
+                    const dayOfWeek = exerciseData['Day of Week'];
+                    const scheduleEntry = weeklySchedule.find(d => d.day === dayOfWeek);
+                    if (scheduleEntry) {
+                        scheduleEntry.workout = workoutDay;
+                    }
                 }
             });
+
+            programStructure['Rest Day'] = { exercises: [], label: 'Rest', isRest: true };
+            workoutDays.add('Rest Day');
 
             const restoredProgram = {
                 name: programName,
@@ -3804,8 +3839,8 @@ const RestoreProgramModal = ({ csvData, onRestore, onClose }) => {
                 masterExerciseList,
                 programStructure,
                 weeklySchedule,
-                workoutOrder: Object.keys(programStructure),
-                settings: presets['optimal-ppl-ul'].settings, // Default settings
+                workoutOrder: Array.from(workoutDays),
+                settings: presets['optimal-ppl-ul'].settings,
                 weeklyOverrides: {},
             };
 
@@ -3894,23 +3929,34 @@ const ProgramManagerView = ({ onProgramUpdate, activeProgram, programInstances, 
     };
 
     const handleExportProgramToCSV = () => {
-        const { name, masterExerciseList, programStructure, weeklySchedule, weeklyOverrides } = activeProgram.program;
-        const headers = ['Workout Day', 'Day of Week', 'Exercise', 'Sets', 'Reps', 'RIR', 'Rest', 'Muscles Primary', 'Muscles Secondary', 'Muscles Tertiary'];
+        const { name, masterExerciseList, programStructure, weeklySchedule } = activeProgram;
+        const headers = ['Workout Day', 'Day of Week', 'Exercise', 'Sets', 'Reps', 'RIR', 'Rest', 'Equipment', 'Last Set Technique', 'Muscles Primary', 'Muscles Secondary', 'Muscles Tertiary', 'Primary Contribution', 'Secondary Contribution', 'Tertiary Contribution'];
         const rows = [];
 
         weeklySchedule.forEach(({ day }) => {
-            const workoutName = getWorkoutNameForDay(activeProgram.program, 1, day); // Simplified week, assuming for structure
-            if (!program.programStructure[workoutName]?.isRest) {
+            const workoutName = getWorkoutNameForDay(activeProgram, 1, day); // Using week 1 for template
+            if (programStructure[workoutName] && !programStructure[workoutName].isRest) {
                 const workoutDetails = programStructure[workoutName];
                 if (workoutDetails) {
                     workoutDetails.exercises.forEach(ex => {
                         const exDetails = masterExerciseList[ex.name];
                         if (exDetails) {
                             rows.push([
-                                `"${workoutName}"`, day, `"${ex.name}"`, exDetails.sets, `"${exDetails.reps}"`,
+                                `"${workoutName}"`,
+                                `"${day}"`,
+                                `"${ex.name}"`,
+                                exDetails.sets,
+                                `"${exDetails.reps}"`,
                                 `"${Array.isArray(exDetails.rir) ? exDetails.rir.join(';') : exDetails.rir}"`,
-                                `"${exDetails.rest}"`, `"${exDetails.muscles?.primary || ''}"`,
-                                `"${exDetails.muscles?.secondary || ''}"`, `"${exDetails.muscles?.tertiary || ''}"`
+                                `"${exDetails.rest}"`,
+                                `"${exDetails.equipment || ''}"`,
+                                `"${exDetails.lastSetTechnique || ''}"`,
+                                `"${exDetails.muscles?.primary || ''}"`,
+                                `"${exDetails.muscles?.secondary || ''}"`,
+                                `"${exDetails.muscles?.tertiary || ''}"`,
+                                exDetails.muscles?.primaryContribution ?? 1,
+                                exDetails.muscles?.secondaryContribution ?? 0.5,
+                                exDetails.muscles?.tertiaryContribution ?? 0.25
                             ].join(','));
                         }
                     });
@@ -4824,16 +4870,24 @@ const WingIcon = ({ className }) => (
 
 const AppHeader = ({ programName, onNavChange }) => {
     const { setSidebarOpen } = useContext(AppStateContext);
+    const { isOnline } = useContext(FirebaseContext);
+
     return (
         <header className="bg-white dark:bg-gray-800/80 backdrop-blur-sm shadow-sm sticky top-0 z-40 p-4 flex justify-between items-center">
             <button onClick={() => setSidebarOpen(true)} className="p-2 md:hidden">
                 <Menu />
             </button>
-             <div className="flex-1 flex justify-center">
+             <div className="flex-1 flex justify-center items-center gap-4">
                 <button onClick={() => onNavChange('main')} className="flex items-center gap-2">
                      <WingIcon className="w-8 h-8" />
                      <h1 className="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-green-500 to-blue-600">Project Overload</h1>
                 </button>
+                {!isOnline && (
+                    <div className="flex items-center gap-2 text-yellow-500 bg-yellow-100 dark:bg-yellow-900/50 px-3 py-1 rounded-lg text-sm font-semibold">
+                        <AlertTriangle size={16} />
+                        <span>Offline</span>
+                    </div>
+                )}
             </div>
             <div className="w-8 md:invisible"></div> {/* Placeholder for balance */}
         </header>
@@ -5197,28 +5251,34 @@ const AppCore = () => {
                     // Save the new structure
                     handleUpdateAndSave({ programInstances: [initialInstance], activeInstanceId: initialInstance.id });
                 }
-            } else { 
-                const firstProgram = presets['optimal-ppl-ul'];
-                const firstInstance = {
-                    id: crypto.randomUUID(),
-                    program: firstProgram,
-                    createdAt: new Date().toISOString(),
-                    lastModified: new Date().toISOString()
-                };
-                const initialData = {
-                    programInstances: [firstInstance],
-                    activeInstanceId: firstInstance.id,
-                    logs: {}, 
-                    skippedDays: {}, 
-                    theme: 'dark', 
-                    weightUnit: 'lbs',
-                    bodyWeight: '',
-                    bodyWeightHistory: [],
-                    archivedLogs: [],
-                    unlockedAchievements: {},
-                    hasSeenTutorial: true 
-                };
-                setDoc(userDocRef, initialData);
+            } else {
+                // Safeguard against overwriting data on flaky connections.
+                // Only create a new profile if we get a definitive "doesn't exist" from the server.
+                if (!docSnap.metadata.fromCache) {
+                    const firstProgram = presets['optimal-ppl-ul'];
+                    const firstInstance = {
+                        id: crypto.randomUUID(),
+                        program: firstProgram,
+                        createdAt: new Date().toISOString(),
+                        lastModified: new Date().toISOString()
+                    };
+                    const initialData = {
+                        programInstances: [firstInstance],
+                        activeInstanceId: firstInstance.id,
+                        logs: {},
+                        skippedDays: {},
+                        theme: 'dark',
+                        weightUnit: 'lbs',
+                        bodyWeight: '',
+                        bodyWeightHistory: [],
+                        archivedLogs: [],
+                        unlockedAchievements: {},
+                        hasSeenTutorial: true
+                    };
+                    setDoc(userDocRef, initialData);
+                } else {
+                    console.log("Offline and no data in cache. Waiting for connection to create profile.");
+                }
             }
             setIsDataLoading(false);
         }, (error) => {
