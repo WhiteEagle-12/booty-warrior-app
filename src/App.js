@@ -9,6 +9,17 @@ import { initializeApp } from "firebase/app";
 import { getFirestore, doc, onSnapshot, setDoc, updateDoc, arrayUnion, enableIndexedDbPersistence } from "firebase/firestore";
 import { getAuth, onAuthStateChanged, signInAnonymously } from "firebase/auth";
 
+// --- HELPERS ---
+const generateUUID = () => {
+    // Prevent infinite recursion by checking strictly for the native function
+    if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+        return crypto.randomUUID();
+    }
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+        var r = Math.random() * 16 | 0, v = c === 'x' ? r : (r & 0x3 | 0x8);
+        return v.toString(16);
+    });
+};
 
 // --- PRESET PROGRAM DATA ---
 const presets = {
@@ -728,7 +739,7 @@ const migrateProgramData = (program) => {
             newProgram.programStructure[workoutName] = { exercises: [], label: "Rest", isRest: true };
         }
 
-        newSchedule.push({ ...day, workout: workoutName, id: day.id || crypto.randomUUID() });
+        newSchedule.push({ ...day, workout: workoutName, id: day.id || generateUUID() });
 
         if (!seenTemplates.has(workoutName)) {
             newWorkoutOrder.push(workoutName);
@@ -784,10 +795,10 @@ const migrateProgramData = (program) => {
         }
         template.exercises = template.exercises.map(ex => {
             if (typeof ex === 'string') {
-                return { id: crypto.randomUUID(), name: ex };
+                return { id: generateUUID(), name: ex };
             }
             if (ex && typeof ex === 'object' && ex.name) {
-                return { id: ex.id || crypto.randomUUID(), name: ex.name };
+                return { id: ex.id || generateUUID(), name: ex.name };
             }
             return null;
         }).filter(Boolean); // Remove any nulls from invalid data
@@ -946,13 +957,14 @@ const getProgressionSuggestion = (exerciseName, lastPerformanceData, masterList)
 };
 
 const getSessionInfoFromSequentialIndex = (index, programData) => {
-    const { weeklySchedule, info } = programData;
+    const { weeklySchedule, info, programStructure } = programData;
     if (!info || !weeklySchedule) return null;
     let workoutCounter = -1;
     for (let w = 1; w <= info.weeks; w++) {
         for (const day of weeklySchedule) {
             const workoutName = getWorkoutNameForDay(programData, w, day.day);
-            if (workoutName && workoutName !== 'Rest') {
+            const isRest = programStructure[workoutName]?.isRest;
+            if (workoutName && !isRest) {
                 workoutCounter++;
                 if (workoutCounter === index) {
                     return {
@@ -1005,7 +1017,7 @@ const AppStateProvider = ({ children }) => {
     }, [modalContent]);
     
     const addToast = useCallback((message, level = 'success') => {
-        const id = crypto.randomUUID();
+        const id = generateUUID();
         setToasts(prev => [...prev, { id, message, level }]);
         setTimeout(() => {
             setToasts(prev => prev.filter(t => t.id !== id));
@@ -1246,7 +1258,7 @@ const EditDayWorkoutModal = ({
     };
 
     const handleAddExerciseCallback = (exerciseName, exerciseDetails) => {
-        const newExercises = [...editedWorkout.exercises, { id: crypto.randomUUID(), name: exerciseName }];
+        const newExercises = [...editedWorkout.exercises, { id: generateUUID(), name: exerciseName }];
         setEditedWorkout({ ...editedWorkout, exercises: newExercises });
         // The parent component will handle adding the details to the master list if needed
         // This is passed to onAddExercise which should handle the modal logic
@@ -2884,11 +2896,11 @@ const EditProgramView = ({ programData, onProgramDataChange, onBack, onNavigate 
 
             const newProgramStructure = {
                 ...p.programStructure,
-                [newRestDayName]: { exercises: [], label: 'Rest', isRest: true, id: crypto.randomUUID() }
+                [newRestDayName]: { exercises: [], label: 'Rest', isRest: true, id: generateUUID() }
             };
             const newWorkoutOrder = [...p.workoutOrder, newRestDayName];
 
-            newSchedule.push({ day: newDayName, workout: newRestDayName, id: crypto.randomUUID() });
+            newSchedule.push({ day: newDayName, workout: newRestDayName, id: generateUUID() });
 
             return {
                 ...p,
@@ -2916,7 +2928,7 @@ const EditProgramView = ({ programData, onProgramDataChange, onBack, onNavigate 
                 workoutCounter++;
             } while (p.programStructure[newWorkoutName]);
 
-            const newProgramStructure = { ...p.programStructure, [newWorkoutName]: { exercises: [], label: 'New', isRest: false, id: crypto.randomUUID() } };
+            const newProgramStructure = { ...p.programStructure, [newWorkoutName]: { exercises: [], label: 'New', isRest: false, id: generateUUID() } };
             const newWorkoutOrder = [...p.workoutOrder, newWorkoutName];
             return { ...p, programStructure: newProgramStructure, workoutOrder: newWorkoutOrder };
         });
@@ -2933,7 +2945,7 @@ const EditProgramView = ({ programData, onProgramDataChange, onBack, onNavigate 
 
             const newProgramStructure = {
                 ...p.programStructure,
-                [newRestDayName]: { exercises: [], label: 'Rest', isRest: true, id: crypto.randomUUID() }
+                [newRestDayName]: { exercises: [], label: 'Rest', isRest: true, id: generateUUID() }
             };
             const newWorkoutOrder = [...p.workoutOrder, newRestDayName];
             return { ...p, programStructure: newProgramStructure, workoutOrder: newWorkoutOrder };
@@ -3050,7 +3062,7 @@ const EditProgramView = ({ programData, onProgramDataChange, onBack, onNavigate 
                 onAdd={(exerciseName, exerciseDetails) => {
                     onProgramDataChange(p => {
                         const newProgramStructure = JSON.parse(JSON.stringify(p.programStructure));
-                        newProgramStructure[workoutName].exercises.push({ id: crypto.randomUUID(), name: exerciseName });
+                        newProgramStructure[workoutName].exercises.push({ id: generateUUID(), name: exerciseName });
 
                         let newMasterList = { ...p.masterExerciseList };
                         if (exerciseDetails && !newMasterList[exerciseName]) {
@@ -3819,7 +3831,7 @@ const RestoreProgramModal = ({ csvData, onRestore, onClose }) => {
                         programStructure[workoutDay] = { exercises: [], label: workoutDay.charAt(0).toUpperCase() + workoutDay.slice(1, 3) };
                     }
                     if (!programStructure[workoutDay].exercises.some(ex => ex.name === exName)) {
-                         programStructure[workoutDay].exercises.push({ id: crypto.randomUUID(), name: exName });
+                         programStructure[workoutDay].exercises.push({ id: generateUUID(), name: exName });
                     }
 
                     const dayOfWeek = exerciseData['Day of Week'];
@@ -5100,7 +5112,7 @@ const AppCore = () => {
 
     const handleProgramUpdate = useCallback((newProgramTemplate) => {
         const newInstance = {
-            id: crypto.randomUUID(),
+            id: generateUUID(),
             program: migrateProgramData(newProgramTemplate), // All program data is encapsulated here
             createdAt: new Date().toISOString(),
             lastModified: new Date().toISOString()
@@ -5187,7 +5199,7 @@ const AppCore = () => {
         if (!customId) {
             const defaultProgram = migrateProgramData(presets['optimal-ppl-ul']);
             const localInstance = {
-                id: crypto.randomUUID(),
+                id: generateUUID(),
                 program: defaultProgram,
                 createdAt: new Date().toISOString(),
                 lastModified: new Date().toISOString()
@@ -5241,7 +5253,7 @@ const AppCore = () => {
                     };
                     const migratedProgram = migrateProgramData(loadedProgram);
                     const initialInstance = {
-                        id: crypto.randomUUID(),
+                        id: generateUUID(),
                         program: migratedProgram,
                         createdAt: new Date().toISOString(),
                         lastModified: new Date().toISOString()
@@ -5257,7 +5269,7 @@ const AppCore = () => {
                 if (!docSnap.metadata.fromCache) {
                     const firstProgram = presets['optimal-ppl-ul'];
                     const firstInstance = {
-                        id: crypto.randomUUID(),
+                        id: generateUUID(),
                         program: firstProgram,
                         createdAt: new Date().toISOString(),
                         lastModified: new Date().toISOString()
