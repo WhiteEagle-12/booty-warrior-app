@@ -2914,8 +2914,31 @@ const EditProgramView = ({ programData, onProgramDataChange, onBack, onNavigate 
     const handleRemoveLastDayFromSchedule = () => {
         onProgramDataChange(p => {
             if (p.weeklySchedule.length <= 1) return p;
+
             const newSchedule = p.weeklySchedule.slice(0, -1);
-            return { ...p, weeklySchedule: newSchedule };
+
+            // If the last day's workout is unique to that day (like "Rest Day X") or we are in sequential mode,
+            // we should also remove the template if it's not used elsewhere.
+            const removedDay = p.weeklySchedule[p.weeklySchedule.length - 1];
+            const workoutName = removedDay.workout;
+
+            let newProgramStructure = { ...p.programStructure };
+            let newWorkoutOrder = [...p.workoutOrder];
+
+            // Check if this workout is used elsewhere in the new schedule
+            const isUsedElsewhere = newSchedule.some(d => d.workout === workoutName);
+
+            if (!isUsedElsewhere && (p.programStructure[workoutName]?.isRest || !p.settings.useWeeklySchedule)) {
+                 delete newProgramStructure[workoutName];
+                 newWorkoutOrder = newWorkoutOrder.filter(name => name !== workoutName);
+            }
+
+            return {
+                ...p,
+                weeklySchedule: newSchedule,
+                programStructure: newProgramStructure,
+                workoutOrder: newWorkoutOrder
+            };
         });
     };
 
@@ -2930,7 +2953,15 @@ const EditProgramView = ({ programData, onProgramDataChange, onBack, onNavigate 
 
             const newProgramStructure = { ...p.programStructure, [newWorkoutName]: { exercises: [], label: 'New', isRest: false, id: generateUUID() } };
             const newWorkoutOrder = [...p.workoutOrder, newWorkoutName];
-            return { ...p, programStructure: newProgramStructure, workoutOrder: newWorkoutOrder };
+
+            // Sync: Add to schedule
+            const daysOfWeek = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+            const newIndex = p.weeklySchedule.length;
+            const newDayLabel = daysOfWeek[newIndex % 7] + (Math.floor(newIndex / 7) > 0 ? ` ${Math.floor(newIndex/7)+1}` : '');
+
+            const newSchedule = [...p.weeklySchedule, { day: newDayLabel, workout: newWorkoutName, id: generateUUID() }];
+
+            return { ...p, programStructure: newProgramStructure, workoutOrder: newWorkoutOrder, weeklySchedule: newSchedule };
         });
     };
 
@@ -2948,7 +2979,15 @@ const EditProgramView = ({ programData, onProgramDataChange, onBack, onNavigate 
                 [newRestDayName]: { exercises: [], label: 'Rest', isRest: true, id: generateUUID() }
             };
             const newWorkoutOrder = [...p.workoutOrder, newRestDayName];
-            return { ...p, programStructure: newProgramStructure, workoutOrder: newWorkoutOrder };
+
+            // Sync: Add to schedule
+            const daysOfWeek = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+            const newIndex = p.weeklySchedule.length;
+            const newDayLabel = daysOfWeek[newIndex % 7] + (Math.floor(newIndex / 7) > 0 ? ` ${Math.floor(newIndex/7)+1}` : '');
+
+            const newSchedule = [...p.weeklySchedule, { day: newDayLabel, workout: newRestDayName, id: generateUUID() }];
+
+            return { ...p, programStructure: newProgramStructure, workoutOrder: newWorkoutOrder, weeklySchedule: newSchedule };
         });
     };
 
@@ -2964,55 +3003,40 @@ const EditProgramView = ({ programData, onProgramDataChange, onBack, onNavigate 
     };
     
     const handleDeleteWorkoutDay = (workoutNameToDelete) => {
-        // Find a suitable rest day template to fall back on, EXCLUDING the one being deleted.
-        const fallbackRestTemplate = Object.keys(programData.programStructure).find(name => name !== workoutNameToDelete && programData.programStructure[name]?.isRest) || 'Rest Day';
+        onProgramDataChange(p => {
+            let newProgramStructure = { ...p.programStructure };
+            delete newProgramStructure[workoutNameToDelete];
 
-        openModal(
-            <div>
-                <h2 className="text-xl font-bold mb-4">Confirm Deletion</h2>
-                <p className="text-gray-600 dark:text-gray-400">Are you sure you want to delete "{workoutNameToDelete}"? It will be removed from the program and replaced with a '{fallbackRestTemplate}' day in the weekly schedule.</p>
-                <div className="flex justify-end gap-2 mt-6">
-                    <button onClick={closeModal} className="px-4 py-2 bg-gray-200 dark:bg-gray-600 rounded-lg">Cancel</button>
-                    <button onClick={() => {
-                        onProgramDataChange(p => {
-                            let newProgramStructure = { ...p.programStructure };
-                            delete newProgramStructure[workoutNameToDelete];
+            let newWorkoutOrder = p.workoutOrder.filter(name => name !== workoutNameToDelete);
 
-                            let newWorkoutOrder = p.workoutOrder.filter(name => name !== workoutNameToDelete);
+            // Remove from weeklySchedule (Dynamic Days: No set amount)
+            let newSchedule = p.weeklySchedule.filter(d => d.workout !== workoutNameToDelete);
 
-                            let finalRestTemplate = Object.keys(newProgramStructure).find(name => newProgramStructure[name]?.isRest);
-                            if (!finalRestTemplate) {
-                                finalRestTemplate = 'Rest Day';
-                                newProgramStructure[finalRestTemplate] = { exercises: [], label: "Rest", isRest: true };
-                                if (!newWorkoutOrder.includes(finalRestTemplate)) {
-                                    newWorkoutOrder.push(finalRestTemplate);
-                                }
-                            }
+            // Regenerate day labels to keep them sequential
+            const daysOfWeek = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+            newSchedule = newSchedule.map((day, index) => ({
+                ...day,
+                day: daysOfWeek[index % 7] + (Math.floor(index / 7) > 0 ? ` ${Math.floor(index/7)+1}` : '')
+            }));
 
-                            const newSchedule = p.weeklySchedule.map(d => d.workout === workoutNameToDelete ? { ...d, workout: finalRestTemplate } : d);
+            // Clean overrides for the deleted workout
+            const newOverrides = JSON.parse(JSON.stringify(p.weeklyOverrides || {}));
+            for (const week in newOverrides) {
+                for (const day in newOverrides[week]) {
+                    if (newOverrides[week][day] === workoutNameToDelete) {
+                        delete newOverrides[week][day];
+                    }
+                }
+            }
 
-                            const newOverrides = JSON.parse(JSON.stringify(p.weeklyOverrides || {}));
-                            for (const week in newOverrides) {
-                                for (const day in newOverrides[week]) {
-                                    if (newOverrides[week][day] === workoutNameToDelete) {
-                                        newOverrides[week][day] = finalRestTemplate;
-                                    }
-                                }
-                            }
-
-                            return {
-                                ...p,
-                                programStructure: newProgramStructure,
-                                workoutOrder: newWorkoutOrder,
-                                weeklySchedule: newSchedule,
-                                weeklyOverrides: newOverrides,
-                            };
-                        });
-                        closeModal();
-                    }} className="px-4 py-2 bg-red-600 text-white rounded-lg">Delete</button>
-                </div>
-            </div>
-        );
+            return {
+                ...p,
+                programStructure: newProgramStructure,
+                workoutOrder: newWorkoutOrder,
+                weeklySchedule: newSchedule,
+                weeklyOverrides: newOverrides,
+            };
+        });
     };
 
     const handleRenameWorkoutDay = (oldName, newName) => {
@@ -3022,7 +3046,8 @@ const EditProgramView = ({ programData, onProgramDataChange, onBack, onNavigate 
             }
 
             const newProgramStructure = { ...p.programStructure };
-            newProgramStructure[newName] = { ...newProgramStructure[oldName] };
+            // Sync label with new name for concurrency
+            newProgramStructure[newName] = { ...newProgramStructure[oldName], label: newName };
             delete newProgramStructure[oldName];
 
             const newWorkoutOrder = p.workoutOrder.map(name => name === oldName ? newName : name);
@@ -3192,7 +3217,17 @@ const EditProgramView = ({ programData, onProgramDataChange, onBack, onNavigate 
                 const reorderedWorkoutOrder = Array.from(p.workoutOrder);
                 const [movedItem] = reorderedWorkoutOrder.splice(source.index, 1);
                 reorderedWorkoutOrder.splice(destination.index, 0, movedItem);
-                return { ...p, workoutOrder: reorderedWorkoutOrder };
+
+                // Sync with Main Page (Weekly Schedule)
+                // We re-assign the weekly schedule workouts to match the new template order
+                const daysOfWeek = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+                const newSchedule = reorderedWorkoutOrder.map((workoutName, index) => ({
+                    id: p.weeklySchedule[index]?.id || generateUUID(),
+                    day: daysOfWeek[index % 7] + (Math.floor(index / 7) > 0 ? ` ${Math.floor(index/7)+1}` : ''),
+                    workout: workoutName
+                }));
+
+                return { ...p, workoutOrder: reorderedWorkoutOrder, weeklySchedule: newSchedule };
             });
             return;
         }
