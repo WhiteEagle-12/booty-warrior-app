@@ -345,10 +345,10 @@ export const useApplicationData = () => {
         return () => window.removeEventListener('popstate', handlePopState);
     }, []); // Empty dependency array ensures this runs only once.
 
-    const handleWeightUnitChange = (newUnit) => {
+    const handleWeightUnitChange = useCallback((newUnit) => {
         setWeightUnit(newUnit);
         handleUpdateAndSave({ weightUnit: newUnit });
-    };
+    }, [handleUpdateAndSave]);
 
     const handleSkipDay = (week, dayKey) => {
         const skipKey = `${week}-${dayKey}`;
@@ -366,7 +366,7 @@ export const useApplicationData = () => {
         handleUpdateAndSave({ skippedDays: newSkippedDays });
     };
 
-    const handleResetMeso = () => {
+    const handleResetMeso = useCallback(() => {
         if (db && customId && Object.keys(allLogs).length > 0) {
             const userDocRef = doc(db, 'workoutLogs', customId);
             updateDoc(userDocRef, {
@@ -382,7 +382,7 @@ export const useApplicationData = () => {
             // Handle case where there are no logs to archive.
             updateDoc(doc(db, 'workoutLogs', customId), { logs: {}, skippedDays: {} });
         }
-    };
+    }, [db, customId, allLogs, programData, handleProgramDataChange]);
 
     const handleRestoreLogs = useCallback((csvData) => {
         if (!csvData) {
