@@ -31,7 +31,7 @@ export const WeekView = ({ week, completedDays, onSessionSelect, firstIncomplete
             </button>
             {isOpen && (
                 <div className={`grid grid-cols-2 sm:grid-cols-4 ${gridColsClass} gap-3 mt-4`}>
-                    {weeklySchedule.map(day => {
+                    {weeklySchedule.map((day, index) => {
                         const dayKey = `${week}-${day.day}`;
                         const status = completedDays.get(dayKey);
                         const workoutName = getWorkoutNameForDay(programData, week, day.day);
@@ -46,7 +46,9 @@ export const WeekView = ({ week, completedDays, onSessionSelect, firstIncomplete
                         return (
                             <div key={dayKey} className={`rounded-lg p-3 flex flex-col justify-between transition-all ${dayClass}`}>
                                 <div className="flex justify-between items-center mb-2">
-                                    <div className="font-bold text-sm text-gray-800 dark:text-gray-200">{day.day}</div>
+                                    <div className="font-bold text-sm text-gray-800 dark:text-gray-200">
+                                        {programData.settings.useWeeklySchedule ? day.day : `Day ${index + 1}`}
+                                    </div>
                                 </div>
                                 <div className="space-y-2 flex-grow flex flex-col justify-end">
                                     {isRestDay ? (
@@ -227,7 +229,6 @@ export const MainView = ({ onSessionSelect, onEditProgram, completedDays, onUnsk
     const weeks = Array.from({ length: info.weeks }, (_, i) => i + 1);
     
     const firstIncompleteWeek = useMemo(() => {
-        if (!programData.settings.useWeeklySchedule) return 1;
         for (let w = 1; w <= info.weeks; w++) {
             const isWeekComplete = weeklySchedule.every(d => {
                 const workoutName = getWorkoutNameForDay(programData, w, d.day);
@@ -251,26 +252,18 @@ export const MainView = ({ onSessionSelect, onEditProgram, completedDays, onUnsk
             </div>
             
             <div className="space-y-4 pb-24">
-                {programData.settings.useWeeklySchedule ? (
-                     weeks.map(week => (
-                        <WeekView 
-                            key={week} 
-                            week={week} 
-                            completedDays={completedDays} 
-                            onSessionSelect={onSessionSelect}
-                            firstIncompleteWeek={firstIncompleteWeek} 
-                            onUnskipDay={onUnskipDay} 
-                            programData={programData}
-                            onNavigate={onNavigate}
-                        />
-                    ))
-                ) : (
-                    <SequentialView 
+                {weeks.map(week => (
+                    <WeekView 
+                        key={week} 
+                        week={week} 
+                        completedDays={completedDays} 
                         onSessionSelect={onSessionSelect}
-                        allLogs={allLogs}
+                        firstIncompleteWeek={firstIncompleteWeek} 
+                        onUnskipDay={onUnskipDay} 
                         programData={programData}
+                        onNavigate={onNavigate}
                     />
-                )}
+                ))}
             </div>
         </div>
     );

@@ -11,12 +11,8 @@ export const LiftingSession = ({ week, dayKey, onBack, allLogs, setAllLogs, onSk
     const { masterExerciseList } = programData;
 
     const workoutName = useMemo(() => {
-        if (programData.settings.useWeeklySchedule) {
-            return getWorkoutNameForDay(programData, week, dayKey);
-        } else {
-            return programData.workoutOrder[sequentialWorkoutIndex % programData.workoutOrder.length];
-        }
-    }, [programData, week, dayKey, sequentialWorkoutIndex]);
+        return getWorkoutNameForDay(programData, week, dayKey);
+    }, [programData, week, dayKey]);
 
     const workout = getWorkoutForWeek(programData, week, workoutName);
 
@@ -68,7 +64,8 @@ export const LiftingSession = ({ week, dayKey, onBack, allLogs, setAllLogs, onSk
         </div>
     );
     
-    const pageTitle = programData.settings.useWeeklySchedule ? `Week ${week}: ${dayKey}` : `Day ${sequentialWorkoutIndex + 1}`;
+    const dayIndex = programData.weeklySchedule.findIndex(d => d.day === dayKey);
+    const pageTitle = programData.settings.useWeeklySchedule ? `Week ${week}: ${dayKey}` : `Week ${week}: Day ${dayIndex + 1}`;
     const workoutDisplayName = programData.settings.useWeeklySchedule ? workoutName : `${workoutName} (${programData.programStructure[workoutName]?.label || ''})`;
 
 

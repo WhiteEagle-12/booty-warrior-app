@@ -39,35 +39,20 @@ export const calculateStreak = (allLogs, programData) => {
         });
     };
     
-    if (settings.useWeeklySchedule) {
-        const sortedDays = [];
-        for (let week = 1; week <= info.weeks; week++) {
-            for (const day of weeklySchedule) {
-                const workoutName = getWorkoutNameForDay(programData, week, day.day);
-                if (workoutName && !programData.programStructure[workoutName]?.isRest) {
-                    sortedDays.push({ week, day: day.day, workoutName });
-                }
+    const sortedDays = [];
+    for (let week = 1; week <= info.weeks; week++) {
+        for (const day of weeklySchedule) {
+            const workoutName = getWorkoutNameForDay(programData, week, day.day);
+            if (workoutName && !programData.programStructure[workoutName]?.isRest) {
+                sortedDays.push({ week, day: day.day, workoutName });
             }
         }
-        for (const { week, day, workoutName } of sortedDays) {
-            if (isDayComplete(week, day, workoutName)) {
-                if (!streakBroken) currentStreak++;
-            } else {
-                if (hasAnyLogInDay(week, day, workoutName)) streakBroken = true;
-            }
-        }
-    } else {
-        const totalSessions = info.weeks * workoutOrder.length;
-        for (let i = 0; i < totalSessions; i++) {
-            const week = Math.floor(i / workoutOrder.length) + 1;
-            const workoutName = workoutOrder[i % workoutOrder.length];
-            const dayKey = `workout-${i}`;
-
-            if (isDayComplete(week, dayKey, workoutName)) {
-                if (!streakBroken) currentStreak++;
-            } else {
-                 if (hasAnyLogInDay(week, dayKey, workoutName)) streakBroken = true;
-            }
+    }
+    for (const { week, day, workoutName } of sortedDays) {
+        if (isDayComplete(week, day, workoutName)) {
+            if (!streakBroken) currentStreak++;
+        } else {
+            if (hasAnyLogInDay(week, day, workoutName)) streakBroken = true;
         }
     }
 

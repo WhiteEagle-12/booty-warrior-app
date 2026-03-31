@@ -12,31 +12,18 @@ export const DashboardView = ({ allLogs, programData, bodyWeightHistory }) => {
 
     const { totalSets, completedSets, streak, firstIncompleteWeek } = useMemo(() => {
         let weeklySetsCount = 0;
-        if (settings.useWeeklySchedule) {
-            weeklySchedule.forEach(day => {
-                const workoutName = getWorkoutNameForDay(programData, 1, day.day);
-                if (workoutName && !programData.programStructure[workoutName]?.isRest) {
-                    const workout = getWorkoutForWeek(programData, 1, workoutName);
-                    if (workout) {
-                        workout.exercises.forEach(ex => {
-                            const details = getExerciseDetails(ex.name, masterExerciseList);
-                            if (details) weeklySetsCount += Number(details.sets) || 0;
-                        });
-                    }
-                }
-            });
-        } else {
-             workoutOrder.forEach(workoutName => {
+        weeklySchedule.forEach(day => {
+            const workoutName = getWorkoutNameForDay(programData, 1, day.day);
+            if (workoutName && !programData.programStructure[workoutName]?.isRest) {
                 const workout = getWorkoutForWeek(programData, 1, workoutName);
-                if(workout) {
+                if (workout) {
                     workout.exercises.forEach(ex => {
                         const details = getExerciseDetails(ex.name, masterExerciseList);
-                        if(details) weeklySetsCount += Number(details.sets) || 0;
+                        if (details) weeklySetsCount += Number(details.sets) || 0;
                     });
                 }
-            });
-            weeklySetsCount = weeklySetsCount / workoutOrder.length; // Average sets per workout
-        }
+            }
+        });
 
         const total = weeklySetsCount * info.weeks;
         const completed = Object.values(allLogs).filter(log => !log.skipped && (log.load === 0 || log.load) && log.reps).length;
@@ -65,7 +52,6 @@ export const DashboardView = ({ allLogs, programData, bodyWeightHistory }) => {
     }, [allLogs, programData]);
 
     const weeklyVolumeData = useMemo(() => {
-        if (!settings.useWeeklySchedule) return [];
         const volumesByDay = {};
         weeklySchedule.forEach(d => {
             const workoutName = getWorkoutNameForDay(programData, firstIncompleteWeek, d.day);
@@ -83,8 +69,8 @@ export const DashboardView = ({ allLogs, programData, bodyWeightHistory }) => {
                 const workoutName = getWorkoutNameForDay(programData, firstIncompleteWeek, d.day);
                 return workoutName && !programData.programStructure[workoutName]?.isRest;
             })
-            .map(d => ({
-                day: d.day,
+            .map((d, index) => ({
+                day: settings.useWeeklySchedule ? d.day : `Day ${index + 1}`,
                 volume: Math.round(volumesByDay[d.day] || 0)
             }));
     }, [allLogs, masterExerciseList, firstIncompleteWeek, settings.useWeeklySchedule, weeklySchedule, programData]);
@@ -122,7 +108,7 @@ export const DashboardView = ({ allLogs, programData, bodyWeightHistory }) => {
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
                 <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-6">
                     <h3 className="font-semibold text-lg mb-4">This Week's Volume (Week {firstIncompleteWeek})</h3>
-                    {weeklyVolumeData.length > 0 && settings.useWeeklySchedule ? (
+                    {weeklyVolumeData.length > 0 ? (
                         <ResponsiveContainer width="100%" height={250}>
                              <BarChart data={weeklyVolumeData}>
                                 <CartesianGrid strokeDasharray="3 3" className="stroke-gray-200 dark:stroke-gray-700" />
@@ -132,7 +118,7 @@ export const DashboardView = ({ allLogs, programData, bodyWeightHistory }) => {
                                 <Bar dataKey="volume" fill="#8884d8" />
                             </BarChart>
                         </ResponsiveContainer>
-                    ) : <p>Log some workouts this week to see your volume data. (Weekly schedule required)</p>}
+                    ) : <p>Log some workouts this week to see your volume data.</p>}
                 </div>
                  <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-6">
                     <h3 className="font-semibold text-lg mb-4">Bodyweight Trend</h3>

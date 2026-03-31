@@ -189,7 +189,7 @@ export const achievementsList = {
                 const dayKeyStr = `${log.week}-${log.dayKey}`;
                 if (!checkedDays.has(dayKeyStr)) {
                     checkedDays.add(dayKeyStr);
-                    const workoutName = program.settings.useWeeklySchedule ? getWorkoutNameForDay(program, log.week, log.dayKey) : log.session;
+                    const workoutName = getWorkoutNameForDay(program, log.week, log.dayKey) || log.session;
                     if (isDayComplete(log.week, log.dayKey, workoutName)) {
                         count++;
                     }
@@ -262,9 +262,7 @@ export const achievementsList = {
         getValue: (logs, program) => {
             if (!program || !program.info) return 0;
             const { info, weeklySchedule, workoutOrder, settings } = program;
-            const totalWorkouts = settings.useWeeklySchedule
-                ? info.weeks * weeklySchedule.filter(d => !program.programStructure[d.workout]?.isRest).length
-                : info.weeks * workoutOrder.filter(name => !program.programStructure[name]?.isRest).length;
+            const totalWorkouts = info.weeks * weeklySchedule.filter(d => !program.programStructure[d.workout]?.isRest).length;
 
             let count = 0;
             const isDayComplete = (week, dayKey, workoutName) => {
@@ -284,7 +282,7 @@ export const achievementsList = {
                 const dayKeyStr = `${log.week}-${log.dayKey}`;
                 if (!checkedDays.has(dayKeyStr)) {
                     checkedDays.add(dayKeyStr);
-                    const workoutName = program.settings.useWeeklySchedule ? getWorkoutNameForDay(program, log.week, log.dayKey) : log.session;
+                    const workoutName = getWorkoutNameForDay(program, log.week, log.dayKey) || log.session;
                     if (isDayComplete(log.week, log.dayKey, workoutName)) {
                         count++;
                     }
