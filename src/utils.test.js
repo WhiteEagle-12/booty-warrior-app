@@ -1,5 +1,7 @@
+import { calculateE1RM } from './utils/helpers';
+import { getSessionInfoFromSequentialIndex } from './utils/workout';
 
-// Mock data for testing
+
 const programData = {
     info: { weeks: 2 },
     weeklySchedule: [
@@ -19,33 +21,7 @@ const programData = {
     weeklyOverrides: {}
 };
 
-// Copy of the function from App.js for testing purposes (since we can't easily export it without refactoring)
-const getWorkoutNameForDay = (pData, week, dayKey) => {
-    return pData.weeklyOverrides?.[week]?.[dayKey] || pData.weeklySchedule.find(s => s.day === dayKey)?.workout || 'Rest Day';
-};
-
-const getSessionInfoFromSequentialIndex = (index, programData) => {
-    const { weeklySchedule, info, programStructure } = programData;
-    if (!info || !weeklySchedule) return null;
-    let workoutCounter = -1;
-    for (let w = 1; w <= info.weeks; w++) {
-        for (const day of weeklySchedule) {
-            const workoutName = getWorkoutNameForDay(programData, w, day.day);
-            const isRest = programStructure[workoutName]?.isRest;
-            if (workoutName && !isRest) {
-                workoutCounter++;
-                if (workoutCounter === index) {
-                    return {
-                        week: w,
-                        dayKey: day.day,
-                        workoutName: workoutName
-                    };
-                }
-            }
-        }
-    }
-    return null;
-};
+// Functions are now imported from ./utils/helpers and ./utils/workout
 
 // Tests
 describe('getSessionInfoFromSequentialIndex', () => {
@@ -97,18 +73,7 @@ describe('getSessionInfoFromSequentialIndex', () => {
     });
 });
 
-const calculateE1RM = (weight, reps, rir) => {
-    const numWeight = parseFloat(weight);
-    const numReps = parseInt(reps, 10);
-    const numRir = parseInt(rir, 10) || 0;
-
-    if (isNaN(numWeight) || isNaN(numReps) || numReps < 1) return 0;
-
-    const effectiveReps = numReps + numRir;
-    if (effectiveReps <= 1) return Math.round(numWeight);
-
-    return Math.round(numWeight * (1 + (effectiveReps / 30)));
-};
+// calculateE1RM is now imported from ./utils/helpers
 
 describe('calculateE1RM', () => {
     test('calculates correct e1RM for standard input', () => {
