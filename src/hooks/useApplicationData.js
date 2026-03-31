@@ -513,6 +513,19 @@ export const useApplicationData = () => {
         reader.readAsText(file);
     }, [openModal, closeModal, handleProgramUpdate, addToast, handleRestoreLogs]);
 
+    const handleDeleteUserData = useCallback(async () => {
+        if (!db || !customId) return;
+        try {
+            const userDocRef = doc(db, 'workoutLogs', customId);
+            await deleteDoc(userDocRef);
+            localStorage.removeItem('projectOverloadSyncId');
+            window.location.reload();
+        } catch (error) {
+            console.error("Error deleting user data from Firestore:", error);
+            addToast(`Failed to delete data: ${error.message}`, 'error');
+        }
+    }, [db, customId, addToast]);
+
     const handleTimerEnd = useCallback(() => {
         setActiveTimer(null);
          openModal(
@@ -563,23 +576,6 @@ export const useApplicationData = () => {
         return status;
     }, [allLogs, skippedDays, programData]);
 
-    const handleDeleteAllUserData = useCallback(async () => {
-        if (!db || !customId) {
-            addToast("No active sync session found.", "error");
-            return;
-        }
-        try {
-            const userRef = doc(db, 'users', customId);
-            await deleteDoc(userRef);
-            localStorage.removeItem('projectOverloadSyncId');
-            addToast("All user data has been deleted. Reloading...", "success");
-            setTimeout(() => window.location.reload(), 1500);
-        } catch (error) {
-            console.error("Error deleting user data:", error);
-            addToast(`Failed to delete data: ${error.message}`, 'error');
-        }
-    }, [db, customId, addToast]);
-
     const onBack = () => navigate('main');
 
     return {
@@ -614,7 +610,7 @@ export const useApplicationData = () => {
         handleResetMeso,
         handleRestoreLogs,
         handleFileImport,
-        handleDeleteAllUserData,
-        completedDays
+        completedDays,
+        handleDeleteUserData
     };
 };
