@@ -11,23 +11,23 @@ export const DashboardView = ({ allLogs, programData, bodyWeightHistory }) => {
     const { masterExerciseList, weeklySchedule, info, settings, workoutOrder } = programData;
 
     const { totalSets, completedSets, streak, firstIncompleteWeek } = useMemo(() => {
-        let total = 0;
+        let totalSetsCount = 0;
         for (let w = 1; w <= info.weeks; w++) {
             const weekSched = programData.weeklyScheduleOverrides?.[w] || weeklySchedule;
             weekSched.forEach(day => {
                 const workoutName = getWorkoutNameForDay(programData, w, day.day);
                 if (workoutName && !programData.programStructure[workoutName]?.isRest) {
                     const workout = getWorkoutForWeek(programData, w, workoutName);
-                    if (workout) {
+                    if (workout && workout.exercises) {
                         workout.exercises.forEach(ex => {
                             const details = getExerciseDetails(ex.name, masterExerciseList);
-                            if (details) total += Number(details.sets) || 0;
+                            if (details) totalSetsCount += Number(details.sets) || 0;
                         });
                     }
                 }
             });
         }
-
+        const total = totalSetsCount;
         const masterList = programData?.masterExerciseList || {};
         const completed = Object.values(allLogs).filter(log => 
             !log.skipped && 
@@ -107,7 +107,7 @@ export const DashboardView = ({ allLogs, programData, bodyWeightHistory }) => {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
                 <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-6">
-                    <ProgressBar completed={completedSets} total={totalSets} />
+                    <ProgressBar completed={completedSets} total={totalSets} label="Meso Progress" />
                 </div>
                  <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-6 flex justify-center items-center">
                     <StreakCounter streak={streak} />

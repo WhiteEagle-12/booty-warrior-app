@@ -14,10 +14,6 @@ export const migrateProgramData = (program) => {
         }
     }
 
-    if (newProgram.settings && newProgram.settings.rirWarningThreshold === undefined) {
-        newProgram.settings.rirWarningThreshold = 3;
-    }
-
     // --- V4 MIGRATION: Unique Day Templates ---
 
     // 1. Ensure all templates have an `isRest` property.
@@ -28,47 +24,21 @@ export const migrateProgramData = (program) => {
         }
     }
 
-    // 2. Create unique templates for each day in the weekly schedule.
-    let restDayCounter = 1;
-    const newSchedule = [];
-    const newWorkoutOrder = [];
-    const seenTemplates = new Set();
-
+    // Ensure all workoutOrder entries are unique
+    newProgram.workoutOrder = [...new Set(newProgram.workoutOrder)];
+    
+    // Add missing workouts from weeklySchedule or programStructure automatically to workoutOrder
     newProgram.weeklySchedule.forEach(day => {
-        let workoutName = day.workout;
-        let template = newProgram.programStructure[workoutName];
-
-        if (!template || (template.isRest && workoutName === 'Rest Day')) {
-            let newName;
-            do {
-                newName = `Rest Day ${restDayCounter++}`;
-            } while (newProgram.programStructure[newName]);
-
-            workoutName = newName;
-            newProgram.programStructure[workoutName] = { exercises: [], label: "Rest", isRest: true };
-        }
-
-        newSchedule.push({ ...day, workout: workoutName, id: day.id || generateUUID() });
-
-        if (!seenTemplates.has(workoutName)) {
-            newWorkoutOrder.push(workoutName);
-            seenTemplates.add(workoutName);
+        if (!newProgram.workoutOrder.includes(day.workout)) {
+            newProgram.workoutOrder.push(day.workout);
         }
     });
 
-    newProgram.weeklySchedule = newSchedule;
-
-    newProgram.workoutOrder.forEach(name => {
-        if (!seenTemplates.has(name) && newProgram.programStructure[name]) {
-            if (newProgram.programStructure[name].isRest) {
-                return;
-            }
-            newWorkoutOrder.push(name);
-            seenTemplates.add(name);
+    for (const key in newProgram.programStructure) {
+        if (!newProgram.workoutOrder.includes(key) && !newProgram.programStructure[key].isRest) {
+            newProgram.workoutOrder.push(key);
         }
-    });
-
-    newProgram.workoutOrder = newWorkoutOrder;
+    }
 
     // 3. Clean up overrides to point to new unique rest days if necessary.
     if (newProgram.weeklyOverrides) {

@@ -2,6 +2,8 @@ import React, { useState, useEffect, useMemo, useContext, useCallback, useRef } 
 import { ChevronDown, ChevronUp, Dumbbell, ArrowLeft, PlusCircle, Edit, ArrowUp, ArrowDown, Save, X, Search, Eye, Pencil, Move, XCircle, Shield } from 'lucide-react';
 import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
 import { AppStateContext } from '../contexts/AppStateContext';
+import { FirebaseContext } from '../contexts/FirebaseContext';
+import { doc, updateDoc } from 'firebase/firestore';
 import { generateUUID, getExerciseDetails } from '../utils/helpers';
 import { getWorkoutForWeek, getWorkoutNameForDay } from '../utils/workout';
 import { exerciseBank } from '../data/exerciseBank';
@@ -18,6 +20,7 @@ import { EditWeekCard } from '../components/program/EditWeekCard';
 
 export const EditProgramView = ({ programData, onProgramDataChange, allLogs, setAllLogs, onBack, onNavigate }) => {
     const { openModal, closeModal, addToast } = useContext(AppStateContext);
+    const { db, customId } = useContext(FirebaseContext);
     const [isScheduleOpen, setScheduleOpen] = useState(false); // State for collapsible schedule
 
     const handleInfoChange = (field, value) => {
@@ -389,18 +392,61 @@ export const EditProgramView = ({ programData, onProgramDataChange, allLogs, set
                 // Sync with Main Page (Weekly Schedule)
                 // Reorder the schedule entries to match, but keep existing day labels
                 // so that log keys (which use day labels like "Mon", "Tue") remain valid.
+                const originalSchedule = Array.from(p.weeklySchedule);
+                const oldDayKeys = originalSchedule.map(s => s.day);
+
                 const newSchedule = Array.from(p.weeklySchedule);
                 const [movedScheduleItem] = newSchedule.splice(source.index, 1);
                 if (movedScheduleItem) {
                     newSchedule.splice(destination.index, 0, movedScheduleItem);
                 }
 
+                // Create a mapping from OLD dayKey to NEW dayKey to migrate logs
+                const dayKeyMapping = {};
+                newSchedule.forEach((entry, index) => {
+                    dayKeyMapping[entry.day] = oldDayKeys[index];
+                });
+
                 // Re-assign workout names to match the new template order,
                 // but preserve the day labels from the schedule entries
                 const updatedSchedule = newSchedule.map((entry, index) => ({
                     ...entry,
-                    workout: reorderedWorkoutOrder[index] || entry.workout
+                    workout: reorderedWorkoutOrder[index] || entry.workout,
+                    day: oldDayKeys[index] // Force keeping the original day label position
                 }));
+
+                // Migrate logs
+                setAllLogs(currentLogs => {
+                    const newLogsState = {};
+                    const firebaseUpdates = {};
+
+                    // First, clear all logs in Firebase (by setting them to delete) - actually easier to just overwrite `logs` field entirely.
+                    // But to be safe, we'll build the new complete logs object.
+                    Object.keys(currentLogs).forEach(logId => {
+                        const log = currentLogs[logId];
+                        const oldDayKey = log.dayKey;
+
+                        if (dayKeyMapping[oldDayKey] && dayKeyMapping[oldDayKey] !== oldDayKey) {
+                            const newDayKey = dayKeyMapping[oldDayKey];
+                            const newLogId = `${log.week}-${newDayKey}-${log.exercise}-${log.set}`;
+                            newLogsState[newLogId] = { ...log, dayKey: newDayKey };
+                        } else {
+                            newLogsState[logId] = log;
+                        }
+                    });
+
+                    if (db && customId) {
+                        try {
+                            const userDocRef = doc(db, 'workoutLogs', customId);
+                            // Replace the entire 'logs' object in Firebase
+                            updateDoc(userDocRef, { logs: newLogsState });
+                        } catch (error) {
+                            console.error("Error migrating logs in Firebase:", error);
+                        }
+                    }
+
+                    return newLogsState;
+                });
 
                 return { ...p, workoutOrder: reorderedWorkoutOrder, weeklySchedule: updatedSchedule };
             });
@@ -621,6 +667,8 @@ export const EditProgramView = ({ programData, onProgramDataChange, allLogs, set
                                 </div>
                             </div>
                         </div>
+
+                        {/* Removed Schedule Length Section per requested */}
                     </div>
 
                     {/* Quick Add Buttons Bar */}

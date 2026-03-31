@@ -254,22 +254,22 @@ export const SettingsView = ({ allLogs, historicalLogs, weightUnit, onWeightUnit
 
                  <div className="border-t border-gray-200 dark:border-gray-700"></div>
 
-                {/* Advanced Settings */}
+                {/* AI Progression Settings */}
                 <div>
-                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">Advanced Settings</h3>
+                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">AI / Progression Settings</h3>
                     <div className="bg-gray-100 dark:bg-gray-900/50 p-4 rounded-lg space-y-4">
                         <div className="flex justify-between items-center">
-                            <div className="flex items-center gap-2">
-                                <span className="font-semibold dark:text-gray-200">RIR Warning Threshold</span>
-                                <InfoTooltip content="The AI will warn you if you log an RIR greater than or equal to this number (default is 3) when your target RIR was lower, indicating you are leaving too much in the tank." />
+                            <div className="flex flex-col">
+                                <span className="font-semibold dark:text-gray-200">RIR Alert Threshold</span>
+                                <span className="text-xs text-gray-500 dark:text-gray-400">Warn if RIR goes above this number (default: 3).</span>
                             </div>
                             <input 
                                 type="number" 
-                                min="0"
-                                max="10"
-                                value={programData.settings.rirWarningThreshold ?? 3} 
-                                onChange={(e) => handleSettingsChange('rirWarningThreshold', parseInt(e.target.value, 10) || 3)} 
-                                className="w-16 p-1.5 text-sm bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm" 
+                                min="0" 
+                                max="10" 
+                                value={programData?.settings?.rirThreshold ?? 3} 
+                                onChange={(e) => handleSettingsChange('rirThreshold', parseInt(e.target.value, 10) || 3)} 
+                                className="w-16 p-1.5 text-sm text-center bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm" 
                             />
                         </div>
                     </div>
