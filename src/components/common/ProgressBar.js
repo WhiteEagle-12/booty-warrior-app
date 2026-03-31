@@ -5,7 +5,7 @@ export const ProgressBar = ({ completed, total }) => {
     return (
         <div>
             <div className="flex justify-between items-center mb-1">
-                <span className="text-sm font-medium text-gray-600 dark:text-gray-400">Program Progress</span>
+                <span className="text-sm font-medium text-gray-600 dark:text-gray-400">Meso progress</span>
                 <span className="text-sm font-bold text-blue-600 dark:text-blue-400">{percentage}%</span>
             </div>
             <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2.5">

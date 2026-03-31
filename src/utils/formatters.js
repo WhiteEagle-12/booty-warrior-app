@@ -41,7 +41,8 @@ export const calculateStreak = (allLogs, programData) => {
     
     const sortedDays = [];
     for (let week = 1; week <= info.weeks; week++) {
-        for (const day of weeklySchedule) {
+        const weekSched = programData.weeklyScheduleOverrides?.[week] || weeklySchedule;
+        for (const day of weekSched) {
             const workoutName = getWorkoutNameForDay(programData, week, day.day);
             if (workoutName && !programData.programStructure[workoutName]?.isRest) {
                 sortedDays.push({ week, day: day.day, workoutName });
@@ -50,9 +51,10 @@ export const calculateStreak = (allLogs, programData) => {
     }
     for (const { week, day, workoutName } of sortedDays) {
         if (isDayComplete(week, day, workoutName)) {
-            if (!streakBroken) currentStreak++;
+            currentStreak++;
         } else {
-            if (hasAnyLogInDay(week, day, workoutName)) streakBroken = true;
+            // The first incomplete day breaks the current chain.
+            break;
         }
     }
 

@@ -400,7 +400,7 @@ export const presets = {
       "settings": {
         "restTimer": {
           "enabled": true,
-          "duration": 180
+          "duration": 120
         },
         "useWeeklySchedule": true
       },
@@ -468,7 +468,7 @@ export const presets = {
             { day: 'Sun', workout: 'Rest Day' },
         ],
         workoutOrder: ['Upper Strength', 'Lower Strength', 'Upper Hypertrophy', 'Lower Hypertrophy', 'Rest Day'],
-        settings: { useWeeklySchedule: true, restTimer: { enabled: true, duration: 150 } },
+        settings: { useWeeklySchedule: true, restTimer: { enabled: true, duration: 120 } },
         weeklyOverrides: {},
     },
     "strength-5x5": {
@@ -495,7 +495,7 @@ export const presets = {
             { day: 'Sun', workout: 'Rest Day' },
         ],
         workoutOrder: ['Workout A', 'Workout B', 'Rest Day'],
-        settings: { useWeeklySchedule: true, restTimer: { enabled: true, duration: 240 } },
+        settings: { useWeeklySchedule: true, restTimer: { enabled: true, duration: 120 } },
         weeklyOverrides: {},
     },
     "classic-ppl": {
@@ -533,7 +533,7 @@ export const presets = {
             { day: 'Sun', workout: 'Legs' },
         ],
         workoutOrder: ['Push', 'Pull', 'Legs', 'Rest Day'],
-        settings: { useWeeklySchedule: true, restTimer: { enabled: true, duration: 180 } },
+        settings: { useWeeklySchedule: true, restTimer: { enabled: true, duration: 120 } },
         weeklyOverrides: {},
     },
 };

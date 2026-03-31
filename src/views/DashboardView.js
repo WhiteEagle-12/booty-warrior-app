@@ -11,21 +11,23 @@ export const DashboardView = ({ allLogs, programData, bodyWeightHistory }) => {
     const { masterExerciseList, weeklySchedule, info, settings, workoutOrder } = programData;
 
     const { totalSets, completedSets, streak, firstIncompleteWeek } = useMemo(() => {
-        let weeklySetsCount = 0;
-        weeklySchedule.forEach(day => {
-            const workoutName = getWorkoutNameForDay(programData, 1, day.day);
-            if (workoutName && !programData.programStructure[workoutName]?.isRest) {
-                const workout = getWorkoutForWeek(programData, 1, workoutName);
-                if (workout) {
-                    workout.exercises.forEach(ex => {
-                        const details = getExerciseDetails(ex.name, masterExerciseList);
-                        if (details) weeklySetsCount += Number(details.sets) || 0;
-                    });
+        let total = 0;
+        for (let w = 1; w <= info.weeks; w++) {
+            const weekSched = programData.weeklyScheduleOverrides?.[w] || weeklySchedule;
+            weekSched.forEach(day => {
+                const workoutName = getWorkoutNameForDay(programData, w, day.day);
+                if (workoutName && !programData.programStructure[workoutName]?.isRest) {
+                    const workout = getWorkoutForWeek(programData, w, workoutName);
+                    if (workout) {
+                        workout.exercises.forEach(ex => {
+                            const details = getExerciseDetails(ex.name, masterExerciseList);
+                            if (details) total += Number(details.sets) || 0;
+                        });
+                    }
                 }
-            }
-        });
+            });
+        }
 
-        const total = weeklySetsCount * info.weeks;
         const masterList = programData?.masterExerciseList || {};
         const completed = Object.values(allLogs).filter(log => 
             !log.skipped && 

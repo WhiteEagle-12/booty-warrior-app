@@ -14,6 +14,10 @@ export const migrateProgramData = (program) => {
         }
     }
 
+    if (newProgram.settings && newProgram.settings.rirWarningThreshold === undefined) {
+        newProgram.settings.rirWarningThreshold = 3;
+    }
+
     // --- V4 MIGRATION: Unique Day Templates ---
 
     // 1. Ensure all templates have an `isRest` property.

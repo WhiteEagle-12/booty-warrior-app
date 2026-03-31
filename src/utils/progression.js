@@ -46,7 +46,7 @@ export const findLastPerformanceLogs = (exerciseName, currentWeek, currentDayKey
     };
 };
 
-export const getProgressionSuggestion = (exerciseName, lastPerformanceData, masterList) => {
+export const getProgressionSuggestion = (exerciseName, lastPerformanceData, masterList, programData) => {
     const { lastSession, historicalSessions } = lastPerformanceData;
 
     if (!lastSession) {
@@ -66,8 +66,20 @@ export const getProgressionSuggestion = (exerciseName, lastPerformanceData, mast
 
     const lastReps = parseInt(lastTopSet.reps, 10);
     const lastWeight = parseFloat(lastTopSet.load);
-    const lastRir = parseInt(lastTopSet.rir, 10);
+    const lastRir = parseInt(lastTopSet.rir, 10) || 0;
     
+    // Get target RIR for this set (using first set as baseline if we can't determine)
+    const setIndex = Math.max(0, parseInt(lastTopSet.set, 10) - 1);
+    const targetRirStr = exerciseDetails.rir && exerciseDetails.rir[setIndex] ? exerciseDetails.rir[setIndex].toString() : '1-2';
+    // Parse target RIR (e.g. "1-2" -> 1.5, "0" -> 0)
+    let targetRirAvg = 1.5;
+    if (targetRirStr.includes('-')) {
+        const parts = targetRirStr.split('-');
+        targetRirAvg = (parseInt(parts[0], 10) + parseInt(parts[1], 10)) / 2;
+    } else {
+        targetRirAvg = parseInt(targetRirStr, 10) || 0;
+    }
+
     const historicalE1RMs = historicalSessions
         .map(s => Math.max(...s.logs.map(l => calculateE1RM(l.load, l.reps, l.rir))))
         .reverse();
@@ -80,31 +92,59 @@ export const getProgressionSuggestion = (exerciseName, lastPerformanceData, mast
         if (latestE1RM < avgPreviousE1RM * 0.98) trend = "declining";
     }
 
-    if (lastReps >= maxReps && lastRir <= (parseInt(exerciseDetails.rir[0], 10) + 1)) {
+    // Advanced setting for RIR warning
+    const rirWarningThreshold = programData?.settings?.rirWarningThreshold ?? 3;
+
+    // RIR Feedback Check
+    if (lastRir >= rirWarningThreshold && lastRir > targetRirAvg + 1) {
+        return `You left a lot in the tank last time (${lastRir} RIR). Push closer to failure (Target: ~${targetRirStr} RIR) to maximize hypertrophy!`;
+    }
+    if (lastRir < targetRirAvg - 1 && targetRirAvg > 0) {
+        return `You went closer to failure than intended last time (${lastRir} RIR). Consider keeping ~${targetRirStr} reps in reserve to manage fatigue.`;
+    }
+
+    // Helper to calculate theoretical load for target reps
+    const calculateTargetLoad = (e1rm, targetReps, targetRir) => {
+        const effectiveReps = targetReps + targetRir;
+        const load = e1rm / (1 + (effectiveReps / 30));
         let increment = 5;
-        if (['dumbbell', 'kettlebell'].includes(exerciseDetails.equipment)) increment = 5; 
-        if (exerciseDetails.equipment === 'bodyweight') return `Add weight or aim for ${lastReps + 1} reps. You're getting stronger!`;
+        if (['barbell'].includes(exerciseDetails.equipment)) increment = 5;
+        if (['dumbbell', 'kettlebell'].includes(exerciseDetails.equipment)) increment = 5;
+        return Math.round(load / increment) * increment;
+    };
+
+    const targetRepsAvg = Math.round((minReps + maxReps) / 2);
+    const lastE1RM = calculateE1RM(lastWeight, lastReps, lastRir);
+
+    if (lastReps > maxReps) {
+        if (exerciseDetails.equipment === 'bodyweight') return `You crushed the rep range! Add weight or aim for ${lastReps + 1} reps. You're getting stronger!`;
         
-        const newWeight = lastWeight + increment;
+        let newWeight = calculateTargetLoad(lastE1RM, targetRepsAvg, targetRirAvg);
+        // Ensure it actually increases
+        if (newWeight <= lastWeight) newWeight = lastWeight + 5;
+
         if (trend === "improving") {
-            return `Trend is up! Let's increase the weight. Try for ${newWeight} lbs/kg in the ${minReps}-${maxReps} rep range.`;
+            return `Trend is up! Let's bump the weight to ${newWeight} lbs/kg to stay in the ${minReps}-${maxReps} rep range.`;
         }
-        return `You hit the top of the rep range. Try increasing weight to ${newWeight} lbs/kg for ${minReps}-${maxReps} reps.`;
+        return `You exceeded the top of the rep range. Try increasing weight to ${newWeight} lbs/kg for ${minReps}-${maxReps} reps.`;
     }
     
-    if (lastReps >= minReps && lastReps < maxReps) {
+    if (lastReps >= minReps && lastReps <= maxReps) {
         if (trend === "declining") {
             return `Strength seems to be trending down. Let's focus on hitting ${lastReps} reps with solid form at ${lastWeight} lbs/kg before pushing for more.`;
         }
-        return `You're in the sweet spot. Aim for ${lastReps + 1} reps with ${lastWeight} lbs/kg to progress within the rep range.`;
+        return `You're in the sweet spot. Aim for ${Math.min(maxReps, lastReps + 1)} reps with ${lastWeight} lbs/kg (Target: ~${targetRirStr} RIR).`;
     }
 
     if (lastReps < minReps) {
-        let decrement = 5;
-        if (['dumbbell', 'kettlebell'].includes(exerciseDetails.equipment)) decrement = 5;
-        const newWeight = Math.max(0, lastWeight - decrement);
+        if (exerciseDetails.equipment === 'bodyweight') return `Keep practicing! Try using bands or an easier variation to hit ${minReps}+ reps.`;
+
+        let newWeight = calculateTargetLoad(lastE1RM, targetRepsAvg, targetRirAvg);
+        // Ensure it actually decreases
+        if (newWeight >= lastWeight) newWeight = Math.max(0, lastWeight - 5);
+
         return `Last session was below the target rep range. Try lowering weight to ~${newWeight} lbs/kg to hit ${minReps}-${maxReps} reps with good form.`;
     }
 
-    return `Last: ${lastWeight}x${lastReps}. Aim for the ${minReps}-${maxReps} rep range.`;
+    return `Last: ${lastWeight}x${lastReps} @ ${lastRir} RIR. Aim for the ${minReps}-${maxReps} rep range.`;
 };
