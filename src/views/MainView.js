@@ -10,31 +10,35 @@ export const WeekView = ({ week, completedDays, onSessionSelect, firstIncomplete
         return workoutName === 'Rest' || completedDays.get(`${week}-${day.day}`)?.isDayComplete;
     }), [week, completedDays, weeklySchedule, programData]);
 
-    const [isOpen, setIsOpen] = useState(week === firstIncompleteWeek);
-    
-    useEffect(() => {
-        setIsOpen(week === firstIncompleteWeek);
-    }, [firstIncompleteWeek, week]);
-    
-    const gridColsMap = {
-        1: 'lg:grid-cols-1', 2: 'lg:grid-cols-2', 3: 'lg:grid-cols-3', 4: 'lg:grid-cols-4',
-        5: 'lg:grid-cols-5', 6: 'lg:grid-cols-6', 7: 'lg:grid-cols-7', 8: 'lg:grid-cols-8',
-        9: 'lg:grid-cols-9', 10: 'lg:grid-cols-10', 11: 'lg:grid-cols-11', 12: 'lg:grid-cols-12',
-    };
-    const gridColsClass = gridColsMap[weeklySchedule.length] || 'lg:grid-cols-7';
+    const sortedDays = useMemo(() => {
+        return [...weeklySchedule].sort((a, b) => {
+            const statusA = completedDays.get(`${week}-${a.day}`);
+            const statusB = completedDays.get(`${week}-${b.day}`);
+            const isAComplete = statusA?.isDayComplete || statusA?.isSkipped;
+            const isBComplete = statusB?.isDayComplete || statusB?.isSkipped;
+            
+            if (isAComplete && !isBComplete) return 1;
+            if (!isAComplete && isBComplete) return -1;
+            return 0; // Keep relative order for similar status
+        });
+    }, [weeklySchedule, completedDays, week]);
 
     return (
         <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-4">
             <button onClick={() => setIsOpen(!isOpen)} className="w-full flex justify-between items-center text-left">
-                <h3 className="text-xl font-bold text-gray-800 dark:text-gray-200">Week {week}</h3>
-                <div className="flex items-center gap-2">{isWeekComplete && <CheckCircle className="text-green-500" />}{isOpen ? <ChevronUp className="text-gray-500 dark:text-gray-400" /> : <ChevronDown className="text-gray-500 dark:text-gray-400" />}</div>
+                <h3 className="text-xl font-bold dark:text-white">Week {week}</h3>
+                <div className="flex items-center gap-2">
+                    {isWeekComplete && <CheckCircle className="text-green-500" />}
+                    {isOpen ? <ChevronUp className="text-gray-500 dark:text-gray-400" /> : <ChevronDown className="text-gray-500 dark:text-gray-400" />}
+                </div>
             </button>
             {isOpen && (
                 <div className={`grid grid-cols-2 sm:grid-cols-4 ${gridColsClass} gap-3 mt-4`}>
-                    {weeklySchedule.map((day, index) => {
-                        const dayKey = `${week}-${day.day}`;
+                    {sortedDays.map((day) => {
+                        const effectiveDayKey = day.id || day.day;
+                        const dayKey = `${week}-${effectiveDayKey}`;
                         const status = completedDays.get(dayKey);
-                        const workoutName = getWorkoutNameForDay(programData, week, day.day);
+                        const workoutName = getWorkoutNameForDay(programData, week, effectiveDayKey);
                         const workoutDetails = getWorkoutForWeek(programData, week, workoutName);
                         const isRestDay = !workoutName || programData.programStructure[workoutName]?.isRest;
                         
@@ -43,24 +47,27 @@ export const WeekView = ({ week, completedDays, onSessionSelect, firstIncomplete
                         else if (status?.isSkipped) dayClass = 'bg-red-100 dark:bg-red-800/50 border border-red-500/50';
                         else if (status?.isDayComplete) dayClass = 'bg-green-100 dark:bg-green-800/50 border border-green-500/50';
 
+                        // Find original index for "Day X" label if not using weekly schedule
+                        const originalIndex = weeklySchedule.findIndex(d => d.day === day.day);
+
                         return (
                             <div key={dayKey} className={`rounded-lg p-3 flex flex-col justify-between transition-all ${dayClass}`}>
                                 <div className="flex justify-between items-center mb-2">
-                                    <div className="font-bold text-sm text-gray-800 dark:text-gray-200">
-                                        {programData.settings.useWeeklySchedule ? day.day : `Day ${index + 1}`}
+                                    <div className="font-bold text-sm dark:text-white">
+                                        {programData.settings.useWeeklySchedule ? day.day : `Day ${originalIndex + 1}`}
                                     </div>
                                 </div>
                                 <div className="space-y-2 flex-grow flex flex-col justify-end">
                                     {isRestDay ? (
-                                        <div className="text-center text-xs font-semibold text-indigo-700 dark:text-indigo-300 h-7 flex items-center justify-center">Rest Day</div>
+                                        <div className="text-center text-xs font-bold text-indigo-700 dark:text-indigo-300 h-7 flex items-center justify-center">Rest Day</div>
                                     ) : status?.isSkipped ? (
-                                        <button onClick={() => onUnskipDay(week, day.day)} className="w-full flex items-center justify-center gap-1 text-xs p-1.5 rounded bg-white dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 shadow-sm transition-colors font-semibold text-red-600 dark:text-red-400">
+                                        <button onClick={() => onUnskipDay(week, effectiveDayKey)} className="w-full flex items-center justify-center gap-1 text-xs p-1.5 rounded bg-white dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 shadow-sm transition-colors font-bold text-red-600 dark:text-red-400 border border-red-200 dark:border-red-900/50">
                                             <XCircle size={14} /> Skipped
                                         </button>
                                     ) : (
-                                        <button onClick={() => onSessionSelect(week, day.day, 'lifting')} className="w-full flex items-center justify-between text-xs p-1.5 rounded bg-white dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 shadow-sm transition-colors">
-                                            <div className="flex items-center gap-1 font-semibold">{workoutDetails?.label || workoutName}</div>
-                                            {status?.isDayComplete ? <CheckCircle size={14} className="text-green-500"/> : <Dumbbell size={14} className="text-blue-500"/>}
+                                        <button onClick={() => onSessionSelect(week, effectiveDayKey, 'lifting')} className="w-full flex items-center justify-between text-xs p-1.5 rounded bg-white dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 shadow-sm transition-colors border border-gray-200 dark:border-gray-600">
+                                            <div className="flex items-center gap-1 font-bold dark:text-white truncate">{workoutDetails?.label || workoutName}</div>
+                                            {status?.isDayComplete ? <CheckCircle size={14} className="text-green-500 flex-shrink-0"/> : <Dumbbell size={14} className="text-blue-500 flex-shrink-0"/>}
                                         </button>
                                     )}
                                 </div>
@@ -228,31 +235,47 @@ export const MainView = ({ onSessionSelect, onEditProgram, completedDays, onUnsk
     const { info, weeklySchedule } = programData;
     const weeks = Array.from({ length: info.weeks }, (_, i) => i + 1);
     
-    const { sortedWeeks, firstIncomplete } = useMemo(() => {
-        const completed = [];
-        const incomplete = [];
-        weeks.forEach(week => {
-            const isWeekComplete = (weeklySchedule || []).every(day => {
-                const dayKey = `${week}-${day.day}`;
-                return completedDays.get(dayKey)?.isDayComplete;
+    const firstIncompleteWeek = useMemo(() => {
+        for (let w = 1; w <= info.weeks; w++) {
+            const isWeekComplete = weeklySchedule.every(d => {
+                const workoutName = getWorkoutNameForDay(programData, w, d.day);
+                return programData.programStructure[workoutName]?.isRest || completedDays.get(`${w}-${d.day}`)?.isDayComplete;
             });
-            if (isWeekComplete) completed.push(week);
-            else incomplete.push(week);
+            if (!isWeekComplete) return w;
+        }
+        return info.weeks + 1;
+    }, [completedDays, weeklySchedule, info.weeks, programData]);
+
+    const sortedWeeks = useMemo(() => {
+        const result = [...weeks];
+        return result.sort((a, b) => {
+            const isAComplete = weeklySchedule.every(d => {
+                const workoutName = getWorkoutNameForDay(programData, a, d.day);
+                return programData.programStructure[workoutName]?.isRest || completedDays.get(`${a}-${d.day}`)?.isDayComplete;
+            });
+            const isBComplete = weeklySchedule.every(d => {
+                const workoutName = getWorkoutNameForDay(programData, b, d.day);
+                return programData.programStructure[workoutName]?.isRest || completedDays.get(`${b}-${d.day}`)?.isDayComplete;
+            });
+            
+             // Prioritize the FIRST incomplete week to be at the top
+            if (a === firstIncompleteWeek) return -1;
+            if (b === firstIncompleteWeek) return 1;
+
+            if (isAComplete && !isBComplete) return 1;
+            if (!isAComplete && isBComplete) return -1;
+            return a - b;
         });
-        return { 
-            sortedWeeks: [...incomplete, ...completed], 
-            firstIncomplete: incomplete[0] || info.weeks + 1 
-        };
-    }, [weeks, weeklySchedule, completedDays, info.weeks]);
+    }, [weeks, weeklySchedule, programData, completedDays, firstIncompleteWeek]);
 
     return (
-        <div className="p-4 md:p-6 text-gray-900 dark:text-white">
+        <div className="p-4 md:p-6">
             <div className="flex flex-col sm:flex-row justify-between items-center text-center sm:text-left mb-6 gap-4">
                 <div className="flex items-center gap-3">
                     <Dumbbell className="text-blue-500 dark:text-blue-400" size={48} />
                     <div>
-                        <h1 className="text-3xl font-bold">{info.name}</h1>
-                        <p className="text-lg text-gray-600 dark:text-gray-400">Your {info.weeks}-Week Plan</p>
+                        <h1 className="text-3xl font-bold dark:text-white">{info.name}</h1>
+                        <p className="text-lg text-gray-600 dark:text-gray-400 font-medium">Your {info.weeks}-Week Plan</p>
                     </div>
                 </div>
             </div>
@@ -264,7 +287,7 @@ export const MainView = ({ onSessionSelect, onEditProgram, completedDays, onUnsk
                         week={week} 
                         completedDays={completedDays} 
                         onSessionSelect={onSessionSelect}
-                        firstIncompleteWeek={firstIncomplete} 
+                        firstIncompleteWeek={firstIncompleteWeek} 
                         onUnskipDay={onUnskipDay} 
                         programData={programData}
                         onNavigate={onNavigate}

@@ -155,13 +155,12 @@ export const EditProgramView = ({ programData, onProgramDataChange, onBack, onNa
             // Remove from weeklySchedule (Dynamic Days: No set amount)
             let newSchedule = p.weeklySchedule.filter(d => d.workout !== workoutNameToDelete);
 
-            newSchedule = newSchedule.map((day, index) => {
-                const daysOfWeek = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-                return {
-                    ...day,
-                    day: daysOfWeek[index % 7] + (Math.floor(index / 7) > 0 ? ` ${Math.floor(index/7)+1}` : '')
-                };
-            });
+            // Regenerate day labels to keep them sequential
+            const daysOfWeek = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+            newSchedule = newSchedule.map((day, index) => ({
+                ...day,
+                day: daysOfWeek[index % 7] + (Math.floor(index / 7) > 0 ? ` ${Math.floor(index/7)+1}` : '')
+            }));
 
             // Clean overrides for the deleted workout
             const newOverrides = JSON.parse(JSON.stringify(p.weeklyOverrides || {}));
@@ -359,18 +358,22 @@ export const EditProgramView = ({ programData, onProgramDataChange, onBack, onNa
         if (type === 'workoutDay') {
             onProgramDataChange(p => {
                 const reorderedWorkoutOrder = Array.from(p.workoutOrder);
-                const [movedItem] = reorderedWorkoutOrder.splice(source.index, 1);
-                reorderedWorkoutOrder.splice(destination.index, 0, movedItem);
+                const [movedItemName] = reorderedWorkoutOrder.splice(source.index, 1);
+                reorderedWorkoutOrder.splice(destination.index, 0, movedItemName);
 
-                // Sync with Main Page (Weekly Schedule)
-                // We re-assign the weekly schedule workouts to match the new template order
+                // Reorder weeklySchedule items too
+                const newSchedule = Array.from(p.weeklySchedule);
+                const [movedDay] = newSchedule.splice(source.index, 1);
+                newSchedule.splice(destination.index, 0, movedDay);
+
+                // Fix labels so they stay sequential (Mon, Tue...) but IDs stay with the workout
                 const daysOfWeek = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-                const newSchedule = reorderedWorkoutOrder.map((workoutName, index) => ({
-                    day: daysOfWeek[index % 7] + (Math.floor(index / 7) > 0 ? ` ${Math.floor(index/7)+1}` : ''),
-                    workout: workoutName
+                const finalizedSchedule = newSchedule.map((d, index) => ({
+                    ...d,
+                     day: daysOfWeek[index % 7] + (Math.floor(index / 7) > 0 ? ` ${Math.floor(index/7)+1}` : '')
                 }));
 
-                return { ...p, workoutOrder: reorderedWorkoutOrder, weeklySchedule: newSchedule };
+                return { ...p, workoutOrder: reorderedWorkoutOrder, weeklySchedule: finalizedSchedule };
             });
             return;
         }
@@ -394,6 +397,43 @@ export const EditProgramView = ({ programData, onProgramDataChange, onBack, onNa
         }
     };
     
+    const handleAddDayToWeek = (week) => {
+        onProgramDataChange(p => {
+            const newOverrides = JSON.parse(JSON.stringify(p.weeklyOverrides || {}));
+            if (!newOverrides[week]) {
+                newOverrides[week] = {};
+            }
+            
+            const currentSchedule = newOverrides[week].schedule || [...p.weeklySchedule];
+            const newIndex = currentSchedule.length;
+            const daysOfWeek = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+            const newDayLabel = daysOfWeek[newIndex % 7] + (Math.floor(newIndex / 7) > 0 ? ` ${Math.floor(newIndex/7)+1}` : '');
+            
+            const firstRestWorkout = Object.keys(p.programStructure).find(name => p.programStructure[name]?.isRest) || 'Rest Day';
+            
+            const newDay = { day: newDayLabel, workout: firstRestWorkout, id: generateUUID() };
+            newOverrides[week].schedule = [...currentSchedule, newDay];
+            
+            return { ...p, weeklyOverrides: newOverrides };
+        });
+    };
+
+    const handleRemoveDayFromWeek = (week) => {
+        onProgramDataChange(p => {
+            const newOverrides = JSON.parse(JSON.stringify(p.weeklyOverrides || {}));
+            const currentSchedule = newOverrides[week]?.schedule || [...p.weeklySchedule];
+            
+            if (currentSchedule.length <= 1) return p;
+            
+            newOverrides[week] = {
+                ...(newOverrides[week] || {}),
+                schedule: currentSchedule.slice(0, -1)
+            };
+            
+            return { ...p, weeklyOverrides: newOverrides };
+        });
+    };
+
     const scrollToWorkout = (workoutName) => {
         const element = document.getElementById(`workout-day-editor-${workoutName}`);
         if (element) {
@@ -564,17 +604,11 @@ export const EditProgramView = ({ programData, onProgramDataChange, onBack, onNa
                 {/* Weekly Schedule Editor - Collapsible */}
                 <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-4 mb-6">
                     <button onClick={() => setScheduleOpen(!isScheduleOpen)} className="w-full flex justify-between items-center text-left">
-                        <div className="flex items-center gap-2">
-                             <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Weekly Schedule & Overrides</h3>
-                             <span className="px-2 py-0.5 text-xs bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300 rounded-full font-bold">Recommended</span>
-                        </div>
+                        <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Weekly Schedule & Overrides</h3>
                         {isScheduleOpen ? <ChevronUp /> : <ChevronDown />}
                     </button>
                     {isScheduleOpen && (
-                        <div className="mt-4 space-y-4">
-                            <p className="text-sm text-gray-500 dark:text-gray-400">
-                                Global changes to the master schedule length or default workouts are handled above. Here you can customize specific weeks or add/remove days from a single week.
-                            </p>
+                        <div className="mt-4 space-y-2">
                             {Array.from({ length: programData.info.weeks }, (_, i) => i + 1).map(week => (
                                 <EditWeekCard
                                     key={week}
@@ -582,9 +616,18 @@ export const EditProgramView = ({ programData, onProgramDataChange, onBack, onNa
                                     program={programData}
                                     onEditDay={handleEditDay}
                                     onToggleRest={handleToggleRestDay}
-                                    onProgramDataChange={onProgramDataChange}
+                                    onAddDayToWeek={handleAddDayToWeek}
+                                    onRemoveDayFromWeek={handleRemoveDayFromWeek}
                                 />
                             ))}
+                            <div className="mt-4 flex gap-2">
+                                <button onClick={handleAddDayToSchedule} className="w-full flex items-center justify-center gap-2 p-2 rounded-lg bg-green-100 dark:bg-green-900/50 text-green-700 dark:text-green-300 hover:bg-green-200 dark:hover:bg-green-800/50">
+                                    <PlusCircle size={16}/> Add Day
+                                </button>
+                                <button onClick={handleRemoveLastDayFromSchedule} disabled={programData.weeklySchedule.length <= 1} className="w-full flex items-center justify-center gap-2 p-2 rounded-lg bg-red-100 dark:bg-red-900/50 text-red-700 dark:text-red-300 hover:bg-red-200 dark:hover:bg-red-800/50 disabled:opacity-50 disabled:cursor-not-allowed">
+                                    <XCircle size={16}/> Remove Last Day
+                                </button>
+                            </div>
                         </div>
                     )}
                 </div>
