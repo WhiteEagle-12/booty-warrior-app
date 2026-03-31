@@ -1,12 +1,12 @@
 import React, { useState, useEffect, useMemo, useContext, useRef } from 'react';
-import { Settings, Download, Upload, Repeat, AlertTriangle, HelpCircle } from 'lucide-react';
+import { Settings, Download, Upload, Repeat, AlertTriangle, HelpCircle, XCircle } from 'lucide-react';
 import { ThemeContext } from '../contexts/ThemeContext';
 import { FirebaseContext } from '../contexts/FirebaseContext';
 import { AppStateContext } from '../contexts/AppStateContext';
 import { calculateE1RM } from '../utils/helpers';
 import { InfoTooltip } from '../components/common/InfoTooltip';
 
-export const SettingsView = ({ allLogs, historicalLogs, weightUnit, onWeightUnitChange, onResetMeso, programData, onProgramDataChange, onShowTutorial, bodyWeight, onBodyWeightChange, onBack, onFileImport }) => {
+export const SettingsView = ({ allLogs, historicalLogs, weightUnit, onWeightUnitChange, onResetMeso, onDeleteAllUserData, programData, onProgramDataChange, onShowTutorial, bodyWeight, onBodyWeightChange, onBack, onFileImport }) => {
     const { theme, toggleTheme } = useContext(ThemeContext);
     const { customId, handleSetCustomId } = useContext(FirebaseContext);
     const { openModal, closeModal } = useContext(AppStateContext);
@@ -119,6 +119,44 @@ export const SettingsView = ({ allLogs, historicalLogs, weightUnit, onWeightUnit
                 <div className="flex justify-end gap-2 mt-6">
                     <button onClick={closeModal} className="px-4 py-2 bg-gray-200 dark:bg-gray-600 text-gray-800 dark:text-gray-200 rounded-lg">Cancel</button>
                     <button onClick={() => { onResetMeso(); closeModal(); }} className="px-4 py-2 bg-red-600 text-white rounded-lg">Confirm & Reset</button>
+                </div>
+            </div>
+        );
+    };
+
+    const handleDeleteUserDataPrompt = () => {
+        openModal(
+            <div>
+                <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4">Delete All User Data?</h2>
+                <p className="text-gray-600 dark:text-gray-400 mb-4">This will permanently delete your program, all historical logs, and all records from the cloud. This action cannot be reversed.</p>
+                <div className="bg-red-50 dark:bg-red-900/20 p-3 rounded-lg border border-red-200 dark:border-red-800 mb-6">
+                    <p className="text-xs text-red-600 dark:text-red-400">Type "DELETE" below to confirm:</p>
+                    <input 
+                        type="text" 
+                        placeholder="DELETE" 
+                        id="deleteConfirmInput"
+                        className="w-full mt-2 p-2 bg-white dark:bg-gray-800 border-red-300 dark:border-red-900 rounded focus:ring-red-500"
+                        onKeyUp={(e) => {
+                            if (e.target.value === 'DELETE') {
+                                document.getElementById('finalDeleteBtn').disabled = false;
+                                document.getElementById('finalDeleteBtn').classList.remove('opacity-50', 'cursor-not-allowed');
+                            } else {
+                                document.getElementById('finalDeleteBtn').disabled = true;
+                                document.getElementById('finalDeleteBtn').classList.add('opacity-50', 'cursor-not-allowed');
+                            }
+                        }}
+                    />
+                </div>
+                <div className="flex justify-end gap-2">
+                    <button onClick={closeModal} className="px-4 py-2 bg-gray-200 dark:bg-gray-600 text-gray-800 dark:text-gray-200 rounded-lg">Keep My Data</button>
+                    <button 
+                        id="finalDeleteBtn"
+                        disabled 
+                        onClick={() => { onDeleteAllUserData(); closeModal(); }} 
+                        className="px-4 py-2 bg-red-600 text-white rounded-lg shadow-md hover:bg-red-700 transition-colors opacity-50 cursor-not-allowed"
+                    >
+                        Delete Everything
+                    </button>
                 </div>
             </div>
         );
@@ -279,20 +317,35 @@ export const SettingsView = ({ allLogs, historicalLogs, weightUnit, onWeightUnit
 
                 <div className="border-t border-gray-200 dark:border-gray-700"></div>
 
-                {/* Program Reset */}
+                <div className="border-t border-gray-200 dark:border-gray-700"></div>
+
+                {/* Account & Safety */}
                 <div>
-                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">Program Reset</h3>
-                     <div className="bg-red-100 dark:bg-red-900/50 p-4 rounded-lg space-y-3">
+                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">Danger Zone</h3>
+                     <div className="bg-red-50 dark:bg-red-900/20 p-4 rounded-lg space-y-4 border border-red-100 dark:border-red-950">
                         <div className="flex items-start gap-3">
                             <AlertTriangle className="text-red-500 flex-shrink-0 mt-1" />
                             <div>
                                 <h4 className="font-bold text-red-800 dark:text-red-200">Start New Mesocycle</h4>
-                                <p className="text-sm text-red-700 dark:text-red-300">This will download all your current logs as a CSV, then archive them and clear your progress to start fresh.</p>
+                                <p className="text-sm text-red-700 dark:text-red-300">Archive current logs and start fresh. (Downloads CSV automatically)</p>
+                                <button onClick={handleStartNewMeso} className="mt-2 w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2 bg-white dark:bg-gray-800 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-800 rounded-lg shadow-sm hover:bg-red-50 dark:hover:bg-red-900/30 transition-colors font-medium">
+                                    <Repeat size={16} /> Start New Meso
+                                </button>
                             </div>
                         </div>
-                        <button onClick={handleStartNewMeso} className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg shadow-md hover:bg-red-700 transition-colors">
-                            <Repeat size={16} /> Start New Mesocycle
-                        </button>
+                        
+                        <div className="border-t border-red-100 dark:border-red-900/50"></div>
+
+                        <div className="flex items-start gap-3">
+                            <XCircle className="text-red-600 flex-shrink-0 mt-1" size={20} />
+                            <div>
+                                <h4 className="font-bold text-red-800 dark:text-red-200">Delete Account Data</h4>
+                                <p className="text-sm text-red-700 dark:text-red-300">Completely wipe your profile and all history from Firebase. This is permanent.</p>
+                                <button onClick={handleDeleteUserDataPrompt} className="mt-2 w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg shadow-md hover:bg-red-700 transition-colors font-medium">
+                                    <XCircle size={16} /> Delete User Data
+                                </button>
+                            </div>
+                        </div>
                     </div>
                 </div>
 

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useContext, useCallback } from 'react';
-import { doc, updateDoc, onSnapshot, setDoc, arrayUnion } from 'firebase/firestore';
+import { doc, updateDoc, onSnapshot, setDoc, arrayUnion, deleteDoc } from 'firebase/firestore';
 
 import { generateUUID, getExerciseDetails, isSetLogComplete } from '../utils/helpers';
 import { getWorkoutForWeek, getWorkoutNameForDay } from '../utils/workout';
@@ -563,6 +563,23 @@ export const useApplicationData = () => {
         return status;
     }, [allLogs, skippedDays, programData]);
 
+    const handleDeleteAllUserData = useCallback(async () => {
+        if (!db || !customId) {
+            addToast("No active sync session found.", "error");
+            return;
+        }
+        try {
+            const userRef = doc(db, 'users', customId);
+            await deleteDoc(userRef);
+            localStorage.removeItem('projectOverloadSyncId');
+            addToast("All user data has been deleted. Reloading...", "success");
+            setTimeout(() => window.location.reload(), 1500);
+        } catch (error) {
+            console.error("Error deleting user data:", error);
+            addToast(`Failed to delete data: ${error.message}`, 'error');
+        }
+    }, [db, customId, addToast]);
+
     const onBack = () => navigate('main');
 
     return {
@@ -597,6 +614,7 @@ export const useApplicationData = () => {
         handleResetMeso,
         handleRestoreLogs,
         handleFileImport,
+        handleDeleteAllUserData,
         completedDays
     };
 };
