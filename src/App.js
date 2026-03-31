@@ -80,9 +80,7 @@ const AppCore = () => {
                 </main>
             </div>
             <Sidebar onNavChange={navigate} currentPage={pageState.view} />
-             <Modal />
              {activeTimer && <RestTimer initialTime={activeTimer} onClose={() => setActiveTimer(null)} onTimerEnd={handleTimerEnd} />}
-             <ToastContainer />
         </div>
     );
 }
@@ -93,6 +91,8 @@ function App() {
         <AppStateProvider>
             <ThemeProvider>
                 <AppCore />
+                <Modal />
+                <ToastContainer />
             </ThemeProvider>
         </AppStateProvider>
     </FirebaseProvider>
