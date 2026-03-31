@@ -58,7 +58,8 @@ export const useApplicationData = () => {
             const targetId = activeInstanceId || prevInstances[0].id;
             const newInstances = prevInstances.map(p => {
                 if (p.id === targetId) {
-                    const newProgram = typeof updater === 'function' ? updater(p.program) : updater;
+                    const migratedP = migrateProgramData(p.program);
+                    const newProgram = typeof updater === 'function' ? updater(migratedP) : updater;
                     return { ...p, program: newProgram, lastModified: new Date().toISOString() };
                 }
                 return p;
