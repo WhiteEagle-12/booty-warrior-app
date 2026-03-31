@@ -6,12 +6,15 @@ import { getExerciseDetails, getSetVolume, isSetLogComplete } from '../utils/hel
 import { calculateStreak } from '../utils/formatters';
 import { ProgressBar } from '../components/common/ProgressBar';
 import { StreakCounter } from '../components/common/StreakCounter';
+import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
 
 export const DashboardView = ({ allLogs, programData, bodyWeightHistory }) => {
     const { masterExerciseList, weeklySchedule, info, settings, workoutOrder } = programData;
 
     const { totalSets, completedSets, streak, firstIncompleteWeek } = useMemo(() => {
         let totalSetsCount = 0;
+        let completedSetsCount = 0;
+
         for (let w = 1; w <= info.weeks; w++) {
             const weekSched = programData.weeklyScheduleOverrides?.[w] || weeklySchedule;
             weekSched.forEach(day => {
@@ -21,20 +24,24 @@ export const DashboardView = ({ allLogs, programData, bodyWeightHistory }) => {
                     if (workout && workout.exercises) {
                         workout.exercises.forEach(ex => {
                             const details = getExerciseDetails(ex.name, masterExerciseList);
-                            if (details) totalSetsCount += Number(details.sets) || 0;
+                            if (details) {
+                                const setTotal = Number(details.sets) || 0;
+                                totalSetsCount += setTotal;
+
+                                // Count completed sets for this exercise in this week/day
+                                for (let s = 1; s <= setTotal; s++) {
+                                    const logId = `${w}-${day.day}-${ex.name}-${s}`;
+                                    if (isSetLogComplete(allLogs[logId])) {
+                                        completedSetsCount++;
+                                    }
+                                }
+                            }
                         });
                     }
                 }
             });
         }
-        const total = totalSetsCount;
-        const masterList = programData?.masterExerciseList || {};
-        const completed = Object.values(allLogs).filter(log => 
-            !log.skipped && 
-            (log.load === 0 || log.load) && 
-            log.reps &&
-            !!masterList[log.exercise]
-        ).length;
+
         const currentStreak = calculateStreak(allLogs, programData);
         
         let incompleteWeek = 1;
@@ -57,8 +64,8 @@ export const DashboardView = ({ allLogs, programData, bodyWeightHistory }) => {
             }
         }
 
-        return { totalSets: total, completedSets: completed, streak: currentStreak, firstIncompleteWeek: incompleteWeek };
-    }, [allLogs, programData]);
+        return { totalSets: totalSetsCount, completedSets: completedSetsCount, streak: currentStreak, firstIncompleteWeek: incompleteWeek };
+    }, [allLogs, programData, weeklySchedule, info.weeks, masterExerciseList]);
 
     const weeklyVolumeData = useMemo(() => {
         const volumesByDay = {};

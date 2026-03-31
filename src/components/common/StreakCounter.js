@@ -4,10 +4,15 @@ import { Flame } from 'lucide-react';
 export const StreakCounter = ({ streak }) => {
     const getStreakColor = (s) => {
         if (s === 0) return 'text-gray-500';
-        if (s < 5) return 'text-orange-400';
-        if (s < 10) return 'text-red-500';
-        if (s < 20) return 'text-blue-500';
-        return 'text-purple-500';
+        if (s < 3) return 'text-orange-400';
+        if (s < 7) return 'text-red-500';
+        if (s < 14) return 'text-rose-500';
+        if (s < 21) return 'text-pink-500';
+        if (s < 30) return 'text-purple-500';
+        if (s < 45) return 'text-violet-500';
+        if (s < 60) return 'text-blue-500';
+        if (s < 90) return 'text-cyan-500';
+        return 'text-emerald-500';
     };
     const streakColorClass = getStreakColor(streak);
 

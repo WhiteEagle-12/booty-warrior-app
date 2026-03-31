@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { ChevronDown, ChevronUp, Edit, Dumbbell, Eye, PlusCircle, Pencil, Shield, XCircle, Calendar, Sparkles } from 'lucide-react';
+import { Droppable, Draggable } from 'react-beautiful-dnd';
 import { getWorkoutForWeek, getWorkoutNameForDay } from '../../utils/workout';
 
 export const EditWeekCard = ({ week, program, onEditDay, onToggleRest, onAddDayToWeek, onRemoveSpecificDay }) => {
@@ -55,80 +56,94 @@ export const EditWeekCard = ({ week, program, onEditDay, onToggleRest, onAddDayT
             </button>
             {isOpen && (
                 <div className="px-4 pb-4 space-y-3">
-                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7 gap-2">
-                        {weekSchedule.map(({ day }) => {
-                            const workoutName = getWorkoutNameForDay(program, week, day);
-                            const workoutDetails = getWorkoutForWeek(program, week, workoutName);
-                            const isRest = !workoutDetails;
-                            const displayWorkoutName = isRest 
-                                ? (program.programStructure[workoutName]?.label || 'Rest') 
-                                : (workoutDetails.label || workoutName);
+                    <Droppable droppableId={`week-droppable-${week}`} direction="horizontal" type="weeklyDay">
+                        {(provided) => (
+                            <div 
+                                {...provided.droppableProps}
+                                ref={provided.innerRef}
+                                className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7 gap-2"
+                            >
+                                {weekSchedule.map(({ day, id }, index) => {
+                                    const workoutName = getWorkoutNameForDay(program, week, day);
+                                    const workoutDetails = getWorkoutForWeek(program, week, workoutName);
+                                    const isRest = !workoutDetails;
+                                    const displayWorkoutName = isRest 
+                                        ? (program.programStructure[workoutName]?.label || 'Rest') 
+                                        : (workoutDetails.label || workoutName);
 
-                            // Check if this specific day has an override
-                            const hasOverrideForDay = program.weeklyOverrides?.[week]?.[day];
+                                    const hasOverrideForDay = program.weeklyOverrides?.[week]?.[day];
 
-                            return (
-                                <div 
-                                    key={`${week}-${day}`} 
-                                    className={`relative rounded-xl p-3 text-center flex flex-col justify-between transition-all duration-200 border ${
-                                        isRest 
-                                            ? 'bg-indigo-50 dark:bg-indigo-950/30 border-indigo-200 dark:border-indigo-800' 
-                                            : hasOverrideForDay
-                                                ? 'bg-blue-50 dark:bg-blue-950/30 border-blue-200 dark:border-blue-700'
-                                                : 'bg-white dark:bg-gray-700/80 border-gray-200 dark:border-gray-600'
-                                    }`}
-                                >
-                                    <button 
-                                        onClick={() => onRemoveSpecificDay(week, day)} 
-                                        className="absolute -top-2 -right-2 bg-white dark:bg-gray-800 border border-red-200 dark:border-red-800 text-red-500 rounded-full p-0.5 hover:bg-red-50 dark:hover:bg-red-900 shadow-sm"
-                                        title="Remove this day"
-                                    >
-                                        <XCircle size={16} />
-                                    </button>
-                                    <div>
-                                        <div className="font-bold text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">{day}</div>
-                                        <div className={`text-xs mb-2 truncate h-8 flex items-center justify-center font-medium ${
-                                            isRest 
-                                                ? 'text-indigo-600 dark:text-indigo-300' 
-                                                : 'text-gray-800 dark:text-gray-200'
-                                        }`}>
-                                            {displayWorkoutName}
-                                        </div>
-                                    </div>
-                                    <div className="flex items-center justify-center gap-1 mt-1">
-                                        <button
-                                            onClick={() => onEditDay(week, day)}
-                                            className={`flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs font-medium transition-colors ${
-                                                isRest 
-                                                    ? 'text-gray-400 dark:text-gray-500 cursor-not-allowed' 
-                                                    : 'text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/40'
-                                            }`}
-                                            disabled={isRest}
-                                        >
-                                            <Pencil size={12} />
-                                            Edit
-                                        </button>
-                                        <button
-                                            onClick={() => onToggleRest(week, day)}
-                                            className="flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs font-medium transition-colors hover:bg-gray-100 dark:hover:bg-gray-600/50"
-                                        >
-                                            {isRest ? (
-                                                <>
-                                                    <Dumbbell size={12} className="text-green-600 dark:text-green-400" />
-                                                    <span className="text-green-700 dark:text-green-300">Set</span>
-                                                </>
-                                            ) : (
-                                                <>
-                                                    <Shield size={12} className="text-indigo-600 dark:text-indigo-400" />
-                                                    <span className="text-indigo-700 dark:text-indigo-300">Rest</span>
-                                                </>
+                                    return (
+                                        <Draggable key={id || day} draggableId={id || day} index={index}>
+                                            {(provided) => (
+                                                <div 
+                                                    ref={provided.innerRef}
+                                                    {...provided.draggableProps}
+                                                    {...provided.dragHandleProps}
+                                                    className={`relative rounded-xl p-3 text-center flex flex-col justify-between transition-all duration-200 border ${
+                                                        isRest 
+                                                            ? 'bg-indigo-50 dark:bg-indigo-950/30 border-indigo-200 dark:border-indigo-800' 
+                                                            : hasOverrideForDay
+                                                                ? 'bg-blue-50 dark:bg-blue-950/30 border-blue-200 dark:border-blue-700'
+                                                                : 'bg-white dark:bg-gray-700/80 border-gray-200 dark:border-gray-600'
+                                                    }`}
+                                                >
+                                                    <button 
+                                                        onClick={() => onRemoveSpecificDay(week, day)} 
+                                                        className="absolute -top-2 -right-2 bg-white dark:bg-gray-800 border border-red-200 dark:border-red-800 text-red-500 rounded-full p-0.5 hover:bg-red-50 dark:hover:bg-red-900 shadow-sm z-10"
+                                                        title="Remove this day"
+                                                    >
+                                                        <XCircle size={16} />
+                                                    </button>
+                                                    <div>
+                                                        <div className="font-bold text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">{day}</div>
+                                                        <div className={`text-xs mb-2 truncate h-8 flex items-center justify-center font-medium ${
+                                                            isRest 
+                                                                ? 'text-indigo-600 dark:text-indigo-300' 
+                                                                : 'text-gray-800 dark:text-gray-200'
+                                                        }`}>
+                                                            {displayWorkoutName}
+                                                        </div>
+                                                    </div>
+                                                    <div className="flex items-center justify-center gap-1 mt-1">
+                                                        <button
+                                                            onClick={(e) => { e.stopPropagation(); onEditDay(week, day); }}
+                                                            className={`flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                                                                isRest 
+                                                                    ? 'text-gray-400 dark:text-gray-500 cursor-not-allowed' 
+                                                                    : 'text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/40'
+                                                            }`}
+                                                            disabled={isRest}
+                                                        >
+                                                            <Pencil size={12} />
+                                                            Edit
+                                                        </button>
+                                                        <button
+                                                            onClick={(e) => { e.stopPropagation(); onToggleRest(week, day); }}
+                                                            className="flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs font-medium transition-colors hover:bg-gray-100 dark:hover:bg-gray-600/50"
+                                                        >
+                                                            {isRest ? (
+                                                                <>
+                                                                    <Dumbbell size={12} className="text-green-600 dark:text-green-400" />
+                                                                    <span className="text-green-700 dark:text-green-300">Set</span>
+                                                                </>
+                                                            ) : (
+                                                                <>
+                                                                    <Shield size={12} className="text-indigo-600 dark:text-indigo-400" />
+                                                                    <span className="text-indigo-700 dark:text-indigo-300">Rest</span>
+                                                                </>
+                                                            )}
+                                                        </button>
+                                                    </div>
+                                                </div>
                                             )}
-                                        </button>
-                                    </div>
-                                </div>
-                            );
-                        })}
-                    </div>
+                                        </Draggable>
+                                    );
+                                })}
+                                {provided.placeholder}
+                            </div>
+                        )}
+                    </Droppable>
                     {/* Add/Remove day controls for this specific week */}
                     <div className="flex gap-2 pt-1">
                         <button 

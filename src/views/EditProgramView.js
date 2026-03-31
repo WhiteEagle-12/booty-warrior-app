@@ -453,6 +453,19 @@ export const EditProgramView = ({ programData, onProgramDataChange, allLogs, set
             return;
         }
 
+        if (type === 'weeklyDay') {
+            onProgramDataChange(p => {
+                const weekNumber = parseInt(source.droppableId.replace('week-droppable-', ''));
+                const weekSchedule = Array.from(p.weeklyScheduleOverrides?.[weekNumber] || p.weeklySchedule);
+                const [movedItem] = weekSchedule.splice(source.index, 1);
+                weekSchedule.splice(destination.index, 0, movedItem);
+
+                const newOverrides = { ...(p.weeklyScheduleOverrides || {}), [weekNumber]: weekSchedule };
+                return { ...p, weeklyScheduleOverrides: newOverrides };
+            });
+            return;
+        }
+
         if (type === 'exercise') {
             onProgramDataChange(p => {
                 const { droppableId: sourceWorkoutName, index: sourceIndex } = source;
