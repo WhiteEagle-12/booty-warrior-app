@@ -273,10 +273,15 @@ export const useApplicationData = () => {
     const historicalLogs = useMemo(() => {
         const combined = { ...allLogs };
         archivedLogs.forEach(archive => {
-            Object.assign(combined, archive.logs); // assuming archive is {logs: {...}}
+            Object.assign(combined, archive.logs);
         });
-        return combined;
-    }, [allLogs, archivedLogs]);
+        
+        // Filter out stale logs for exercises that no longer exist in the program
+        const masterList = programData?.masterExerciseList || {};
+        return Object.fromEntries(
+            Object.entries(combined).filter(([, log]) => !!masterList[log.exercise])
+        );
+    }, [allLogs, archivedLogs, programData?.masterExerciseList]);
 
     // Achievement checking
     useEffect(() => {

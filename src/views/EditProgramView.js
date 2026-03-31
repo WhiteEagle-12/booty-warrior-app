@@ -16,8 +16,8 @@ import { RenameWorkoutModal } from '../components/modals/RenameWorkoutModal';
 import { EditWeekCard } from '../components/program/EditWeekCard';
 
 
-export const EditProgramView = ({ programData, onProgramDataChange, onBack, onNavigate }) => {
-    const { openModal, closeModal } = useContext(AppStateContext);
+export const EditProgramView = ({ programData, onProgramDataChange, allLogs, setAllLogs, onBack, onNavigate }) => {
+    const { openModal, closeModal, addToast } = useContext(AppStateContext);
     const [isScheduleOpen, setScheduleOpen] = useState(false); // State for collapsible schedule
 
     const handleInfoChange = (field, value) => {
@@ -261,6 +261,17 @@ export const EditProgramView = ({ programData, onProgramDataChange, onBack, onNa
                         const newMasterList = { ...p.masterExerciseList };
                         if (exerciseName !== newName) {
                             delete newMasterList[exerciseName];
+                            
+                            // Migrate Logs if renamed
+                            setAllLogs(currentLogs => {
+                                const updatedLogs = { ...currentLogs };
+                                Object.keys(updatedLogs).forEach(logKey => {
+                                    if (updatedLogs[logKey].exercise === exerciseName) {
+                                        updatedLogs[logKey].exercise = newName;
+                                    }
+                                });
+                                return updatedLogs;
+                            });
                         }
                         newMasterList[newName] = newDetails;
 
@@ -274,18 +285,32 @@ export const EditProgramView = ({ programData, onProgramDataChange, onBack, onNa
                     closeModal();
                 }}
                 onDelete={(nameToDelete) => {
-                    onProgramDataChange(p => {
-                        const newMasterList = { ...p.masterExerciseList };
-                        delete newMasterList[nameToDelete];
+                    const confirmMsg = `Are you sure you want to delete ${nameToDelete}? All historical logs for this exercise will be permanently removed from analytics.`;
+                    if (window.confirm(confirmMsg)) {
+                        onProgramDataChange(p => {
+                            const newMasterList = { ...p.masterExerciseList };
+                            delete newMasterList[nameToDelete];
+                            
+                            // Cleanup Logs if deleted
+                            setAllLogs(currentLogs => {
+                                const updatedLogs = { ...currentLogs };
+                                Object.keys(updatedLogs).forEach(logKey => {
+                                    if (updatedLogs[logKey].exercise === nameToDelete) {
+                                        delete updatedLogs[logKey];
+                                    }
+                                });
+                                return updatedLogs;
+                            });
 
-                        const newProgramStructure = JSON.parse(JSON.stringify(p.programStructure));
-                        Object.keys(newProgramStructure).forEach(workoutKey => {
-                            newProgramStructure[workoutKey].exercises = newProgramStructure[workoutKey].exercises.filter(ex => ex.name !== nameToDelete);
+                            const newProgramStructure = JSON.parse(JSON.stringify(p.programStructure));
+                            Object.keys(newProgramStructure).forEach(workoutKey => {
+                                newProgramStructure[workoutKey].exercises = newProgramStructure[workoutKey].exercises.filter(ex => ex.name !== nameToDelete);
+                            });
+
+                            return { ...p, masterExerciseList: newMasterList, programStructure: newProgramStructure };
                         });
-
-                        return { ...p, masterExerciseList: newMasterList, programStructure: newProgramStructure };
-                    });
-                    closeModal();
+                        closeModal();
+                    }
                 }}
                 onClose={closeModal}
             />,
@@ -580,34 +605,51 @@ export const EditProgramView = ({ programData, onProgramDataChange, onBack, onNa
                     </button>
                 </div>
 
-                {/* Program Details Editor */}
-                <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-4 mb-6">
-                     <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">Program Info</h3>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Program Name</label>
-                            <input type="text" value={programData.info.name} onChange={(e) => handleInfoChange('name', e.target.value)} className="w-full p-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-md border-gray-300 dark:border-gray-600" />
+                <div className="flex flex-col md:flex-row gap-4 mb-6 items-start">
+                    <div className="flex-grow w-full space-y-4">
+                        {/* Program Details Editor */}
+                        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-4">
+                            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">Program Info</h3>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Program Name</label>
+                                    <input type="text" value={programData.info.name} onChange={(e) => handleInfoChange('name', e.target.value)} className="w-full p-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-md border-gray-300 dark:border-gray-600" />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Weeks</label>
+                                    <input type="number" value={programData.info.weeks} onChange={(e) => handleInfoChange('weeks', parseInt(e.target.value, 10) || 1)} className="w-full p-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-md border-gray-300 dark:border-gray-600" />
+                                </div>
+                            </div>
                         </div>
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Weeks</label>
-                            <input type="number" value={programData.info.weeks} onChange={(e) => handleInfoChange('weeks', parseInt(e.target.value, 10) || 1)} className="w-full p-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-md border-gray-300 dark:border-gray-600" />
+
+                        {/* Schedule Length Editor */}
+                        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-4">
+                            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">Schedule Length</h3>
+                            <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
+                                Current schedule has {programData.weeklySchedule.length} days.
+                            </p>
+                            <div className="flex gap-2">
+                                <button onClick={handleAddDayToSchedule} className="w-full flex items-center justify-center gap-2 p-2 rounded-lg bg-green-100 dark:bg-green-900/50 text-green-700 dark:text-green-300 hover:bg-green-200 dark:hover:bg-green-800/50">
+                                    <PlusCircle size={16}/> Add Day
+                                </button>
+                                <button onClick={handleRemoveLastDayFromSchedule} disabled={programData.weeklySchedule.length <= 1} className="w-full flex items-center justify-center gap-2 p-2 rounded-lg bg-red-100 dark:bg-red-900/50 text-red-700 dark:text-red-300 hover:bg-red-200 dark:hover:bg-red-800/50 disabled:opacity-50 disabled:cursor-not-allowed">
+                                    <XCircle size={16}/> Remove Last Day
+                                </button>
+                            </div>
                         </div>
                     </div>
-                </div>
 
-                {/* Schedule Length Editor */}
-                <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-4 mb-6">
-                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">Schedule Length</h3>
-                    <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
-                        Current schedule has {programData.weeklySchedule.length} days.
-                    </p>
-                    <div className="flex gap-2">
-                        <button onClick={handleAddDayToSchedule} className="w-full flex items-center justify-center gap-2 p-2 rounded-lg bg-green-100 dark:bg-green-900/50 text-green-700 dark:text-green-300 hover:bg-green-200 dark:hover:bg-green-800/50">
-                            <PlusCircle size={16}/> Add Day
+                    {/* Quick Add Buttons Bar */}
+                    <div className="w-full md:w-64 flex flex-col gap-3">
+                        <button onClick={handleAddWorkoutDay} className="w-full flex items-center justify-center gap-3 p-4 rounded-xl bg-green-600 text-white shadow-lg hover:bg-green-700 transition-all font-bold">
+                            <PlusCircle size={20}/> Add Workout Day
                         </button>
-                        <button onClick={handleRemoveLastDayFromSchedule} disabled={programData.weeklySchedule.length <= 1} className="w-full flex items-center justify-center gap-2 p-2 rounded-lg bg-red-100 dark:bg-red-900/50 text-red-700 dark:text-red-300 hover:bg-red-200 dark:hover:bg-red-800/50 disabled:opacity-50 disabled:cursor-not-allowed">
-                            <XCircle size={16}/> Remove Last Day
+                        <button onClick={handleAddNewRestDay} className="w-full flex items-center justify-center gap-3 p-4 rounded-xl bg-indigo-600 text-white shadow-lg hover:bg-indigo-700 transition-all font-bold">
+                            <Shield size={20}/> Add Rest Day
                         </button>
+                        <p className="text-xs text-gray-500 dark:text-gray-400 text-center px-2">
+                            Quickly add new workout templates or rest days to your library.
+                        </p>
                     </div>
                 </div>
 
@@ -698,14 +740,6 @@ export const EditProgramView = ({ programData, onProgramDataChange, onBack, onNa
                                 );
                             })}
                             {provided.placeholder}
-                             <div className="flex gap-2">
-                                <button onClick={handleAddWorkoutDay} className="w-full flex items-center justify-center gap-2 p-3 rounded-xl bg-green-100 dark:bg-green-900/50 text-green-700 dark:text-green-300 hover:bg-green-200 dark:hover:bg-green-800/50 font-bold">
-                                    <PlusCircle size={20}/> Add Workout Day
-                                </button>
-                                <button onClick={handleAddNewRestDay} className="w-full flex items-center justify-center gap-2 p-3 rounded-xl bg-indigo-100 dark:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-200 dark:hover:bg-indigo-800/50 font-bold">
-                                    <Shield size={20}/> Add Rest Day
-                                </button>
-                            </div>
                         </div>
                     )}
                 </Droppable>

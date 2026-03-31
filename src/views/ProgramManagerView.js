@@ -25,7 +25,7 @@ export const SharedProgramPreview = ({ program, onBack, onSelect, backButtonText
                                 {(workoutDetails.exercises || []).map((ex, idx) => {
                                     const exName = typeof ex === 'string' ? ex : ex.name;
                                     const k = typeof ex === 'string' ? idx : ex.id;
-                                    return <li key={k}>{exName}</li>;
+                                    return <li key={k} className="text-gray-700 dark:text-gray-300">{exName}</li>;
                                 })}
                             </ul>
                         </div>

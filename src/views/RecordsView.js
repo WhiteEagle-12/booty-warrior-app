@@ -2,12 +2,18 @@ import React, { useState, useMemo } from 'react';
 import { Trophy, Search } from 'lucide-react';
 import { calculateE1RM } from '../utils/helpers';
 
-export const RecordsView = ({ allLogs, onBack }) => {
+export const RecordsView = ({ allLogs, programData, onBack }) => {
     const [searchTerm, setSearchTerm] = useState('');
     
     const personalRecords = useMemo(() => {
         const records = {};
-        const validLogs = Object.values(allLogs).filter(log => !log.skipped && (log.load !== undefined && log.load !== null) && log.reps);
+        const masterList = programData?.masterExerciseList || {};
+        const validLogs = Object.values(allLogs).filter(log => 
+            !log.skipped && 
+            (log.load !== undefined && log.load !== null) && 
+            log.reps &&
+            !!masterList[log.exercise]
+        );
 
         validLogs.forEach(log => {
             const e1rm = calculateE1RM(log.load, log.reps, log.rir);

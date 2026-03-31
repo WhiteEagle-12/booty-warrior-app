@@ -53,7 +53,7 @@ export const EditDayWorkoutModal = ({
                                         <li ref={provided.innerRef} {...provided.draggableProps} {...provided.dragHandleProps} className="flex justify-between items-center p-2 bg-gray-50 dark:bg-gray-700/50 rounded-md group">
                                             <div className="flex items-center gap-2">
                                                 <Move size={16} className="text-gray-400" />
-                                                <span className="font-medium">{ex.name}</span>
+                                                <span className="font-medium text-gray-900 dark:text-white">{ex.name}</span>
                                             </div>
                                             <div className="flex items-center gap-1 text-gray-500">
                                                 <button onClick={() => onEditExercise(ex.name)} className="p-1 opacity-0 group-hover:opacity-100 transition-opacity"><Pencil size={16}/></button>

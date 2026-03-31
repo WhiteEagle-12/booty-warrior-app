@@ -156,17 +156,17 @@ export const AchievementsView = ({ unlockedAchievements, historicalLogs, program
             <div>
                 <div className="flex items-center gap-3 mb-4">
                     <Icon size={32} className={'text-yellow-500'} />
-                    <h2 className="text-xl font-bold">{achievement.name}</h2>
+                    <h2 className="text-xl font-bold text-gray-900 dark:text-white">{achievement.name}</h2>
                 </div>
                 <p className="text-gray-600 dark:text-gray-400 mb-4">{achievement.description}</p>
                 {achievement.type === 'tiered' && (
                     <div className="space-y-2">
-                        <h3 className="font-semibold">Tiers:</h3>
+                        <h3 className="font-semibold text-gray-900 dark:text-white">Tiers:</h3>
                         {achievement.tiers.map((tier, index) => (
                             <div key={tier.name} className={`flex items-center gap-3 p-2 rounded-md ${unlockedStatus >= index ? 'bg-green-100 dark:bg-green-900/50' : 'bg-gray-100 dark:bg-gray-700/50'}`}>
                                 <CheckCircle size={20} className={unlockedStatus >= index ? 'text-green-500' : 'text-gray-400'} />
                                 <div>
-                                    <p className="font-bold">{tier.name} ({formatTierValue(tier)})</p>
+                                    <p className="font-bold text-gray-900 dark:text-white">{tier.name} ({formatTierValue(tier)})</p>
                                     <p className="text-xs text-gray-500 dark:text-gray-400">{tier.description(tier.value, weightUnit)}</p>
                                 </div>
                             </div>

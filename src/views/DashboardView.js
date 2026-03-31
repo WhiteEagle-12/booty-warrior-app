@@ -26,7 +26,13 @@ export const DashboardView = ({ allLogs, programData, bodyWeightHistory }) => {
         });
 
         const total = weeklySetsCount * info.weeks;
-        const completed = Object.values(allLogs).filter(log => !log.skipped && (log.load === 0 || log.load) && log.reps).length;
+        const masterList = programData?.masterExerciseList || {};
+        const completed = Object.values(allLogs).filter(log => 
+            !log.skipped && 
+            (log.load === 0 || log.load) && 
+            log.reps &&
+            !!masterList[log.exercise]
+        ).length;
         const currentStreak = calculateStreak(allLogs, programData);
         
         let incompleteWeek = 1;

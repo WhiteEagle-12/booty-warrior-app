@@ -62,10 +62,10 @@ const AppCore = () => {
             case 'dashboard': return <DashboardView allLogs={allLogs} programData={programData} bodyWeightHistory={bodyWeightHistory} onBack={onBack} />;
             case 'lifting': return <LiftingSession {...pageState.data} onBack={onBack} allLogs={allLogs} setAllLogs={setAllLogs} onSkipDay={handleSkipDay} programData={programData} weightUnit={weightUnit} onStartTimer={handleStartTimer} />;
             case 'analytics': return <AnalyticsView allLogs={historicalLogs} programData={programData} onBack={onBack} />;
-            case 'records': return <RecordsView allLogs={historicalLogs} onBack={onBack} />;
+            case 'records': return <RecordsView allLogs={historicalLogs} programData={programData} onBack={onBack} />;
             case 'achievements': return <AchievementsView unlockedAchievements={unlockedAchievements} historicalLogs={historicalLogs} programData={programData} bodyWeight={bodyWeight} weightUnit={weightUnit} onBack={onBack} bodyWeightHistory={bodyWeightHistory} />;
             case 'programHub': return <ProgramManagerView onProgramUpdate={handleProgramUpdate} activeProgram={{...programData, id: activeInstanceId}} programInstances={programInstances} onInstanceSwitch={handleInstanceSwitch} onBack={onBack} onDeleteProgram={handleDeleteProgram} />;
-            case 'editProgram': return <EditProgramView programData={programData} onProgramDataChange={handleProgramDataChange} onBack={onBack} onNavigate={navigate} />;
+            case 'editProgram': return <EditProgramView programData={programData} onProgramDataChange={handleProgramDataChange} allLogs={allLogs} setAllLogs={setAllLogs} onBack={onBack} onNavigate={navigate} />;
             case 'settings': return <SettingsView allLogs={allLogs} historicalLogs={historicalLogs} weightUnit={weightUnit} onWeightUnitChange={handleWeightUnitChange} onResetMeso={handleResetMeso} programData={programData} onProgramDataChange={handleProgramDataChange} onShowTutorial={() => showTutorial(true)} bodyWeight={bodyWeight} onBodyWeightChange={handleBodyWeightChange} onBack={onBack} onFileImport={handleFileImport} />;
             default: return <MainView onSessionSelect={(week, day, type, seqIndex) => navigate(type, { week, dayKey: day, sequentialWorkoutIndex: seqIndex })} onEditProgram={() => navigate('editProgram')} completedDays={completedDays} onUnskipDay={handleUnskipDay} programData={programData} allLogs={allLogs} onNavigate={navigate} />;
         }
