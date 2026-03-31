@@ -540,16 +540,29 @@ export const EditProgramView = ({ programData, onProgramDataChange, onBack, onNa
         });
     };
 
-    const handleRemoveDayFromWeek = (week) => {
-        onProgramDataChange(p => {
-            const weekSchedule = p.weeklyScheduleOverrides?.[week] || [...p.weeklySchedule];
-            if (weekSchedule.length <= 1) return p;
-
-            const newSchedule = weekSchedule.slice(0, -1);
-            const newOverrides = { ...(p.weeklyScheduleOverrides || {}), [week]: newSchedule };
-
-            return { ...p, weeklyScheduleOverrides: newOverrides };
-        });
+    const handleRemoveSpecificDay = (week, dayKeyToRemove) => {
+        openModal(
+            <div>
+                <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4">Confirm Deletion</h2>
+                <p className="text-gray-600 dark:text-gray-400">Are you sure you want to remove {dayKeyToRemove} from Week {week}?</p>
+                <div className="flex justify-end gap-2 mt-6">
+                     <button onClick={closeModal} className="px-4 py-2 bg-gray-200 dark:bg-gray-600 text-gray-800 dark:text-gray-200 rounded-lg">Cancel</button>
+                     <button onClick={() => {
+                        onProgramDataChange(p => {
+                            const weekSchedule = p.weeklyScheduleOverrides?.[week] || [...p.weeklySchedule];
+                            if (weekSchedule.length <= 1) {
+                                alert("Cannot remove the last day of the week.");
+                                return p;
+                            }
+                            const newSchedule = weekSchedule.filter(d => d.day !== dayKeyToRemove);
+                            const newOverrides = { ...(p.weeklyScheduleOverrides || {}), [week]: newSchedule };
+                            return { ...p, weeklyScheduleOverrides: newOverrides };
+                        });
+                        closeModal();
+                     }} className="px-4 py-2 bg-red-600 text-white rounded-lg">Delete</button>
+                </div>
+            </div>
+        );
     };
 
     return (
@@ -614,7 +627,7 @@ export const EditProgramView = ({ programData, onProgramDataChange, onBack, onNa
                                     onEditDay={handleEditDay}
                                     onToggleRest={handleToggleRestDay}
                                     onAddDayToWeek={handleAddDayToWeek}
-                                    onRemoveDayFromWeek={handleRemoveDayFromWeek}
+                                    onRemoveSpecificDay={handleRemoveSpecificDay}
                                 />
                             ))}
                         </div>

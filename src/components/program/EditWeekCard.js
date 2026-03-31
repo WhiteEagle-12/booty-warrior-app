@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { ChevronDown, ChevronUp, Edit, Dumbbell, Eye, PlusCircle, Pencil, Shield, XCircle, Calendar, Sparkles } from 'lucide-react';
 import { getWorkoutForWeek, getWorkoutNameForDay } from '../../utils/workout';
 
-export const EditWeekCard = ({ week, program, onEditDay, onToggleRest, onAddDayToWeek, onRemoveDayFromWeek }) => {
+export const EditWeekCard = ({ week, program, onEditDay, onToggleRest, onAddDayToWeek, onRemoveSpecificDay }) => {
     const [isOpen, setIsOpen] = useState(false);
 
     const hasOverrides = program.weeklyOverrides && program.weeklyOverrides[week];
@@ -70,7 +70,7 @@ export const EditWeekCard = ({ week, program, onEditDay, onToggleRest, onAddDayT
                             return (
                                 <div 
                                     key={`${week}-${day}`} 
-                                    className={`rounded-xl p-3 text-center flex flex-col justify-between transition-all duration-200 border ${
+                                    className={`relative rounded-xl p-3 text-center flex flex-col justify-between transition-all duration-200 border ${
                                         isRest 
                                             ? 'bg-indigo-50 dark:bg-indigo-950/30 border-indigo-200 dark:border-indigo-800' 
                                             : hasOverrideForDay
@@ -78,6 +78,13 @@ export const EditWeekCard = ({ week, program, onEditDay, onToggleRest, onAddDayT
                                                 : 'bg-white dark:bg-gray-700/80 border-gray-200 dark:border-gray-600'
                                     }`}
                                 >
+                                    <button 
+                                        onClick={() => onRemoveSpecificDay(week, day)} 
+                                        className="absolute -top-2 -right-2 bg-white dark:bg-gray-800 border border-red-200 dark:border-red-800 text-red-500 rounded-full p-0.5 hover:bg-red-50 dark:hover:bg-red-900 shadow-sm"
+                                        title="Remove this day"
+                                    >
+                                        <XCircle size={16} />
+                                    </button>
                                     <div>
                                         <div className="font-bold text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">{day}</div>
                                         <div className={`text-xs mb-2 truncate h-8 flex items-center justify-center font-medium ${
@@ -129,13 +136,6 @@ export const EditWeekCard = ({ week, program, onEditDay, onToggleRest, onAddDayT
                             className="flex-1 flex items-center justify-center gap-2 p-2 rounded-lg text-xs font-semibold bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-300 border border-green-200 dark:border-green-800 hover:bg-green-100 dark:hover:bg-green-900/50 transition-colors"
                         >
                             <PlusCircle size={14}/> Add Day
-                        </button>
-                        <button 
-                            onClick={() => onRemoveDayFromWeek(week)} 
-                            disabled={weekSchedule.length <= 1} 
-                            className="flex-1 flex items-center justify-center gap-2 p-2 rounded-lg text-xs font-semibold bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-300 border border-red-200 dark:border-red-800 hover:bg-red-100 dark:hover:bg-red-900/50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-                        >
-                            <XCircle size={14}/> Remove Last Day
                         </button>
                     </div>
                 </div>

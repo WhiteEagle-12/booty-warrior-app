@@ -9,7 +9,7 @@ import { getWorkoutNameForDay } from '../utils/workout';
 export const SharedProgramPreview = ({ program, onBack, onSelect, backButtonText = "Back", selectButtonText = "Select Program" }) => {
     return (
         <div>
-            <h2 className="text-2xl font-bold mb-2">{program.name}</h2>
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">{program.name}</h2>
             <div className="flex gap-4 text-sm text-gray-600 dark:text-gray-400 mb-4">
                 <span><CalendarDays size={14} className="inline-block mr-1"/>{program.info.weeks} Weeks</span>
                 <span><Zap size={14} className="inline-block mr-1"/>{program.info.split}</span>
@@ -33,7 +33,7 @@ export const SharedProgramPreview = ({ program, onBack, onSelect, backButtonText
                 })}
             </div>
             <div className="flex justify-between items-center mt-6">
-                <button onClick={onBack} className="px-4 py-2 bg-gray-200 dark:bg-gray-600 rounded-lg">{backButtonText}</button>
+                <button onClick={onBack} className="px-4 py-2 bg-gray-200 dark:bg-gray-600 text-gray-800 dark:text-gray-200 rounded-lg">{backButtonText}</button>
                 <button onClick={onSelect} className="px-4 py-2 bg-blue-600 text-white rounded-lg flex items-center gap-2">
                     <Download size={16}/> {selectButtonText}
                 </button>
@@ -148,13 +148,13 @@ export const RestoreProgramModal = ({ csvData, onRestore, onClose }) => {
 
     return (
         <div>
-            <h2 className="text-xl font-bold mb-4">Restore Program</h2>
+            <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4">Restore Program</h2>
             <p className="text-gray-600 dark:text-gray-400 mb-4">
                 You've uploaded a CSV file. Review the detected data and click "Restore" to import it as a new program.
             </p>
             {error && <p className="text-red-500 bg-red-100 dark:bg-red-900/50 p-3 rounded-md">{error}</p>}
             <div className="flex justify-end gap-2 mt-6">
-                <button onClick={onClose} className="px-4 py-2 bg-gray-200 dark:bg-gray-600 rounded-lg">Cancel</button>
+                <button onClick={onClose} className="px-4 py-2 bg-gray-200 dark:bg-gray-600 text-gray-800 dark:text-gray-200 rounded-lg">Cancel</button>
                 <button onClick={handleRestore} className="px-4 py-2 bg-blue-600 text-white rounded-lg">Restore</button>
             </div>
         </div>
@@ -171,10 +171,10 @@ export const ProgramManagerView = ({ onProgramUpdate, activeProgram, programInst
 
         openModal(
             <div>
-                <h2 className="text-xl font-bold mb-4">Confirm Deletion</h2>
+                <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4">Confirm Deletion</h2>
                 <p className="text-gray-600 dark:text-gray-400">Are you sure you want to delete the program "{programToDelete.program.name}"? This action cannot be undone.</p>
                 <div className="flex justify-end gap-2 mt-6">
-                    <button onClick={closeModal} className="px-4 py-2 bg-gray-200 dark:bg-gray-600 rounded-lg">Cancel</button>
+                    <button onClick={closeModal} className="px-4 py-2 bg-gray-200 dark:bg-gray-600 text-gray-800 dark:text-gray-200 rounded-lg">Cancel</button>
                     <button onClick={() => {
                         onDeleteProgram(instanceId);
                         closeModal();

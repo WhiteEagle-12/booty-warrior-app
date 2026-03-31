@@ -48,7 +48,7 @@ export const TutorialModal = ({ onProgramSelect, onClose, onBodyWeightSet, onSet
 
     return (
         <div>
-            <h2 className="text-2xl font-bold mb-4 flex items-center gap-2">
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
                 <Lightbulb size={24} className="text-blue-500" /> {isReview ? 'App Refresher' : 'Welcome to Project Overload!'}
             </h2>
             
@@ -124,7 +124,7 @@ export const TutorialModal = ({ onProgramSelect, onClose, onBodyWeightSet, onSet
                 <span className="text-sm text-gray-500">{step} / {totalSteps}</span>
                 <div className="flex gap-2">
                     {step > 1 && (
-                        <button onClick={prevStep} className="px-4 py-2 bg-gray-200 dark:bg-gray-600 rounded-lg">Back</button>
+                        <button onClick={prevStep} className="px-4 py-2 bg-gray-200 dark:bg-gray-600 text-gray-800 dark:text-gray-200 rounded-lg">Back</button>
                     )}
 
                     {isReview ? (
@@ -143,7 +143,7 @@ export const TutorialModal = ({ onProgramSelect, onClose, onBodyWeightSet, onSet
                          ) : step === 5 ? (
                             null
                          ) : (
-                             <button onClick={onClose} className="px-4 py-2 bg-gray-200 dark:bg-gray-600 rounded-lg">Close</button>
+                             <button onClick={onClose} className="px-4 py-2 bg-gray-200 dark:bg-gray-600 text-gray-800 dark:text-gray-200 rounded-lg">Close</button>
                          )
                     )}
                 </div>

@@ -14,13 +14,13 @@ export const MuscleGroupDetailModal = ({ muscleName, exerciseData, onClose }) =>
 
     return (
         <div>
-            <h2 className="text-xl font-bold mb-4">Set Contribution for {muscleName}</h2>
+            <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4">Set Contribution for {muscleName}</h2>
             <div className="max-h-60 overflow-y-auto pr-2">
                 <ul className="space-y-2">
                     {contributingExercises.map(({ name, volume }) => (
                         <li key={name} className="flex justify-between items-center p-2 bg-gray-100 dark:bg-gray-700/50 rounded-md">
-                            <span className="font-semibold">{name}</span>
-                            <span>{volume.toLocaleString()} sets</span>
+                            <span className="font-semibold text-gray-900 dark:text-white">{name}</span>
+                            <span className="text-gray-700 dark:text-gray-300">{volume.toLocaleString()} sets</span>
                         </li>
                     ))}
                 </ul>
@@ -116,7 +116,7 @@ export const AnalyticsView = ({ allLogs, programData, onBack }) => {
         const lastLoggedWeek = Math.max(0, ...Object.values(allLogs).map(log => log.week || 0));
         if (lastLoggedWeek === 0) return [];
 
-        const weekLogs = Object.values(allLogs).filter(log => log.week === lastLoggedWeek && !log.skipped);
+        const weekLogs = Object.values(allLogs).filter(log => log.week === lastLoggedWeek && !log.skipped && (log.load === 0 || log.load) && log.reps);
         if (weekLogs.length === 0) return [];
 
         const dataByMuscle = {};
@@ -268,8 +268,8 @@ export const AnalyticsView = ({ allLogs, programData, onBack }) => {
                         <div className="grid md:grid-cols-2 gap-8 items-center">
                             <div className="w-full aspect-square">
                                <ResponsiveContainer>
-                                    <PieChart margin={{ top: 40, right: 40, left: 40, bottom: 40 }}>
-                                        <Pie data={muscleGroupData} dataKey="sets" nameKey="name" cx="50%" cy="50%" outerRadius="70%" fill="#8884d8" labelLine={false} label={({ cx, cy, midAngle, outerRadius, name, setsPercentage }) => renderCustomizedLabel({ cx, cy, midAngle, outerRadius, name, setsPercentage: setsPercentage })}>
+                                    <PieChart margin={{ top: 20, right: 20, left: 20, bottom: 20 }}>
+                                        <Pie data={muscleGroupData} dataKey="sets" nameKey="name" cx="50%" cy="50%" outerRadius="50%" fill="#8884d8" labelLine={false} label={({ cx, cy, midAngle, outerRadius, name, setsPercentage }) => renderCustomizedLabel({ cx, cy, midAngle, outerRadius, name, setsPercentage: setsPercentage })}>
                                             {muscleGroupData.map((entry, index) => (
                                                 <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                                             ))}

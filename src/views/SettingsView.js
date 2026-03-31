@@ -45,7 +45,7 @@ export const SettingsView = ({ allLogs, historicalLogs, weightUnit, onWeightUnit
         if (validLogs.length === 0) {
             openModal(
                 <div>
-                    <h2 className="text-xl font-bold mb-4">No Data to Export</h2>
+                    <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4">No Data to Export</h2>
                     <p className="text-gray-600 dark:text-gray-400">There is no logged data for the selected option.</p>
                     <div className="flex justify-end gap-2 mt-6">
                         <button onClick={closeModal} className="px-4 py-2 bg-blue-600 text-white rounded-lg">OK</button>
@@ -114,10 +114,10 @@ export const SettingsView = ({ allLogs, historicalLogs, weightUnit, onWeightUnit
         exportData(allLogs, `mesocycle_data_${new Date().toISOString().split('T')[0]}.csv`);
         openModal(
             <div>
-                <h2 className="text-xl font-bold mb-4">Confirm New Mesocycle</h2>
+                <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4">Confirm New Mesocycle</h2>
                 <p className="text-gray-600 dark:text-gray-400">Your data has been downloaded. Are you sure you want to archive all logs and start a new mesocycle? This action cannot be undone.</p>
                 <div className="flex justify-end gap-2 mt-6">
-                    <button onClick={closeModal} className="px-4 py-2 bg-gray-200 dark:bg-gray-600 rounded-lg">Cancel</button>
+                    <button onClick={closeModal} className="px-4 py-2 bg-gray-200 dark:bg-gray-600 text-gray-800 dark:text-gray-200 rounded-lg">Cancel</button>
                     <button onClick={() => { onResetMeso(); closeModal(); }} className="px-4 py-2 bg-red-600 text-white rounded-lg">Confirm & Reset</button>
                 </div>
             </div>
