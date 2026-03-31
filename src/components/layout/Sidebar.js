@@ -20,7 +20,7 @@ export const Sidebar = ({ onNavChange, currentPage }) => {
             <div className={`fixed inset-0 bg-black/60 z-40 transition-opacity md:hidden ${isSidebarOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`} onClick={() => setSidebarOpen(false)}></div>
             <div className={`fixed top-0 left-0 h-full w-64 bg-white dark:bg-gray-800 shadow-lg z-50 transform transition-transform ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0`}>
                 <div className="p-4 flex justify-between items-center border-b border-gray-200 dark:border-gray-700">
-                    <h2 className="font-bold text-lg">Menu</h2>
+                    <h2 className="font-bold text-lg text-gray-900 dark:text-white">Menu</h2>
                     <button onClick={() => setSidebarOpen(false)} className="p-2 md:hidden"><X /></button>
                 </div>
                 <nav className="p-4">

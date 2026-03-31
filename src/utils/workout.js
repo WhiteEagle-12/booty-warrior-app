@@ -6,13 +6,14 @@ export const getWorkoutForWeek = (programData, week, workoutName) => {
 };
 
 export const getWorkoutNameForDay = (pData, week, dayKey) => {
-    const weekOverride = pData.weeklyOverrides?.[week];
-    if (weekOverride?.schedule) {
-        return weekOverride.schedule.find(s => s.day === dayKey || s.id === dayKey)?.workout || 'Rest Day';
+    // Check for workout-level override first (individual day swap)
+    if (pData.weeklyOverrides?.[week]?.[dayKey]) {
+        return pData.weeklyOverrides[week][dayKey];
     }
-    return weekOverride?.[dayKey] || pData.weeklySchedule.find(s => s.day === dayKey || s.id === dayKey)?.workout || 'Rest Day';
+    // Check for per-week schedule override (different number of days per week)
+    const weekSchedule = pData.weeklyScheduleOverrides?.[week] || pData.weeklySchedule;
+    return weekSchedule.find(s => s.day === dayKey)?.workout || 'Rest Day';
 };
-
 
 export const getSessionInfoFromSequentialIndex = (index, programData) => {
     const { weeklySchedule, info, programStructure } = programData;

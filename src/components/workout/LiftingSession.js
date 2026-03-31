@@ -16,17 +16,13 @@ export const LiftingSession = ({ week, dayKey, onBack, allLogs, setAllLogs, onSk
 
     const workout = getWorkoutForWeek(programData, week, workoutName);
 
-    const dayItem = programData.weeklySchedule.find(d => d.day === dayKey || d.id === dayKey);
-    const dayId = dayItem?.id || dayKey;
-    const dayLabel = dayItem?.day || dayKey;
-
     const handleLogChange = (exerciseName, setNumber, field, value, isDropSet = false) => {
-        const logId = `${week}-${dayId}-${exerciseName}-${setNumber}`;
-        const currentLog = allLogs[logId] || allLogs[`${week}-${dayLabel}-${exerciseName}-${setNumber}`] || { week, dayKey: dayId, session: workoutName, exercise: exerciseName, set: setNumber, date: new Date().toISOString() };
+        const logId = `${week}-${dayKey}-${exerciseName}-${setNumber}`;
+        const currentLog = allLogs[logId] || { week, dayKey, session: workoutName, exercise: exerciseName, set: setNumber, date: new Date().toISOString() };
         
         const wasCompleteBefore = isSetLogComplete(currentLog);
 
-        let newLogEntry = { ...currentLog, dayKey: dayId };
+        let newLogEntry = { ...currentLog };
 
         if (field === 'skip') {
             newLogEntry.skipped = true;

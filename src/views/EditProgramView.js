@@ -358,22 +358,26 @@ export const EditProgramView = ({ programData, onProgramDataChange, onBack, onNa
         if (type === 'workoutDay') {
             onProgramDataChange(p => {
                 const reorderedWorkoutOrder = Array.from(p.workoutOrder);
-                const [movedItemName] = reorderedWorkoutOrder.splice(source.index, 1);
-                reorderedWorkoutOrder.splice(destination.index, 0, movedItemName);
+                const [movedItem] = reorderedWorkoutOrder.splice(source.index, 1);
+                reorderedWorkoutOrder.splice(destination.index, 0, movedItem);
 
-                // Reorder weeklySchedule items too
+                // Sync with Main Page (Weekly Schedule)
+                // Reorder the schedule entries to match, but keep existing day labels
+                // so that log keys (which use day labels like "Mon", "Tue") remain valid.
                 const newSchedule = Array.from(p.weeklySchedule);
-                const [movedDay] = newSchedule.splice(source.index, 1);
-                newSchedule.splice(destination.index, 0, movedDay);
+                const [movedScheduleItem] = newSchedule.splice(source.index, 1);
+                if (movedScheduleItem) {
+                    newSchedule.splice(destination.index, 0, movedScheduleItem);
+                }
 
-                // Fix labels so they stay sequential (Mon, Tue...) but IDs stay with the workout
-                const daysOfWeek = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-                const finalizedSchedule = newSchedule.map((d, index) => ({
-                    ...d,
-                     day: daysOfWeek[index % 7] + (Math.floor(index / 7) > 0 ? ` ${Math.floor(index/7)+1}` : '')
+                // Re-assign workout names to match the new template order,
+                // but preserve the day labels from the schedule entries
+                const updatedSchedule = newSchedule.map((entry, index) => ({
+                    ...entry,
+                    workout: reorderedWorkoutOrder[index] || entry.workout
                 }));
 
-                return { ...p, workoutOrder: reorderedWorkoutOrder, weeklySchedule: finalizedSchedule };
+                return { ...p, workoutOrder: reorderedWorkoutOrder, weeklySchedule: updatedSchedule };
             });
             return;
         }
@@ -397,43 +401,6 @@ export const EditProgramView = ({ programData, onProgramDataChange, onBack, onNa
         }
     };
     
-    const handleAddDayToWeek = (week) => {
-        onProgramDataChange(p => {
-            const newOverrides = JSON.parse(JSON.stringify(p.weeklyOverrides || {}));
-            if (!newOverrides[week]) {
-                newOverrides[week] = {};
-            }
-            
-            const currentSchedule = newOverrides[week].schedule || [...p.weeklySchedule];
-            const newIndex = currentSchedule.length;
-            const daysOfWeek = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-            const newDayLabel = daysOfWeek[newIndex % 7] + (Math.floor(newIndex / 7) > 0 ? ` ${Math.floor(newIndex/7)+1}` : '');
-            
-            const firstRestWorkout = Object.keys(p.programStructure).find(name => p.programStructure[name]?.isRest) || 'Rest Day';
-            
-            const newDay = { day: newDayLabel, workout: firstRestWorkout, id: generateUUID() };
-            newOverrides[week].schedule = [...currentSchedule, newDay];
-            
-            return { ...p, weeklyOverrides: newOverrides };
-        });
-    };
-
-    const handleRemoveDayFromWeek = (week) => {
-        onProgramDataChange(p => {
-            const newOverrides = JSON.parse(JSON.stringify(p.weeklyOverrides || {}));
-            const currentSchedule = newOverrides[week]?.schedule || [...p.weeklySchedule];
-            
-            if (currentSchedule.length <= 1) return p;
-            
-            newOverrides[week] = {
-                ...(newOverrides[week] || {}),
-                schedule: currentSchedule.slice(0, -1)
-            };
-            
-            return { ...p, weeklyOverrides: newOverrides };
-        });
-    };
-
     const scrollToWorkout = (workoutName) => {
         const element = document.getElementById(`workout-day-editor-${workoutName}`);
         if (element) {
@@ -555,6 +522,36 @@ export const EditProgramView = ({ programData, onProgramDataChange, onBack, onNa
         }
     };
 
+    const handleAddDayToWeek = (week) => {
+        onProgramDataChange(p => {
+            const weekSchedule = p.weeklyScheduleOverrides?.[week] || [...p.weeklySchedule];
+            const newDayName = `Day ${weekSchedule.length + 1}`;
+
+            // Find or create a rest day template
+            let restDayName = Object.keys(p.programStructure).find(name => p.programStructure[name]?.isRest);
+            if (!restDayName) {
+                restDayName = 'Rest Day';
+            }
+
+            const newSchedule = [...weekSchedule, { day: newDayName, workout: restDayName, id: generateUUID() }];
+            const newOverrides = { ...(p.weeklyScheduleOverrides || {}), [week]: newSchedule };
+
+            return { ...p, weeklyScheduleOverrides: newOverrides };
+        });
+    };
+
+    const handleRemoveDayFromWeek = (week) => {
+        onProgramDataChange(p => {
+            const weekSchedule = p.weeklyScheduleOverrides?.[week] || [...p.weeklySchedule];
+            if (weekSchedule.length <= 1) return p;
+
+            const newSchedule = weekSchedule.slice(0, -1);
+            const newOverrides = { ...(p.weeklyScheduleOverrides || {}), [week]: newSchedule };
+
+            return { ...p, weeklyScheduleOverrides: newOverrides };
+        });
+    };
+
     return (
         <DragDropContext onDragEnd={onDragEnd}>
             <div className="p-4 md:p-6 pb-24">
@@ -562,7 +559,7 @@ export const EditProgramView = ({ programData, onProgramDataChange, onBack, onNa
                     <div className="flex items-center gap-3">
                         <Edit className="text-blue-500 dark:text-blue-400" size={32} />
                         <div>
-                            <h1 className="text-3xl font-bold dark:text-white">Edit Program</h1>
+                            <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Edit Program</h1>
                         </div>
                     </div>
                     <button onClick={handleCreateNewExercise} className="flex-shrink-0 flex items-center gap-2 px-3 py-2 bg-blue-600 text-white text-sm rounded-lg shadow-md hover:bg-blue-700 transition-colors">
@@ -576,11 +573,11 @@ export const EditProgramView = ({ programData, onProgramDataChange, onBack, onNa
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div>
                             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Program Name</label>
-                            <input type="text" value={programData.info.name} onChange={(e) => handleInfoChange('name', e.target.value)} className="w-full p-2 bg-white dark:bg-gray-700 rounded-md border-gray-300 dark:border-gray-600" />
+                            <input type="text" value={programData.info.name} onChange={(e) => handleInfoChange('name', e.target.value)} className="w-full p-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-md border-gray-300 dark:border-gray-600" />
                         </div>
                         <div>
                             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Weeks</label>
-                            <input type="number" value={programData.info.weeks} onChange={(e) => handleInfoChange('weeks', parseInt(e.target.value, 10) || 1)} className="w-full p-2 bg-white dark:bg-gray-700 rounded-md border-gray-300 dark:border-gray-600" />
+                            <input type="number" value={programData.info.weeks} onChange={(e) => handleInfoChange('weeks', parseInt(e.target.value, 10) || 1)} className="w-full p-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-md border-gray-300 dark:border-gray-600" />
                         </div>
                     </div>
                 </div>
@@ -605,10 +602,10 @@ export const EditProgramView = ({ programData, onProgramDataChange, onBack, onNa
                 <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-4 mb-6">
                     <button onClick={() => setScheduleOpen(!isScheduleOpen)} className="w-full flex justify-between items-center text-left">
                         <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Weekly Schedule & Overrides</h3>
-                        {isScheduleOpen ? <ChevronUp /> : <ChevronDown />}
+                        {isScheduleOpen ? <ChevronUp className="text-gray-600 dark:text-gray-300" /> : <ChevronDown className="text-gray-600 dark:text-gray-300" />}
                     </button>
                     {isScheduleOpen && (
-                        <div className="mt-4 space-y-2">
+                        <div className="mt-4 space-y-3">
                             {Array.from({ length: programData.info.weeks }, (_, i) => i + 1).map(week => (
                                 <EditWeekCard
                                     key={week}
@@ -620,21 +617,13 @@ export const EditProgramView = ({ programData, onProgramDataChange, onBack, onNa
                                     onRemoveDayFromWeek={handleRemoveDayFromWeek}
                                 />
                             ))}
-                            <div className="mt-4 flex gap-2">
-                                <button onClick={handleAddDayToSchedule} className="w-full flex items-center justify-center gap-2 p-2 rounded-lg bg-green-100 dark:bg-green-900/50 text-green-700 dark:text-green-300 hover:bg-green-200 dark:hover:bg-green-800/50">
-                                    <PlusCircle size={16}/> Add Day
-                                </button>
-                                <button onClick={handleRemoveLastDayFromSchedule} disabled={programData.weeklySchedule.length <= 1} className="w-full flex items-center justify-center gap-2 p-2 rounded-lg bg-red-100 dark:bg-red-900/50 text-red-700 dark:text-red-300 hover:bg-red-200 dark:hover:bg-red-800/50 disabled:opacity-50 disabled:cursor-not-allowed">
-                                    <XCircle size={16}/> Remove Last Day
-                                </button>
-                            </div>
                         </div>
                     )}
                 </div>
 
                 {/* Workout Day List */}
                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white my-3">Master Workout Templates</h3>
-                 <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">Drag exercises to reorder them within a day, or drag them to another day entirely.</p>
+                 <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">Drag to reorder templates. Exercises can be dragged within or between workouts.</p>
                 <Droppable droppableId="workout-templates" direction="vertical" type="workoutDay">
                     {(provided) => (
                         <div {...provided.droppableProps} ref={provided.innerRef} className="space-y-4">
@@ -671,7 +660,7 @@ export const EditProgramView = ({ programData, onProgramDataChange, onBack, onNa
                                                                             <Draggable key={ex.id} draggableId={ex.id} index={index}>
                                                                                 {(provided) => (
                                                                                     <li ref={provided.innerRef} {...provided.draggableProps} {...provided.dragHandleProps} className="flex justify-between items-center p-2 bg-gray-50 dark:bg-gray-700/50 rounded-md group">
-                                                                                        <span className="font-medium">{ex.name || `Exercise name missing (id: ${ex.id})`}</span>
+                                                                                        <span className="font-medium text-gray-900 dark:text-white">{ex.name || `Exercise name missing (id: ${ex.id})`}</span>
                                                                                         <div className="flex items-center gap-1 text-gray-500">
                                                                                             <button onClick={() => handleEditExerciseDetails(ex.name)} className="p-1 opacity-0 group-hover:opacity-100 transition-opacity"><Pencil size={16}/></button>
                                                                                             <button onClick={() => handleRemoveExerciseFromWorkout(workoutName, index)} className="p-1 opacity-0 group-hover:opacity-100 transition-opacity"><XCircle size={16}/></button>

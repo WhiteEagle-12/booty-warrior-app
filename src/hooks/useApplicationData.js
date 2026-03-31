@@ -438,13 +438,13 @@ export const useApplicationData = () => {
 
             openModal(
                 <div>
-                    <h2 className="text-xl font-bold mb-4">Confirm Restore</h2>
+                    <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4">Confirm Restore</h2>
                     <p className="text-gray-600 dark:text-gray-400">
                         This will replace all your current workout logs with the data from the CSV file.
                         Found {Object.keys(newLogs).length} log entries to restore. This action cannot be undone.
                     </p>
                     <div className="flex justify-end gap-2 mt-6">
-                        <button onClick={closeModal} className="px-4 py-2 bg-gray-200 dark:bg-gray-600 rounded-lg">Cancel</button>
+                        <button onClick={closeModal} className="px-4 py-2 bg-gray-200 dark:bg-gray-600 text-gray-800 dark:text-gray-200 rounded-lg">Cancel</button>
                         <button onClick={() => {
                             setAllLogs(newLogs);
                             handleUpdateAndSave({ logs: newLogs });
@@ -512,7 +512,7 @@ export const useApplicationData = () => {
         setActiveTimer(null);
          openModal(
             <div>
-                <h2 className="text-xl font-bold mb-4">Time's Up!</h2>
+                <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4">Time's Up!</h2>
                 <p className="text-gray-600 dark:text-gray-400">Your rest is over. Time to hit the next set!</p>
                 <div className="flex justify-end gap-2 mt-6">
                     <button onClick={closeModal} className="px-4 py-2 bg-blue-600 text-white rounded-lg">Let's Go!</button>
@@ -532,7 +532,8 @@ export const useApplicationData = () => {
         if (!programData || !programData.info) return status;
 
         for (let week = 1; week <= programData.info.weeks; week++) {
-            programData.weeklySchedule.forEach(day => {
+            const weekSchedule = programData.weeklyScheduleOverrides?.[week] || programData.weeklySchedule;
+            weekSchedule.forEach(day => {
                 const dayId = day.id || day.day; const dayKey = `${week}-${dayId}`;
                 const workoutName = getWorkoutNameForDay(programData, week, day.day);
                 const workout = getWorkoutForWeek(programData, week, workoutName);

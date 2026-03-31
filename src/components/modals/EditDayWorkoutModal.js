@@ -42,7 +42,7 @@ export const EditDayWorkoutModal = ({
     return (
         <DragDropContext onDragEnd={handleDragEnd}>
             <div>
-                <h2 className="text-xl font-bold mb-4">Edit Day: {workoutName}</h2>
+                <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4">Edit Day: {workoutName}</h2>
                 <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">Drag to reorder, or use the buttons to edit or remove exercises.</p>
                 <Droppable droppableId="day-workout-exercises">
                     {(provided) => (
@@ -78,7 +78,7 @@ export const EditDayWorkoutModal = ({
                         <Shield size={16} /> Mark as Rest
                     </button>
                     <div className="flex gap-2">
-                        <button onClick={onClose} className="px-4 py-2 bg-gray-200 dark:bg-gray-600 rounded-lg">Cancel</button>
+                        <button onClick={onClose} className="px-4 py-2 bg-gray-200 dark:bg-gray-600 text-gray-800 dark:text-gray-200 rounded-lg">Cancel</button>
                         <button onClick={() => onSave(workoutName, editedWorkout)} className="px-4 py-2 bg-blue-600 text-white rounded-lg">Save Changes</button>
                     </div>
                 </div>

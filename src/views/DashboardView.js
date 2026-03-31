@@ -31,7 +31,8 @@ export const DashboardView = ({ allLogs, programData, bodyWeightHistory }) => {
         
         let incompleteWeek = 1;
         for (let w = 1; w <= info.weeks; w++) {
-             const isWeekComplete = weeklySchedule.every(day => {
+             const weekSched = programData.weeklyScheduleOverrides?.[w] || weeklySchedule;
+             const isWeekComplete = weekSched.every(day => {
                 const workoutName = getWorkoutNameForDay(programData, w, day.day);
                 if(programData.programStructure[workoutName]?.isRest) return true;
                 const workout = getWorkoutForWeek(programData, w, workoutName);
@@ -107,7 +108,7 @@ export const DashboardView = ({ allLogs, programData, bodyWeightHistory }) => {
             
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
                 <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-6">
-                    <h3 className="font-semibold text-lg mb-4">This Week's Volume (Week {firstIncompleteWeek})</h3>
+                    <h3 className="font-semibold text-lg text-gray-900 dark:text-white mb-4">This Week's Volume (Week {firstIncompleteWeek})</h3>
                     {weeklyVolumeData.length > 0 ? (
                         <ResponsiveContainer width="100%" height={250}>
                              <BarChart data={weeklyVolumeData}>
@@ -118,10 +119,10 @@ export const DashboardView = ({ allLogs, programData, bodyWeightHistory }) => {
                                 <Bar dataKey="volume" fill="#8884d8" />
                             </BarChart>
                         </ResponsiveContainer>
-                    ) : <p>Log some workouts this week to see your volume data.</p>}
+                    ) : <p className="text-gray-600 dark:text-gray-400">Log some workouts this week to see your volume data.</p>}
                 </div>
                  <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-6">
-                    <h3 className="font-semibold text-lg mb-4">Bodyweight Trend</h3>
+                    <h3 className="font-semibold text-lg text-gray-900 dark:text-white mb-4">Bodyweight Trend</h3>
                       {formattedBodyWeightHistory.length > 1 ? (
                         <ResponsiveContainer width="100%" height={250}>
                             <LineChart data={formattedBodyWeightHistory}>
@@ -132,12 +133,12 @@ export const DashboardView = ({ allLogs, programData, bodyWeightHistory }) => {
                                 <Line type="monotone" dataKey="weight" stroke="#82ca9d" strokeWidth={2} dot={false} />
                             </LineChart>
                         </ResponsiveContainer>
-                    ) : <p>Log your bodyweight multiple times in Settings to see a trend.</p>}
+                    ) : <p className="text-gray-600 dark:text-gray-400">Log your bodyweight multiple times in Settings to see a trend.</p>}
                 </div>
             </div>
 
             <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-6">
-                <h3 className="text-xl font-bold mb-2">AI Weekly Summary</h3>
+                <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">AI Weekly Summary</h3>
                 <p className="text-gray-600 dark:text-gray-400 mb-4">Get a personalized summary of your last completed week, including highlights, areas for improvement, and tips for next week.</p>
                 <button className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg shadow-md hover:bg-blue-700 transition-colors">
                     <BrainCircuit size={16} /> Generate AI Summary

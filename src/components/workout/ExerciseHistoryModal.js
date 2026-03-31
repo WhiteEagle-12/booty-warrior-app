@@ -8,7 +8,7 @@ export const ExerciseHistoryModal = ({ exerciseName, allLogs, programData }) => 
     if (!historicalSessions || historicalSessions.length === 0) {
         return (
             <div>
-                <h2 className="text-xl font-bold mb-4">History for {exerciseName}</h2>
+                <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4">History for {exerciseName}</h2>
                 <p className="text-gray-600 dark:text-gray-400">No past performance data found for this exercise.</p>
             </div>
         );
@@ -16,7 +16,7 @@ export const ExerciseHistoryModal = ({ exerciseName, allLogs, programData }) => 
 
     return (
         <div>
-            <h2 className="text-xl font-bold mb-4">History for {exerciseName}</h2>
+            <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4">History for {exerciseName}</h2>
             <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-2">
                 {historicalSessions.map((session, index) => (
                     <div key={index} className="bg-gray-50 dark:bg-gray-700/50 p-3 rounded-lg">
@@ -26,8 +26,8 @@ export const ExerciseHistoryModal = ({ exerciseName, allLogs, programData }) => 
                         <ul className="space-y-1 text-sm">
                             {session.logs.map((log, logIndex) => (
                                 <li key={logIndex} className="flex justify-between">
-                                    <span>Set {log.set}:</span>
-                                    <span className="font-mono">{log.load || 0} lbs x {log.reps || 0} @ {log.rir === '' ? 'N/A' : log.rir} RIR</span>
+                                    <span className="text-gray-700 dark:text-gray-300">Set {log.set}:</span>
+                                    <span className="font-mono text-gray-800 dark:text-gray-200">{log.load || 0} lbs x {log.reps || 0} @ {log.rir === '' ? 'N/A' : log.rir} RIR</span>
                                 </li>
                             ))}
                         </ul>

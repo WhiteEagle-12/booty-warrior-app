@@ -1,74 +1,119 @@
 import React, { useState } from 'react';
-import { ChevronDown, ChevronUp, Edit, Dumbbell, Eye, PlusCircle, Pencil, Shield } from 'lucide-react';
+import { ChevronDown, ChevronUp, Edit, Dumbbell, Eye, PlusCircle, Pencil, Shield, XCircle, Calendar, Sparkles } from 'lucide-react';
 import { getWorkoutForWeek, getWorkoutNameForDay } from '../../utils/workout';
 
 export const EditWeekCard = ({ week, program, onEditDay, onToggleRest, onAddDayToWeek, onRemoveDayFromWeek }) => {
     const [isOpen, setIsOpen] = useState(false);
 
-    const weekOverride = program.weeklyOverrides?.[week];
-    const hasOverrides = !!weekOverride;
-    const weekSchedule = weekOverride?.schedule || program.weeklySchedule;
-    
-    const weekLabel = hasOverrides ? `Week ${week} (Customized)` : `Week ${week}`;
-    const weekLabelColor = hasOverrides ? "text-blue-600 dark:text-blue-400" : "text-gray-900 dark:text-white";
+    const hasOverrides = program.weeklyOverrides && program.weeklyOverrides[week];
+    const overrideCount = hasOverrides ? Object.keys(program.weeklyOverrides[week]).length : 0;
 
-    const gridColsMap = {
-        1: 'lg:grid-cols-1', 2: 'lg:grid-cols-2', 3: 'lg:grid-cols-3', 4: 'lg:grid-cols-4',
-        5: 'lg:grid-cols-5', 6: 'lg:grid-cols-6', 7: 'lg:grid-cols-7', 8: 'lg:grid-cols-8',
-    };
-    const gridColsClass = gridColsMap[weekSchedule.length] || 'lg:grid-cols-7';
+    // Get the effective schedule for this week (master + overrides)
+    const weekSchedule = program.weeklyScheduleOverrides?.[week] || program.weeklySchedule;
 
     return (
-        <div className="bg-gray-50 dark:bg-gray-800/40 border border-gray-200 dark:border-gray-700 rounded-xl overflow-hidden shadow-sm">
-            <button onClick={() => setIsOpen(!isOpen)} className="w-full flex justify-between items-center p-4 text-left hover:bg-gray-100 dark:hover:bg-gray-700/50 transition-colors">
-                <div className="flex items-center gap-2">
-                    <h4 className={`font-bold text-lg ${weekLabelColor}`}>{weekLabel}</h4>
-                    {hasOverrides && <div className="text-[10px] px-1.5 py-0.5 bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300 rounded uppercase font-bold tracking-wider border border-blue-200 dark:border-blue-800">Custom</div>}
-                </div>
+        <div className={`rounded-xl border transition-all duration-200 ${
+            hasOverrides 
+                ? 'border-blue-300 dark:border-blue-600 bg-blue-50/50 dark:bg-blue-950/20' 
+                : 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800/50'
+        }`}>
+            <button 
+                onClick={() => setIsOpen(!isOpen)} 
+                className="w-full flex justify-between items-center text-left p-4"
+            >
                 <div className="flex items-center gap-3">
-                     <span className="text-xs text-gray-500 dark:text-gray-400">{weekSchedule.length} days</span>
-                     {isOpen ? <ChevronUp className="text-gray-400" /> : <ChevronDown className="text-gray-400" />}
+                    <div className={`w-10 h-10 rounded-lg flex items-center justify-center text-sm font-bold ${
+                        hasOverrides 
+                            ? 'bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300' 
+                            : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300'
+                    }`}>
+                        W{week}
+                    </div>
+                    <div>
+                        <h4 className="font-bold text-base text-gray-900 dark:text-white">
+                            Week {week}
+                        </h4>
+                        <p className="text-xs text-gray-500 dark:text-gray-400">
+                            {weekSchedule.length} days
+                            {hasOverrides && (
+                                <span className="ml-2 inline-flex items-center gap-1 text-blue-600 dark:text-blue-400">
+                                    <Sparkles size={10} />
+                                    {overrideCount} override{overrideCount !== 1 ? 's' : ''}
+                                </span>
+                            )}
+                        </p>
+                    </div>
+                </div>
+                <div className={`p-1.5 rounded-full transition-colors ${
+                    isOpen ? 'bg-gray-200 dark:bg-gray-600' : 'bg-transparent'
+                }`}>
+                    {isOpen 
+                        ? <ChevronUp size={18} className="text-gray-600 dark:text-gray-300" /> 
+                        : <ChevronDown size={18} className="text-gray-600 dark:text-gray-300" />
+                    }
                 </div>
             </button>
             {isOpen && (
-                <div className="p-4 pt-0">
-                    <div className={`grid grid-cols-2 sm:grid-cols-4 ${gridColsClass} gap-2 mt-2 mb-4`}>
-                        {weekSchedule.map((dayItem) => {
-                            const { day, id } = dayItem;
-                            const effectiveDayKey = id || day;
-                            const workoutName = getWorkoutNameForDay(program, week, effectiveDayKey);
+                <div className="px-4 pb-4 space-y-3">
+                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7 gap-2">
+                        {weekSchedule.map(({ day }) => {
+                            const workoutName = getWorkoutNameForDay(program, week, day);
                             const workoutDetails = getWorkoutForWeek(program, week, workoutName);
                             const isRest = !workoutDetails;
-                            const displayWorkoutName = isRest ? (program.programStructure[workoutName]?.label || 'Rest') : (workoutDetails.label || workoutName);
+                            const displayWorkoutName = isRest 
+                                ? (program.programStructure[workoutName]?.label || 'Rest') 
+                                : (workoutDetails.label || workoutName);
+
+                            // Check if this specific day has an override
+                            const hasOverrideForDay = program.weeklyOverrides?.[week]?.[day];
 
                             return (
-                                <div key={effectiveDayKey} className="bg-white dark:bg-gray-700/60 border border-gray-100 dark:border-gray-600 p-2.5 rounded-xl text-center flex flex-col justify-between shadow-sm group">
-                                    <div className="font-bold text-xs mb-1 text-gray-500 dark:text-gray-400 uppercase tracking-tighter">{day}</div>
-                                    <p className="text-sm font-bold text-gray-800 dark:text-white mb-2 truncate h-8 flex-grow flex items-center justify-center">
-                                        {displayWorkoutName}
-                                    </p>
-                                    <div className="flex flex-col gap-1 mt-1">
+                                <div 
+                                    key={`${week}-${day}`} 
+                                    className={`rounded-xl p-3 text-center flex flex-col justify-between transition-all duration-200 border ${
+                                        isRest 
+                                            ? 'bg-indigo-50 dark:bg-indigo-950/30 border-indigo-200 dark:border-indigo-800' 
+                                            : hasOverrideForDay
+                                                ? 'bg-blue-50 dark:bg-blue-950/30 border-blue-200 dark:border-blue-700'
+                                                : 'bg-white dark:bg-gray-700/80 border-gray-200 dark:border-gray-600'
+                                    }`}
+                                >
+                                    <div>
+                                        <div className="font-bold text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">{day}</div>
+                                        <div className={`text-xs mb-2 truncate h-8 flex items-center justify-center font-medium ${
+                                            isRest 
+                                                ? 'text-indigo-600 dark:text-indigo-300' 
+                                                : 'text-gray-800 dark:text-gray-200'
+                                        }`}>
+                                            {displayWorkoutName}
+                                        </div>
+                                    </div>
+                                    <div className="flex items-center justify-center gap-1 mt-1">
                                         <button
-                                            onClick={() => onEditDay(week, effectiveDayKey)}
-                                            className="flex items-center justify-center gap-1.5 p-1.5 rounded-lg bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-800/40 disabled:opacity-50 transition-colors"
+                                            onClick={() => onEditDay(week, day)}
+                                            className={`flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                                                isRest 
+                                                    ? 'text-gray-400 dark:text-gray-500 cursor-not-allowed' 
+                                                    : 'text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/40'
+                                            }`}
                                             disabled={isRest}
                                         >
                                             <Pencil size={12} />
-                                            <span className="text-[10px] font-bold uppercase tracking-wide">Edit</span>
+                                            Edit
                                         </button>
                                         <button
-                                            onClick={() => onToggleRest(week, effectiveDayKey)}
-                                            className={`flex items-center justify-center gap-1.5 p-1.5 rounded-lg transition-colors ${isRest ? 'bg-green-50 dark:bg-green-900/30 text-green-600 dark:text-green-400 hover:bg-green-100 dark:hover:bg-green-800/40' : 'bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 dark:hover:bg-indigo-800/40'}`}
+                                            onClick={() => onToggleRest(week, day)}
+                                            className="flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs font-medium transition-colors hover:bg-gray-100 dark:hover:bg-gray-600/50"
                                         >
                                             {isRest ? (
                                                 <>
-                                                    <Dumbbell size={12} />
-                                                    <span className="text-[10px] font-bold uppercase tracking-wide">Add Workout</span>
+                                                    <Dumbbell size={12} className="text-green-600 dark:text-green-400" />
+                                                    <span className="text-green-700 dark:text-green-300">Set</span>
                                                 </>
                                             ) : (
                                                 <>
-                                                    <Shield size={12} />
-                                                    <span className="text-[10px] font-bold uppercase tracking-wide">Set Rest</span>
+                                                    <Shield size={12} className="text-indigo-600 dark:text-indigo-400" />
+                                                    <span className="text-indigo-700 dark:text-indigo-300">Rest</span>
                                                 </>
                                             )}
                                         </button>
@@ -77,19 +122,20 @@ export const EditWeekCard = ({ week, program, onEditDay, onToggleRest, onAddDayT
                             );
                         })}
                     </div>
-                    <div className="flex gap-2 border-t border-gray-100 dark:border-gray-700 pt-3">
+                    {/* Add/Remove day controls for this specific week */}
+                    <div className="flex gap-2 pt-1">
                         <button 
-                            onClick={() => onAddDayToWeek(week)}
-                            className="flex-grow flex items-center justify-center gap-2 p-2 rounded-lg bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400 hover:bg-green-100 dark:hover:bg-green-800/30 transition-colors text-xs font-bold uppercase tracking-wide border border-green-100 dark:border-green-800/30"
+                            onClick={() => onAddDayToWeek(week)} 
+                            className="flex-1 flex items-center justify-center gap-2 p-2 rounded-lg text-xs font-semibold bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-300 border border-green-200 dark:border-green-800 hover:bg-green-100 dark:hover:bg-green-900/50 transition-colors"
                         >
-                            <PlusCircle size={14} /> Add Day
+                            <PlusCircle size={14}/> Add Day
                         </button>
                         <button 
-                             onClick={() => onRemoveDayFromWeek(week)}
-                             disabled={weekSchedule.length <= 1}
-                             className="flex-grow flex items-center justify-center gap-2 p-2 rounded-lg bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-800/30 transition-colors text-xs font-bold uppercase tracking-wide border border-red-100 dark:border-red-800/30 disabled:opacity-50"
+                            onClick={() => onRemoveDayFromWeek(week)} 
+                            disabled={weekSchedule.length <= 1} 
+                            className="flex-1 flex items-center justify-center gap-2 p-2 rounded-lg text-xs font-semibold bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-300 border border-red-200 dark:border-red-800 hover:bg-red-100 dark:hover:bg-red-900/50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                         >
-                            <XCircle size={14} /> Remove Day
+                            <XCircle size={14}/> Remove Last Day
                         </button>
                     </div>
                 </div>
@@ -123,8 +169,8 @@ export const MasterScheduleEditor = ({ program, onProgramDataChange }) => {
                 {program.weeklySchedule.map(({ day, workout }) => (
                     <div key={day} className="bg-gray-50 dark:bg-gray-900/50 p-3 rounded-lg">
                         <div className="flex justify-between items-center">
-                            <span className="font-bold">{day}</span>
-                            <span className="truncate pr-2">{program.programStructure[workout]?.label || workout}</span>
+                            <span className="font-bold text-gray-900 dark:text-white">{day}</span>
+                            <span className="truncate pr-2 text-gray-700 dark:text-gray-300">{program.programStructure[workout]?.label || workout}</span>
                             <button onClick={() => setEditingDay(editingDay === day ? null : day)} className="text-sm text-blue-600 dark:text-blue-400 hover:underline flex-shrink-0">
                                 {editingDay === day ? 'Cancel' : 'Change'}
                             </button>
@@ -135,7 +181,7 @@ export const MasterScheduleEditor = ({ program, onProgramDataChange }) => {
                                     <button
                                         key={woName}
                                         onClick={() => handleScheduleChange(day, woName)}
-                                        className={`p-2 text-sm rounded-md ${woName === workout ? 'bg-blue-600 text-white' : 'bg-white dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600'}`}
+                                        className={`p-2 text-sm rounded-md ${woName === workout ? 'bg-blue-600 text-white' : 'bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600'}`}
                                     >
                                         {program.programStructure[woName]?.label || woName}
                                     </button>
