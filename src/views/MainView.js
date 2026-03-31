@@ -228,37 +228,43 @@ export const MainView = ({ onSessionSelect, onEditProgram, completedDays, onUnsk
     const { info, weeklySchedule } = programData;
     const weeks = Array.from({ length: info.weeks }, (_, i) => i + 1);
     
-    const firstIncompleteWeek = useMemo(() => {
-        for (let w = 1; w <= info.weeks; w++) {
-            const isWeekComplete = weeklySchedule.every(d => {
-                const workoutName = getWorkoutNameForDay(programData, w, d.day);
-                return programData.programStructure[workoutName]?.isRest || completedDays.get(`${w}-${d.day}`)?.isDayComplete;
+    const { sortedWeeks, firstIncomplete } = useMemo(() => {
+        const completed = [];
+        const incomplete = [];
+        weeks.forEach(week => {
+            const isWeekComplete = (weeklySchedule || []).every(day => {
+                const dayKey = `${week}-${day.day}`;
+                return completedDays.get(dayKey)?.isDayComplete;
             });
-            if (!isWeekComplete) return w;
-        }
-        return info.weeks + 1;
-    }, [completedDays, weeklySchedule, info.weeks, programData]);
+            if (isWeekComplete) completed.push(week);
+            else incomplete.push(week);
+        });
+        return { 
+            sortedWeeks: [...incomplete, ...completed], 
+            firstIncomplete: incomplete[0] || info.weeks + 1 
+        };
+    }, [weeks, weeklySchedule, completedDays, info.weeks]);
 
     return (
-        <div className="p-4 md:p-6">
+        <div className="p-4 md:p-6 text-gray-900 dark:text-white">
             <div className="flex flex-col sm:flex-row justify-between items-center text-center sm:text-left mb-6 gap-4">
                 <div className="flex items-center gap-3">
                     <Dumbbell className="text-blue-500 dark:text-blue-400" size={48} />
                     <div>
-                        <h1 className="text-3xl font-bold dark:text-white">{info.name}</h1>
+                        <h1 className="text-3xl font-bold">{info.name}</h1>
                         <p className="text-lg text-gray-600 dark:text-gray-400">Your {info.weeks}-Week Plan</p>
                     </div>
                 </div>
             </div>
             
             <div className="space-y-4 pb-24">
-                {weeks.map(week => (
+                {sortedWeeks.map(week => (
                     <WeekView 
                         key={week} 
                         week={week} 
                         completedDays={completedDays} 
                         onSessionSelect={onSessionSelect}
-                        firstIncompleteWeek={firstIncompleteWeek} 
+                        firstIncompleteWeek={firstIncomplete} 
                         onUnskipDay={onUnskipDay} 
                         programData={programData}
                         onNavigate={onNavigate}

@@ -532,13 +532,19 @@ export const useApplicationData = () => {
         if (!programData || !programData.info) return status;
 
         for (let week = 1; week <= programData.info.weeks; week++) {
-            programData.weeklySchedule.forEach(day => {
-                const dayKey = `${week}-${day.day}`;
-                const workoutName = getWorkoutNameForDay(programData, week, day.day);
+            const overrides = programData.weeklyOverrides?.[week] || {};
+            const customLength = overrides['_length'];
+            const weekScheduleNames = customLength !== undefined 
+                ? Array.from({ length: customLength }, (_, i) => i < 7 ? ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'][i] : `Day ${i + 1}`)
+                : programData.weeklySchedule.map(d => d.day);
+
+            weekScheduleNames.forEach(dayName => {
+                const dayKey = `${week}-${dayName}`;
+                const workoutName = getWorkoutNameForDay(programData, week, dayName);
                 const workout = getWorkoutForWeek(programData, week, workoutName);
                 const isSkipped = !!skippedDays[dayKey];
                 
-                if (!workout || workoutName === 'Rest') {
+                if (!workout || workoutName === 'Rest' || workoutName.includes('Rest Day')) {
                     status.set(dayKey, { isDayComplete: true, isSkipped: false });
                     return;
                 }
@@ -547,8 +553,8 @@ export const useApplicationData = () => {
                     const exDetails = getExerciseDetails(ex.name, programData.masterExerciseList);
                     if (!exDetails) return false;
                     return Array.from({ length: Number(exDetails.sets) }, (_, i) => i + 1).every(setNum => {
-                        const log = allLogs[`${dayKey}-${ex.name}-${setNum}`];
-                        return isSetLogComplete(log);
+                        const logId = `${week}-${dayName}-${ex.name}-${setNum}`;
+                        return isSetLogComplete(allLogs[logId]);
                     });
                 });
                 status.set(dayKey, { isDayComplete, isSkipped });
