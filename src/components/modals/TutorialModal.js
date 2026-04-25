@@ -56,7 +56,7 @@ export const TutorialModal = ({ onProgramSelect, onClose, onBodyWeightSet, onSet
                 {step === 1 && (
                      <div className="p-3 bg-gray-100 dark:bg-gray-700/50 rounded-lg">
                         <h3 className="font-bold text-lg text-gray-900 dark:text-white mb-1">Step 1: Your Home Base</h3>
-                        <p>The <span className="font-semibold">Program</span> screen is your command center. It lays out your entire mesocycle, week by week. Just click a day to jump in and start lifting.</p>
+                        <p>The <span className="font-semibold">Program</span> screen lays out your mesocycle week by week. Click a day to open the workout and start logging.</p>
                     </div>
                 )}
                 {step === 2 && (

@@ -1,5 +1,5 @@
 import React, { useMemo, useContext } from 'react';
-import { ArrowLeft, Crosshair, SkipForward, Timer } from 'lucide-react';
+import { ArrowLeft, Dumbbell, SkipForward, Timer } from 'lucide-react';
 import { doc, updateDoc } from 'firebase/firestore';
 import { FirebaseContext } from '../../contexts/FirebaseContext';
 import { getWorkoutForWeek, getWorkoutNameForDay } from '../../utils/workout';
@@ -75,7 +75,7 @@ export const LiftingSession = ({ week, dayKey, onBack, allLogs, setAllLogs, onSk
                 <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
                     <div>
                         <button onClick={onBack} className="mb-4 inline-flex items-center gap-2 text-sm font-semibold text-[#9ca89d] hover:text-[#efe7d5]"><ArrowLeft size={16}/> Program timeline</button>
-                        <div className="ee-chip"><Crosshair size={14} /> Live session</div>
+                        <div className="ee-chip"><Dumbbell size={14} /> Session</div>
                         <h2 className="mt-3 text-3xl font-black text-[#efe7d5] md:text-4xl">{pageTitle}</h2>
                         <p className="mt-2 text-lg text-[#f3b548]">{workoutDisplayName}</p>
                     </div>
@@ -84,14 +84,10 @@ export const LiftingSession = ({ week, dayKey, onBack, allLogs, setAllLogs, onSk
                         <button onClick={() => onSkipDay(week, dayKey)} className="ee-secondary text-[#f36f52]"><SkipForward size={16}/> Skip Day</button>
                     </div>
                 </div>
-                <div className="mt-5 grid gap-3 sm:grid-cols-3">
+                <div className="mt-5 grid gap-3 sm:grid-cols-2">
                     <div className="rounded-xl bg-white/5 p-3">
                         <p className="text-xs font-bold uppercase text-[#9ca89d]">Exercises</p>
                         <p className="text-2xl font-black text-[#efe7d5]">{workout.exercises.length}</p>
-                    </div>
-                    <div className="rounded-xl bg-white/5 p-3">
-                        <p className="text-xs font-bold uppercase text-[#9ca89d]">Focus</p>
-                        <p className="text-2xl font-black text-[#4dd6c6]">Precision</p>
                     </div>
                     <div className="rounded-xl bg-white/5 p-3">
                         <p className="text-xs font-bold uppercase text-[#9ca89d]">Rest Timer</p>

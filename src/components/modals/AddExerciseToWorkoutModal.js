@@ -19,7 +19,7 @@ export const AddExerciseToWorkoutModal = ({ masterExerciseList, onAdd, onClose }
     return (
         <div>
             <h2 className="text-xl font-black text-[#efe7d5] mb-1">Add Exercise</h2>
-            <p className="mb-4 text-sm text-[#9ca89d]">Choose from the expanded exercise bank with prefilled fractional volume contributions.</p>
+            <p className="mb-4 text-sm text-[#9ca89d]">Choose from the exercise bank. Muscle fractions estimate effective-set credit for planning: 1.0 primary, lower values for meaningful secondary or tertiary work.</p>
             <div className="flex border-b border-white/10 mb-4">
                 <button onClick={() => setActiveTab('bank')} className={`flex items-center gap-2 px-4 py-2 -mb-px border-b-2 text-sm font-semibold ${activeTab === 'bank' ? 'border-[#f3b548] text-[#f3b548]' : 'border-transparent text-[#9ca89d] hover:text-[#efe7d5]'}`}>
                     <BookOpen size={16} /> Exercise Bank

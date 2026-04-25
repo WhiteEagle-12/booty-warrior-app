@@ -185,9 +185,9 @@ export const SettingsView = ({ allLogs, historicalLogs, weightUnit, onWeightUnit
                 <div className="mt-5 rounded-xl border border-[#f3b548]/20 bg-[#f3b548]/10 p-4">
                     <div className="flex items-center gap-2 text-xs font-bold uppercase text-[#f3b548]">
                         <Crosshair size={14} />
-                        Mission Focus
+                        Workflow
                     </div>
-                    <p className="mt-2 text-sm leading-6 text-[#efe7d5]">Log with precision. Progress with intent. Keep setup, sync, timers, and exports here so the training screens stay clean.</p>
+                    <p className="mt-2 text-sm leading-6 text-[#efe7d5]">Keep setup, sync, timers, exports, and progression preferences here so workout screens stay focused.</p>
                 </div>
             </div>
             <div className="ee-panel rounded-2xl p-6 space-y-6">

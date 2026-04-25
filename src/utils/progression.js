@@ -46,50 +46,105 @@ export const findLastPerformanceLogs = (exerciseName, currentWeek, currentDayKey
     };
 };
 
-export const getProgressionSuggestion = (exerciseName, lastPerformanceData, masterList, programData) => {
-    const { lastSession, historicalSessions } = lastPerformanceData;
+const parseRepTarget = (rawReps) => {
+    const label = String(rawReps || '').trim();
+    const lower = label.toLowerCase();
+    const numbers = [...label.matchAll(/\d+(?:\.\d+)?/g)].map(match => Number(match[0]));
+
+    return {
+        label: label || 'the programmed target',
+        min: numbers.length > 0 ? numbers[0] : null,
+        max: numbers.length > 1 ? numbers[1] : (numbers.length === 1 ? numbers[0] : null),
+        isFailureTarget: /failure|amrap|max/.test(lower),
+        isTimedTarget: /sec|second|min|minute/.test(lower),
+    };
+};
+
+const parseRirTarget = (rirValues) => {
+    const firstTarget = Array.isArray(rirValues) ? rirValues.find(value => value !== undefined && value !== null && value !== '') : rirValues;
+    const targetText = String(firstTarget ?? '').toLowerCase();
+    if (/failure|fail|0/.test(targetText)) return 0;
+
+    const match = targetText.match(/\d+(?:\.\d+)?/);
+    return match ? Number(match[0]) : 1;
+};
+
+const getLoadIncrement = (equipment, weightUnit) => {
+    const lowerEquipment = String(equipment || '').toLowerCase();
+    if (lowerEquipment.includes('dumbbell') || lowerEquipment.includes('kettlebell')) return weightUnit === 'kg' ? 2 : 5;
+    if (lowerEquipment.includes('machine') || lowerEquipment.includes('cable')) return weightUnit === 'kg' ? 2.5 : 5;
+    if (lowerEquipment.includes('bodyweight') || lowerEquipment.includes('band')) return 0;
+    return weightUnit === 'kg' ? 2.5 : 5;
+};
+
+const toDisplayLoad = (load, weightUnit) => weightUnit === 'kg' ? load / 2.20462 : load;
+
+const formatLoad = (load, weightUnit) => `${Math.max(0, Math.round(toDisplayLoad(load, weightUnit) * 10) / 10)} ${weightUnit}`;
+
+const roundToIncrement = (value, increment) => {
+    if (!increment || increment <= 0) return value;
+    return Math.round(value / increment) * increment;
+};
+
+const getBestLoggedSet = (sets) => {
+    return sets.reduce((best, current) => {
+        const load = parseFloat(current.load);
+        const reps = parseInt(current.reps, 10);
+        if (Number.isNaN(load) || Number.isNaN(reps) || reps < 1) return best;
+
+        const score = calculateE1RM(load, reps, current.rir);
+        if (!best || score > best.score) return { ...current, load, reps, rir: parseFloat(current.rir), score };
+        return best;
+    }, null);
+};
+
+export const getProgressionSuggestion = (exerciseName, lastPerformanceData, masterList, programData, weightUnit = 'lbs') => {
+    const { lastSession, historicalSessions = [] } = lastPerformanceData || {};
 
     if (!lastSession) {
-        return "This is your first time doing this exercise. Focus on good form and finding a challenging weight for the target reps.";
+        return "No previous session found. Pick a conservative load, stay inside the target rep range, and record RIR so future suggestions have a baseline.";
     }
 
     const exerciseDetails = getExerciseDetails(exerciseName, masterList);
-    if (!exerciseDetails) return "Log your first set to get a baseline.";
+    if (!exerciseDetails) return "This exercise is missing from the exercise list. Confirm its sets, reps, and RIR target before using progression advice.";
 
-    const [minRepsStr, maxRepsStr] = (exerciseDetails.reps || '0-0').split('-');
-    const minReps = parseInt(minRepsStr, 10);
-    const maxReps = parseInt(maxRepsStr, 10);
-    
-    // Getting the target RIR for set 1 as a baseline
-    let targetRir = 0;
-    if (exerciseDetails.rir && exerciseDetails.rir.length > 0) {
-        const rirMatch = String(exerciseDetails.rir[0]).match(/\d+/);
-        if (rirMatch) targetRir = parseInt(rirMatch[0], 10);
-    }
+    const repTarget = parseRepTarget(exerciseDetails.reps);
+    const minReps = repTarget.min;
+    const maxReps = repTarget.max;
+    const targetRir = parseRirTarget(exerciseDetails.rir);
 
     const rirThreshold = programData?.settings?.rirThreshold ?? 3;
 
     const lastSets = Object.values(lastSession);
-    const lastTopSet = lastSets.reduce((best, current) => (!best || calculateE1RM(current.load, current.reps, current.rir) > calculateE1RM(best.load, best.reps, best.rir) ? current : best), null);
-    if (!lastTopSet) return "Log your first set to get a baseline.";
+    const lastTopSet = getBestLoggedSet(lastSets);
+    if (!lastTopSet) return "The last session does not have a complete load and rep entry. Repeat the planned prescription and log load, reps, and RIR.";
 
-    const lastReps = parseInt(lastTopSet.reps, 10);
-    const lastWeight = parseFloat(lastTopSet.load);
-    const lastRir = parseInt(lastTopSet.rir, 10);
-    
-    // Suggest getting closer to failure
-    if (lastRir > rirThreshold) {
-        return `Last set was ${lastWeight}x${lastReps} with ${lastRir} RIR. You should aim to get closer to failure (<= ${rirThreshold} RIR). Consider adding weight or pushing for more reps.`;
+    const lastReps = lastTopSet.reps;
+    const lastWeight = lastTopSet.load;
+    const lastRir = Number.isNaN(lastTopSet.rir) ? null : lastTopSet.rir;
+    const increment = getLoadIncrement(exerciseDetails.equipment, weightUnit);
+    const isBodyweightStyle = increment === 0;
+    const loadText = isBodyweightStyle && lastWeight === 0 ? 'bodyweight' : formatLoad(lastWeight, weightUnit);
+
+    if (lastRir === null) {
+        return `Last session had ${lastReps} reps at ${loadText}, but RIR was missing. Repeat the load and log RIR before changing the prescription.`;
     }
 
+    if (lastRir > rirThreshold) {
+        return `Last top set was ${lastReps} reps at ${loadText} with ${lastRir} RIR. Keep the same load and push closer to the programmed effort, or add load only if form stays solid.`;
+    }
     if (lastRir > targetRir + 1) {
-        return `Last set was ${lastRir} RIR, but target is ~${targetRir} RIR. Push a bit harder or add weight to get closer to failure.`;
+        return `Last set was easier than planned (${lastRir} RIR vs ~${targetRir}). Keep the load and add reps, or make the smallest load jump if you are already near the top of the rep range.`;
     } else if (lastRir < targetRir - 1) {
-        return `Last set was ${lastRir} RIR, which is past the target of ~${targetRir} RIR. You might want to back off slightly if form broke down.`;
+        return `Last set was harder than planned (${lastRir} RIR vs ~${targetRir}). Repeat the load if form was clean; reduce slightly if reps slowed or technique broke down.`;
     }
 
     const historicalE1RMs = historicalSessions
-        .map(s => Math.max(...s.logs.map(l => calculateE1RM(l.load, l.reps, l.rir))))
+        .map(s => {
+            const bestSet = getBestLoggedSet(s.logs);
+            return bestSet?.score || 0;
+        })
+        .filter(score => score > 0)
         .reverse();
 
     let trend = "stable";
@@ -100,50 +155,58 @@ export const getProgressionSuggestion = (exerciseName, lastPerformanceData, mast
         if (latestE1RM < avgPreviousE1RM * 0.98) trend = "declining";
     }
 
-    let increment = 5;
-    if (['dumbbell', 'kettlebell'].includes(exerciseDetails.equipment)) increment = 5; 
-
-    // Suggest increasing weight to get back in rep range if over max reps
-    if (lastReps > maxReps) {
-        if (exerciseDetails.equipment === 'bodyweight') return `You hit ${lastReps} reps! Try adding weight to stay in the ${minReps}-${maxReps} rep range.`;
-        
-        // Calculate appropriate weight jump. Epley formula estimate
-        // E1RM = w * (1 + r/30)
-        // Target w = E1RM / (1 + target_reps/30)
-        let lastE1RM = calculateE1RM(lastWeight, lastReps, lastRir);
-        let targetRepsMiddle = (minReps + maxReps) / 2;
-        let estimatedNewWeight = lastE1RM / (1 + (targetRepsMiddle + targetRir) / 30);
-        
-        let calculatedDiff = estimatedNewWeight - lastWeight;
-        let proposedIncrement = Math.max(increment, Math.round(calculatedDiff / increment) * increment);
-        const newWeight = lastWeight + proposedIncrement;
-        
-        if (trend === "improving") {
-            return `Trend is up and you exceeded the rep range! Try increasing weight by ${proposedIncrement} lbs/kg to ${newWeight} lbs/kg for ${minReps}-${maxReps} reps.`;
+    if (!minReps || !maxReps) {
+        if (repTarget.isFailureTarget) {
+            if (isBodyweightStyle) return `Last top set was ${lastReps} reps at ${loadText}. Add reps until performance stalls, then add external load or a harder variation.`;
+            return `Last top set was ${lastReps} reps at ${loadText}. Progress only when reps increase at similar RIR; otherwise repeat the load.`;
         }
-        return `You exceeded the target rep range. Try increasing weight by ${proposedIncrement} lbs/kg to ${newWeight} lbs/kg for ${minReps}-${maxReps} reps.`;
+        return `The programmed rep target is "${repTarget.label}", so the app cannot calculate a precise load jump. Repeat the last load and progress by matching the target with similar RIR.`;
+    }
+
+    if (repTarget.isTimedTarget) {
+        if (lastReps >= maxReps && lastRir <= targetRir + 1) {
+            return `You reached the top of the timed target. Add a small load, use a harder variation, or extend the hold only if position stays clean.`;
+        }
+        return `Stay within the timed target and improve position quality before adding load or duration.`;
+    }
+
+    if (lastReps > maxReps) {
+        if (isBodyweightStyle) return `You exceeded the ${repTarget.label} target. Add external load, choose a harder variation, or slow the tempo to bring reps back into range.`;
+
+        const lastE1RM = calculateE1RM(lastWeight, lastReps, lastRir);
+        const targetRepsMiddle = (minReps + maxReps) / 2;
+        const estimatedNewWeight = lastE1RM / (1 + (targetRepsMiddle + targetRir) / 30);
+        const calculatedDiff = toDisplayLoad(estimatedNewWeight - lastWeight, weightUnit);
+        const proposedIncrement = Math.max(increment, roundToIncrement(calculatedDiff, increment));
+        const newWeightDisplay = toDisplayLoad(lastWeight, weightUnit) + proposedIncrement;
+
+        if (trend === "improving") {
+            return `Trend is up and you exceeded the rep range. Try ${newWeightDisplay.toFixed(1).replace(/\.0$/, '')} ${weightUnit} for ${minReps}-${maxReps} reps.`;
+        }
+        return `You exceeded the target rep range. Try ${newWeightDisplay.toFixed(1).replace(/\.0$/, '')} ${weightUnit} and aim for ${minReps}-${maxReps} reps.`;
     }
 
     if (lastReps === maxReps && lastRir <= (targetRir + 1)) {
-        if (exerciseDetails.equipment === 'bodyweight') return `Add weight or aim for ${lastReps + 1} reps. You're getting stronger!`;
-        const newWeight = lastWeight + increment;
+        if (isBodyweightStyle) return `You hit the top of the range. Add load, choose a harder variation, or aim for one more rep if the program allows it.`;
+        const newWeightDisplay = toDisplayLoad(lastWeight, weightUnit) + increment;
         if (trend === "improving") {
-            return `Trend is up! Let's increase the weight. Try for ${newWeight} lbs/kg in the ${minReps}-${maxReps} rep range.`;
+            return `Trend is up. Try ${newWeightDisplay.toFixed(1).replace(/\.0$/, '')} ${weightUnit} while staying in the ${minReps}-${maxReps} rep range.`;
         }
-        return `You hit the top of the rep range. Try increasing weight to ${newWeight} lbs/kg for ${minReps}-${maxReps} reps.`;
+        return `You hit the top of the rep range. Try ${newWeightDisplay.toFixed(1).replace(/\.0$/, '')} ${weightUnit} for ${minReps}-${maxReps} reps.`;
     }
     
     if (lastReps >= minReps && lastReps < maxReps) {
         if (trend === "declining") {
-            return `Strength seems to be trending down. Let's focus on hitting ${lastReps} reps with solid form at ${lastWeight} lbs/kg before pushing for more.`;
+            return `Recent top sets are trending down. Repeat ${loadText} and match at least ${lastReps} reps before adding load.`;
         }
-        return `You're in the sweet spot. Aim for ${lastReps + 1} reps with ${lastWeight} lbs/kg to progress within the rep range.`;
+        return `Stay at ${loadText} and aim for ${lastReps + 1} reps while keeping RIR near ${targetRir}.`;
     }
 
     if (lastReps < minReps) {
-        const newWeight = Math.max(0, lastWeight - increment);
-        return `Last session was below the target rep range. Try lowering weight to ~${newWeight} lbs/kg to hit ${minReps}-${maxReps} reps with good form.`;
+        if (isBodyweightStyle) return `Last session was below the target range. Use an easier variation or assisted setup until you can reach ${minReps}-${maxReps} reps.`;
+        const newWeightDisplay = Math.max(0, toDisplayLoad(lastWeight, weightUnit) - increment);
+        return `Last session was below the target range. Try ${newWeightDisplay.toFixed(1).replace(/\.0$/, '')} ${weightUnit} so you can reach ${minReps}-${maxReps} reps with clean technique.`;
     }
 
-    return `Last: ${lastWeight}x${lastReps}. Aim for the ${minReps}-${maxReps} rep range.`;
+    return `Last top set was ${lastReps} reps at ${loadText}. Aim for ${minReps}-${maxReps} reps near ${targetRir} RIR.`;
 };

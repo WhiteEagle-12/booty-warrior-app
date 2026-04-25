@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { Activity, BarChart2, BrainCircuit, Crosshair, Dumbbell, Flame, Medal, Target, Trophy } from 'lucide-react';
+import { Activity, BarChart2, BrainCircuit, Dumbbell, Flame, Medal, Target, Trophy } from 'lucide-react';
 import { Area, AreaChart, CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { getSetVolume } from '../utils/helpers';
 import { getProgramMetrics } from '../utils/trainingMetrics';
@@ -19,11 +19,11 @@ const StatCard = ({ icon: Icon, label, value, detail, accent = '#f3b548' }) => (
     </div>
 );
 
-const MissionBrief = ({ nextWorkout, nextExercises }) => (
+const NextWorkoutPanel = ({ nextWorkout, nextExercises }) => (
     <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
         <div className="flex items-start justify-between gap-4">
             <div>
-                <p className="text-xs font-bold uppercase text-[#f3b548]">Today's work</p>
+                <p className="text-xs font-bold uppercase text-[#f3b548]">Next workout</p>
                 <h2 className="mt-1 text-2xl font-black text-[#efe7d5]">
                     {nextWorkout ? nextWorkout.workout?.label || nextWorkout.workoutName : 'Program complete'}
                 </h2>
@@ -38,7 +38,7 @@ const MissionBrief = ({ nextWorkout, nextExercises }) => (
         <div className="mt-4 grid gap-2 sm:grid-cols-2">
             {nextExercises.length > 0 ? nextExercises.map((ex, index) => (
                 <div key={ex.id || ex.name} className="rounded-xl border border-white/10 bg-white/[0.04] p-3">
-                    <p className="text-xs font-bold uppercase text-[#9ca89d]">Target {index + 1}</p>
+                    <p className="text-xs font-bold uppercase text-[#9ca89d]">Exercise {index + 1}</p>
                     <p className="mt-1 truncate font-bold text-[#efe7d5]">{ex.name}</p>
                 </div>
             )) : (
@@ -85,19 +85,19 @@ export const DashboardView = ({ allLogs, programData, bodyWeightHistory }) => {
             <section className="ee-panel overflow-hidden rounded-2xl p-5 md:p-7">
                 <div>
                     <div>
-                        <div className="ee-chip"><Crosshair size={14} /> Dashboard</div>
+                        <div className="ee-chip"><Activity size={14} /> Dashboard</div>
                         <h1 className="mt-4 max-w-3xl text-4xl font-black tracking-normal text-[#efe7d5] md:text-5xl">Training Overview</h1>
                         <p className="mt-3 max-w-2xl text-base leading-7 text-[#9ca89d] md:text-lg">
-                            A cleaner mission view for today's work, mesocycle progress, recent training load, and the signals that matter before the next set.
+                            Today's workout, mesocycle progress, recent training load, and useful trends in one place.
                         </p>
                         <div className="mt-6 grid grid-cols-2 gap-3 md:grid-cols-4">
-                            <StatCard icon={Target} label="Meso lock" value={`${metrics.progressPercentage}%`} detail={`${metrics.completedSets}/${metrics.totalSets} sets`} />
+                            <StatCard icon={Target} label="Progress" value={`${metrics.progressPercentage}%`} detail={`${metrics.completedSets}/${metrics.totalSets} sets`} />
                             <StatCard icon={Flame} label="Streak" value={metrics.streak} detail="Scheduled sessions" accent="#f36f52" />
                             <StatCard icon={Activity} label="7-day sets" value={metrics.recentSets} detail="Recent load" accent="#4dd6c6" />
                             <StatCard icon={Medal} label="Level" value={level} detail={`${levelProgress}% to next`} accent="#5b83c4" />
                         </div>
                         <div className="mt-5">
-                            <MissionBrief nextWorkout={nextWorkout} nextExercises={nextExercises} />
+                            <NextWorkoutPanel nextWorkout={nextWorkout} nextExercises={nextExercises} />
                         </div>
                     </div>
                 </div>
@@ -107,8 +107,8 @@ export const DashboardView = ({ allLogs, programData, bodyWeightHistory }) => {
                 <section className="ee-panel rounded-2xl p-5">
                     <div className="flex items-center justify-between">
                         <div>
-                            <p className="text-xs font-bold uppercase text-[#f3b548]">PR scope</p>
-                            <h2 className="text-xl font-black text-[#efe7d5]">Top sights</h2>
+                            <p className="text-xs font-bold uppercase text-[#f3b548]">PRs</p>
+                            <h2 className="text-xl font-black text-[#efe7d5]">Top estimated maxes</h2>
                         </div>
                         <Trophy className="text-[#f3b548]" />
                     </div>
@@ -125,7 +125,7 @@ export const DashboardView = ({ allLogs, programData, bodyWeightHistory }) => {
                                 </div>
                             </div>
                         )) : (
-                            <p className="rounded-xl bg-white/5 p-4 text-sm text-[#9ca89d]">Log a few sets to establish your first PR sights.</p>
+                            <p className="rounded-xl bg-white/5 p-4 text-sm text-[#9ca89d]">Log a few sets to establish your first PR records.</p>
                         )}
                     </div>
                 </section>
@@ -159,7 +159,7 @@ export const DashboardView = ({ allLogs, programData, bodyWeightHistory }) => {
                 <section className="ee-panel rounded-2xl p-5">
                     <div className="mb-4 flex items-center gap-2">
                         <BrainCircuit className="text-[#f3b548]" />
-                        <h2 className="text-xl font-black text-[#efe7d5]">Bodyweight signal</h2>
+                        <h2 className="text-xl font-black text-[#efe7d5]">Bodyweight trend</h2>
                     </div>
                     {bodyWeightData.length > 1 ? (
                         <ResponsiveContainer width="100%" height={280}>

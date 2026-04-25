@@ -43,7 +43,7 @@ export const WeekView = ({ week, completedDays, onSessionSelect, firstIncomplete
                             <span className="ee-chip">Week {week}</span>
                             {isWeekComplete && <CheckCircle size={18} className="text-[#4dd6c6]" />}
                         </div>
-                        <h3 className="mt-2 text-xl font-black text-[#efe7d5]">{week === firstIncompleteWeek ? 'Active mission block' : 'Training block'}</h3>
+                        <h3 className="mt-2 text-xl font-black text-[#efe7d5]">{week === firstIncompleteWeek ? 'Current week' : 'Training week'}</h3>
                     </div>
                     <div className="flex items-center gap-3">
                         <div className="hidden text-right sm:block">
@@ -86,7 +86,7 @@ export const WeekView = ({ week, completedDays, onSessionSelect, firstIncomplete
                                         </button>
                                     ) : (
                                         <button onClick={() => onSessionSelect(week, day.day, 'lifting')} className="w-full rounded-lg bg-black/25 px-3 py-2 text-xs font-bold hover:bg-black/40">
-                                            {status?.isDayComplete ? 'Review log' : isNext ? 'Start target' : 'Open session'}
+                                            {status?.isDayComplete ? 'Review log' : isNext ? 'Start session' : 'Open session'}
                                         </button>
                                     )}
                                 </div>
@@ -106,7 +106,7 @@ export const SequentialWeekView = ({ weekNumber, sessions, onSessionSelect, isIn
     return (
         <div className="ee-panel rounded-2xl p-4">
             <button onClick={() => setIsOpen(!isOpen)} className="w-full flex justify-between items-center text-left">
-                <h3 className="text-xl font-black text-[#efe7d5]">Training Flight {weekNumber}</h3>
+                <h3 className="text-xl font-black text-[#efe7d5]">Training Week {weekNumber}</h3>
                 <div className="flex items-center gap-2">
                     {isWeekComplete && <CheckCircle className="text-[#4dd6c6]" />}
                     {isOpen ? <ChevronUp className="text-[#9ca89d]" /> : <ChevronDown className="text-[#9ca89d]" />}
@@ -215,11 +215,11 @@ export const MainView = ({ onSessionSelect, onEditProgram, completedDays, onUnsk
                     <div>
                         <div className="ee-chip"><Target size={14} /> Program</div>
                         <h1 className="mt-3 text-3xl font-black text-[#efe7d5] md:text-4xl">{info.name}</h1>
-                        <p className="mt-2 text-[#9ca89d]">{info.weeks}-week block with {metrics.totalWorkouts} training sessions and {metrics.totalSets} logged-set targets.</p>
+                        <p className="mt-2 text-[#9ca89d]">{info.weeks}-week block with {metrics.totalWorkouts} training sessions and {metrics.totalSets} planned sets.</p>
                     </div>
                     <div className="grid grid-cols-3 gap-3 text-center">
-                        <div className="rounded-xl bg-white/5 p-3"><p className="text-2xl font-black text-[#4dd6c6]">{metrics.progressPercentage}%</p><p className="text-xs text-[#9ca89d]">Meso</p></div>
-                        <div className="rounded-xl bg-white/5 p-3"><p className="text-2xl font-black text-[#f3b548]">{metrics.completedWorkouts}</p><p className="text-xs text-[#9ca89d]">Wins</p></div>
+                        <div className="rounded-xl bg-white/5 p-3"><p className="text-2xl font-black text-[#4dd6c6]">{metrics.progressPercentage}%</p><p className="text-xs text-[#9ca89d]">Progress</p></div>
+                        <div className="rounded-xl bg-white/5 p-3"><p className="text-2xl font-black text-[#f3b548]">{metrics.completedWorkouts}</p><p className="text-xs text-[#9ca89d]">Completed</p></div>
                         <div className="rounded-xl bg-white/5 p-3"><p className="text-2xl font-black text-[#f36f52]">{metrics.streak}</p><p className="text-xs text-[#9ca89d]">Streak</p></div>
                     </div>
                 </div>

@@ -49,7 +49,7 @@ const AppCore = () => {
                     <div className="w-44 h-1 mt-6 rounded-full bg-white/10 overflow-hidden">
                         <div className="w-1/2 h-full bg-[#f3b548] animate-pulse"></div>
                     </div>
-                    <p className="text-[#9ca89d] mt-4">Calibrating Eagle Eye Training...</p>
+                    <p className="text-[#9ca89d] mt-4">Loading your training data...</p>
                 </div>
             </div>
         );

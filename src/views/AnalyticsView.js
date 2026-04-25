@@ -133,11 +133,11 @@ export const AnalyticsView = ({ allLogs, programData }) => {
                 <div className="flex items-center gap-3">
                     <BarChart2 className="text-[#f3b548]" size={32} />
                     <div>
-                        <p className="text-xs font-bold uppercase text-[#f3b548]">Performance optics</p>
+                        <p className="text-xs font-bold uppercase text-[#f3b548]">Performance data</p>
                         <h1 className="text-3xl font-black text-[#efe7d5]">Analytics</h1>
                     </div>
                 </div>
-                <p className="mt-3 text-[#9ca89d]">Exercise progression, weekly volume, and fractional set distribution in the same Eagle Eye command language.</p>
+                <p className="mt-3 text-[#9ca89d]">Exercise progression, weekly volume, and estimated effective-set distribution. Fractional sets are planning heuristics, not exact physiology.</p>
             </section>
 
             <div className="space-y-6">
@@ -250,7 +250,7 @@ export const AnalyticsView = ({ allLogs, programData }) => {
                                     </ul>
                                 </div>
                             </div>
-                        ) : <p className="py-16 text-center text-[#9ca89d]">Log workouts to see fractional set distribution.</p>}
+                        ) : <p className="py-16 text-center text-[#9ca89d]">Log workouts to see estimated effective-set distribution.</p>}
                     </div>
                 </section>
             </div>

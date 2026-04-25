@@ -41,7 +41,7 @@ export const ExerciseCard = ({ exerciseName, week, dayKey, allLogs, onLogChange,
     };
 
     const lastPerformanceData = useMemo(() => findLastPerformanceLogs(exerciseName, week, dayKey, allLogs, programData), [exerciseName, week, dayKey, allLogs, programData]);
-    const suggestion = useMemo(() => getProgressionSuggestion(exerciseName, lastPerformanceData, masterExerciseList, programData), [exerciseName, lastPerformanceData, masterExerciseList, programData]);
+    const suggestion = useMemo(() => getProgressionSuggestion(exerciseName, lastPerformanceData, masterExerciseList, programData, weightUnit), [exerciseName, lastPerformanceData, masterExerciseList, programData, weightUnit]);
 
     if (!exercise) return <div className="rounded-xl border border-[#f36f52]/30 bg-[#f36f52]/10 p-4 text-[#ff9d88]">Exercise "{exerciseName}" not found in master list.</div>;
     
@@ -79,7 +79,7 @@ export const ExerciseCard = ({ exerciseName, week, dayKey, allLogs, onLogChange,
                 }}>
                     <div className="mb-3 flex items-start gap-3 rounded-xl border border-[#4dd6c6]/20 bg-[#4dd6c6]/10 p-3">
                         <Lightbulb className="text-[#4dd6c6] flex-shrink-0 mt-1" size={20}/>
-                        <p className="text-sm text-[#d8fffa]"><span className="font-bold">Eagle Eye cue:</span> {suggestion}</p>
+                        <p className="text-sm text-[#d8fffa]"><span className="font-bold">Suggested next step:</span> {suggestion}</p>
                     </div>
                     <div className="overflow-x-auto">
                         <div className="hidden sm:grid grid-cols-7 gap-2 mb-2 px-3 text-xs font-bold uppercase text-[#9ca89d] min-w-[540px]">

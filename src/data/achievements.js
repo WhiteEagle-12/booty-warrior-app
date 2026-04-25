@@ -293,20 +293,20 @@ export const achievementsList = {
         }
     },
     eagle_eye_precision: {
-        name: "Eagle Eye Precision",
+        name: "Logging Precision",
         description: "Log load, reps, and RIR with disciplined consistency.",
         icon: Eye,
         type: 'tiered',
         unit: 'sets',
         tiers: [
-            { name: "Scout", value: 25, description: () => "Logged 25 fully complete sets." },
-            { name: "Marksman", value: 100, description: () => "Logged 100 complete sets with clean tracking." },
-            { name: "Overwatch", value: 250, description: () => "Logged 250 complete sets. Your data is dialed in." },
+            { name: "25 Sets", value: 25, description: () => "Logged 25 fully complete sets." },
+            { name: "100 Sets", value: 100, description: () => "Logged 100 complete sets with clean tracking." },
+            { name: "250 Sets", value: 250, description: () => "Logged 250 complete sets. Your data is dialed in." },
         ],
         getValue: (logs) => Object.values(logs).filter(l => isSetLogComplete(l) && !l.skipped).length
     },
     target_acquired: {
-        name: "Target Acquired",
+        name: "PR Coverage",
         description: "Hit repeated PRs across your exercise roster.",
         icon: Crosshair,
         type: 'tiered',
@@ -327,15 +327,15 @@ export const achievementsList = {
         }
     },
     glute_airspace: {
-        name: "Glute Airspace",
+        name: "Lower-Body Volume",
         description: "Build lower-body tonnage across glute, hip thrust, squat, and lunge work.",
         icon: Gauge,
         type: 'tiered',
         unit: 'weight',
         tiers: [
-            { name: "Patrol", value: 25000, description: (v, u) => `Logged ${formatWeight(v, u)} of lower-body volume.` },
-            { name: "Air Control", value: 125000, description: (v, u) => `Logged ${formatWeight(v, u)} of lower-body volume.` },
-            { name: "No-Fly Zone", value: 300000, description: (v, u) => `Logged ${formatWeight(v, u)} of lower-body volume.` },
+            { name: "25K", value: 25000, description: (v, u) => `Logged ${formatWeight(v, u)} of lower-body volume.` },
+            { name: "125K", value: 125000, description: (v, u) => `Logged ${formatWeight(v, u)} of lower-body volume.` },
+            { name: "300K", value: 300000, description: (v, u) => `Logged ${formatWeight(v, u)} of lower-body volume.` },
         ],
         getValue: (logs, program) => {
             const lowerKeywords = ['glute', 'hip thrust', 'squat', 'lunge', 'split squat', 'leg press', 'rdl', 'romanian', 'deadlift'];
@@ -348,28 +348,28 @@ export const achievementsList = {
         }
     },
     command_elite: {
-        name: "Command Elite",
-        description: "Complete a deep campaign of focused training sessions.",
+        name: "Long-Term Consistency",
+        description: "Complete a deep run of training sessions.",
         icon: Crown,
         type: 'tiered',
         unit: 'sessions',
         tiers: [
-            { name: "Wing Lead", value: 25, description: () => "Completed 25 workouts." },
-            { name: "Squadron Lead", value: 75, description: () => "Completed 75 workouts." },
-            { name: "Command Elite", value: 150, description: () => "Completed 150 workouts." },
+            { name: "25 Workouts", value: 25, description: () => "Completed 25 workouts." },
+            { name: "75 Workouts", value: 75, description: () => "Completed 75 workouts." },
+            { name: "150 Workouts", value: 150, description: () => "Completed 150 workouts." },
         ],
         getValue: (logs, program) => achievementsList.workouts_completed.getValue(logs, program)
     },
     posterior_chain_pilot: {
-        name: "Posterior Chain Pilot",
+        name: "Posterior-Chain Volume",
         description: "Build volume across hamstrings, glutes, hip hinges, and back extensions.",
         icon: Zap,
         type: 'tiered',
         unit: 'weight',
         tiers: [
-            { name: "Takeoff", value: 20000, description: (v, u) => `Logged ${formatWeight(v, u)} of posterior-chain volume.` },
-            { name: "Cruise", value: 100000, description: (v, u) => `Logged ${formatWeight(v, u)} of posterior-chain volume.` },
-            { name: "Afterburner", value: 250000, description: (v, u) => `Logged ${formatWeight(v, u)} of posterior-chain volume.` },
+            { name: "20K", value: 20000, description: (v, u) => `Logged ${formatWeight(v, u)} of posterior-chain volume.` },
+            { name: "100K", value: 100000, description: (v, u) => `Logged ${formatWeight(v, u)} of posterior-chain volume.` },
+            { name: "250K", value: 250000, description: (v, u) => `Logged ${formatWeight(v, u)} of posterior-chain volume.` },
         ],
         getValue: (logs, program) => {
             const keywords = ['deadlift', 'rdl', 'romanian', 'hip thrust', 'glute', 'hamstring', 'leg curl', 'back extension', 'good morning', 'pull-through'];
@@ -380,7 +380,7 @@ export const achievementsList = {
         }
     },
     balanced_airframe: {
-        name: "Balanced Airframe",
+        name: "Balanced Training",
         description: "Log meaningful work for every major muscle group.",
         icon: Shield,
         type: 'tiered',
@@ -401,7 +401,7 @@ export const achievementsList = {
         }
     },
     black_box_data: {
-        name: "Black Box Data",
+        name: "Training Dataset",
         description: "Build a deep historical dataset of useful training logs.",
         icon: Eye,
         type: 'tiered',
@@ -414,7 +414,7 @@ export const achievementsList = {
         getValue: (logs) => Object.values(logs).filter(log => isSetLogComplete(log) && !log.skipped && log.date).length
     },
     volume_repeatability: {
-        name: "Volume Repeatability",
+        name: "Weekly Volume Consistency",
         description: "Stack productive weeks with logged tonnage.",
         icon: CalendarDays,
         type: 'tiered',
@@ -446,7 +446,7 @@ export const achievementsList = {
         getValue: (logs) => Object.values(logs).filter(log => isSetLogComplete(log) && !log.skipped && log.rir !== '').length
     },
     bodyweight_signal: {
-        name: "Bodyweight Signal",
+        name: "Bodyweight Tracking",
         description: "Maintain bodyweight context for strength ratios and trend analysis.",
         icon: Gauge,
         type: 'tiered',

@@ -290,7 +290,7 @@ export const ProgramManagerView = ({ onProgramUpdate, activeProgram, programInst
                         <h1 className="text-3xl font-black text-[#efe7d5]">Program Hub</h1>
                     </div>
                 </div>
-                <p className="mt-3 text-[#9ca89d]">Import, export, preview, and switch training blocks from one consistent Eagle Eye surface.</p>
+                <p className="mt-3 text-[#9ca89d]">Import, export, preview, and switch training blocks from one place.</p>
             </div>
 
             <div className="ee-panel rounded-2xl p-5 mb-6">
