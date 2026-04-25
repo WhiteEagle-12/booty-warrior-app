@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { Activity, BarChart2, BrainCircuit, Crosshair, Dumbbell, Flame, Gauge, Medal, Target, Trophy } from 'lucide-react';
+import { Activity, BarChart2, BrainCircuit, CalendarDays, Crosshair, Dumbbell, Flame, Gauge, Medal, Target, Trophy } from 'lucide-react';
 import { Area, AreaChart, CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { getSetVolume } from '../utils/helpers';
 import { formatWeight } from '../utils/formatters';
@@ -17,6 +17,35 @@ const StatCard = ({ icon: Icon, label, value, detail, accent = '#f3b548' }) => (
             </div>
         </div>
         {detail && <p className="mt-3 text-sm text-[#9ca89d]">{detail}</p>}
+    </div>
+);
+
+const MissionBrief = ({ nextWorkout, nextExercises }) => (
+    <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
+        <div className="flex items-start justify-between gap-4">
+            <div>
+                <p className="text-xs font-bold uppercase text-[#f3b548]">Today's work</p>
+                <h2 className="mt-1 text-2xl font-black text-[#efe7d5]">
+                    {nextWorkout ? nextWorkout.workout?.label || nextWorkout.workoutName : 'Program complete'}
+                </h2>
+                <p className="mt-1 text-sm text-[#9ca89d]">
+                    {nextWorkout ? `Week ${nextWorkout.week} / ${nextWorkout.dayKey}` : 'Start a new block from Program Hub.'}
+                </p>
+            </div>
+            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-[#f3b548]/15 text-[#f3b548]">
+                <Dumbbell size={22} />
+            </div>
+        </div>
+        <div className="mt-4 grid gap-2 sm:grid-cols-2">
+            {nextExercises.length > 0 ? nextExercises.map((ex, index) => (
+                <div key={ex.id || ex.name} className="rounded-xl border border-white/10 bg-white/[0.04] p-3">
+                    <p className="text-xs font-bold uppercase text-[#9ca89d]">Target {index + 1}</p>
+                    <p className="mt-1 truncate font-bold text-[#efe7d5]">{ex.name}</p>
+                </div>
+            )) : (
+                <div className="rounded-xl border border-white/10 bg-white/[0.04] p-3 text-sm text-[#9ca89d]">No upcoming exercises found.</div>
+            )}
+        </div>
     </div>
 );
 
@@ -72,14 +101,13 @@ export const DashboardView = ({ allLogs, programData, bodyWeightHistory }) => {
 
     return (
        <div className="py-5 md:py-8">
-            <section className="ee-panel relative overflow-hidden rounded-2xl p-5 md:p-7">
-                <div className="absolute right-0 top-0 h-full w-1/2 opacity-10" style={{ backgroundImage: 'url(/brand/eagle-eye-concept.png)', backgroundSize: 'cover', backgroundPosition: 'center' }} />
-                <div className="relative grid gap-6 lg:grid-cols-[1.15fr_0.85fr]">
+            <section className="ee-panel overflow-hidden rounded-2xl p-5 md:p-7">
+                <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_390px]">
                     <div>
                         <div className="ee-chip"><Crosshair size={14} /> Command center</div>
-                        <h1 className="mt-4 max-w-3xl text-4xl font-black tracking-normal text-[#efe7d5] md:text-5xl">Eagle Eye Training</h1>
-                        <p className="mt-3 max-w-2xl text-base text-[#9ca89d] md:text-lg">
-                            Your mesocycle, recovery signals, PRs, and next-set priorities in one focused training deck.
+                        <h1 className="mt-4 max-w-3xl text-4xl font-black tracking-normal text-[#efe7d5] md:text-5xl">Training command deck</h1>
+                        <p className="mt-3 max-w-2xl text-base leading-7 text-[#9ca89d] md:text-lg">
+                            A cleaner mission view for today's work, current readiness, mesocycle progress, and the signals that matter before the next set.
                         </p>
                         <div className="mt-6 grid grid-cols-2 gap-3 md:grid-cols-4">
                             <StatCard icon={Target} label="Meso lock" value={`${metrics.progressPercentage}%`} detail={`${metrics.completedSets}/${metrics.totalSets} sets`} />
@@ -87,8 +115,11 @@ export const DashboardView = ({ allLogs, programData, bodyWeightHistory }) => {
                             <StatCard icon={Activity} label="7-day sets" value={metrics.recentSets} detail="Recent load" accent="#4dd6c6" />
                             <StatCard icon={Medal} label="Level" value={level} detail={`${levelProgress}% to next`} accent="#5b83c4" />
                         </div>
+                        <div className="mt-5">
+                            <MissionBrief nextWorkout={nextWorkout} nextExercises={nextExercises} />
+                        </div>
                     </div>
-                    <div className="ee-panel-soft rounded-2xl p-5">
+                    <div className="rounded-2xl border border-white/10 bg-white/[0.045] p-5">
                         <div className="flex items-center justify-between">
                             <div>
                                 <p className="text-xs font-bold uppercase text-[#9ca89d]">Mission readiness</p>
@@ -102,34 +133,20 @@ export const DashboardView = ({ allLogs, programData, bodyWeightHistory }) => {
                             <div className="rounded-lg bg-white/5 p-2"><span className="block font-black text-[#efe7d5]">{formatWeight(metrics.totalVolume, 'lbs', false)}</span><span className="text-[#9ca89d]">Volume</span></div>
                             <div className="rounded-lg bg-white/5 p-2"><span className="block font-black text-[#efe7d5]">{metrics.completedWorkouts}</span><span className="text-[#9ca89d]">Wins</span></div>
                         </div>
+                        <div className="mt-4 rounded-xl border border-white/10 bg-black/20 p-3">
+                            <div className="flex items-center gap-2 text-xs font-bold uppercase text-[#f3b548]">
+                                <CalendarDays size={14} />
+                                Readiness note
+                            </div>
+                            <p className="mt-2 text-sm leading-6 text-[#9ca89d]">
+                                Score blends streak, recent sets, skipped work, RIR discipline, and bodyweight logging into a quick pre-session signal.
+                            </p>
+                        </div>
                     </div>
                 </div>
             </section>
 
-            <div className="mt-6 grid gap-6 lg:grid-cols-[1fr_380px]">
-                <section className="ee-panel rounded-2xl p-5">
-                    <div className="flex flex-wrap items-center justify-between gap-3">
-                        <div>
-                            <p className="text-xs font-bold uppercase text-[#f3b548]">Next target</p>
-                            <h2 className="text-2xl font-black text-[#efe7d5]">
-                                {nextWorkout ? `Week ${nextWorkout.week}: ${nextWorkout.workout?.label || nextWorkout.workoutName}` : 'Program complete'}
-                            </h2>
-                            <p className="text-sm text-[#9ca89d]">{nextWorkout ? `${nextWorkout.dayKey} training session` : 'Start a new block from Program Hub.'}</p>
-                        </div>
-                        <div className="ee-chip"><Dumbbell size={14} /> Next Set</div>
-                    </div>
-                    <div className="mt-5 grid gap-3 sm:grid-cols-2">
-                        {nextExercises.length > 0 ? nextExercises.map(ex => (
-                            <div key={ex.id || ex.name} className="rounded-xl border border-white/10 bg-black/20 p-4">
-                                <p className="font-bold text-[#efe7d5]">{ex.name}</p>
-                                <p className="mt-1 text-sm text-[#9ca89d]">Load, reps, and RIR targets are prepped in the logger.</p>
-                            </div>
-                        )) : (
-                            <div className="rounded-xl border border-white/10 bg-black/20 p-4 text-[#9ca89d]">No upcoming exercises found.</div>
-                        )}
-                    </div>
-                </section>
-
+            <div className="mt-6">
                 <section className="ee-panel rounded-2xl p-5">
                     <div className="flex items-center justify-between">
                         <div>
@@ -138,7 +155,7 @@ export const DashboardView = ({ allLogs, programData, bodyWeightHistory }) => {
                         </div>
                         <Trophy className="text-[#f3b548]" />
                     </div>
-                    <div className="mt-4 space-y-3">
+                    <div className="mt-4 grid gap-3 md:grid-cols-3">
                         {metrics.topPrs.length > 0 ? metrics.topPrs.map(record => (
                             <div key={record.exercise} className="flex items-center justify-between gap-3 rounded-xl bg-white/5 p-3">
                                 <div>
