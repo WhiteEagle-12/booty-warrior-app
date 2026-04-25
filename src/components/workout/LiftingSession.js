@@ -1,5 +1,5 @@
 import React, { useMemo, useContext } from 'react';
-import { ArrowLeft, SkipForward, Timer } from 'lucide-react';
+import { ArrowLeft, Crosshair, SkipForward, Timer } from 'lucide-react';
 import { doc, updateDoc } from 'firebase/firestore';
 import { FirebaseContext } from '../../contexts/FirebaseContext';
 import { getWorkoutForWeek, getWorkoutNameForDay } from '../../utils/workout';
@@ -70,14 +70,34 @@ export const LiftingSession = ({ week, dayKey, onBack, allLogs, setAllLogs, onSk
 
 
     return (
-        <div className="p-4 md:p-6 pb-24">
-            <div className="flex justify-end items-center mb-4 gap-2">
-                <button onClick={onStartTimer} className="flex items-center gap-2 text-sm font-medium text-yellow-600 dark:text-yellow-400 bg-yellow-100 dark:bg-yellow-900/50 px-3 py-1.5 rounded-lg hover:bg-yellow-200 dark:hover:bg-yellow-800/50 transition-colors"><Timer size={16}/> Start Timer</button>
-                <button onClick={() => onSkipDay(week, dayKey)} className="flex items-center gap-2 text-sm font-medium text-red-500 dark:text-red-400 bg-red-100 dark:bg-red-900/50 px-3 py-1.5 rounded-lg hover:bg-red-200 dark:hover:bg-red-800/50 transition-colors"><SkipForward size={16}/> Skip Day</button>
-            </div>
-            <div className="mb-6 text-center">
-                <h2 className="text-3xl font-bold dark:text-white">{pageTitle}</h2>
-                <p className="text-lg text-gray-600 dark:text-gray-400">{workoutDisplayName}</p>
+        <div className="py-5 md:py-8 pb-24">
+            <div className="ee-panel mb-5 rounded-2xl p-5 md:p-6">
+                <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+                    <div>
+                        <button onClick={onBack} className="mb-4 inline-flex items-center gap-2 text-sm font-semibold text-[#9ca89d] hover:text-[#efe7d5]"><ArrowLeft size={16}/> Program timeline</button>
+                        <div className="ee-chip"><Crosshair size={14} /> Live session</div>
+                        <h2 className="mt-3 text-3xl font-black text-[#efe7d5] md:text-4xl">{pageTitle}</h2>
+                        <p className="mt-2 text-lg text-[#f3b548]">{workoutDisplayName}</p>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2">
+                        <button onClick={onStartTimer} className="ee-primary"><Timer size={16}/> Start Timer</button>
+                        <button onClick={() => onSkipDay(week, dayKey)} className="ee-secondary text-[#f36f52]"><SkipForward size={16}/> Skip Day</button>
+                    </div>
+                </div>
+                <div className="mt-5 grid gap-3 sm:grid-cols-3">
+                    <div className="rounded-xl bg-white/5 p-3">
+                        <p className="text-xs font-bold uppercase text-[#9ca89d]">Exercises</p>
+                        <p className="text-2xl font-black text-[#efe7d5]">{workout.exercises.length}</p>
+                    </div>
+                    <div className="rounded-xl bg-white/5 p-3">
+                        <p className="text-xs font-bold uppercase text-[#9ca89d]">Focus</p>
+                        <p className="text-2xl font-black text-[#4dd6c6]">Precision</p>
+                    </div>
+                    <div className="rounded-xl bg-white/5 p-3">
+                        <p className="text-xs font-bold uppercase text-[#9ca89d]">Rest Timer</p>
+                        <p className="text-2xl font-black text-[#f3b548]">{programData.settings.restTimer?.enabled ? `${programData.settings.restTimer.duration}s` : 'Off'}</p>
+                    </div>
+                </div>
             </div>
             <div className="space-y-4">
                 {workout.exercises.map(ex =>

@@ -1,31 +1,47 @@
 import React, { useContext } from 'react';
-import { Menu, AlertTriangle } from 'lucide-react';
+import { Menu, AlertTriangle, Radar, Wifi } from 'lucide-react';
 import { AppStateContext } from '../../contexts/AppStateContext';
 import { FirebaseContext } from '../../contexts/FirebaseContext';
-import { WingIcon } from '../common/WingIcon';
 
-export const AppHeader = ({ onNavChange }) => {
+export const AppHeader = ({ programName, onNavChange }) => {
     const { setSidebarOpen } = useContext(AppStateContext);
     const { isOnline } = useContext(FirebaseContext);
 
     return (
-        <header className="bg-white dark:bg-gray-800/80 backdrop-blur-sm shadow-sm sticky top-0 z-40 p-4 flex justify-between items-center">
-            <button onClick={() => setSidebarOpen(true)} className="p-2 md:hidden">
+        <header className="sticky top-0 z-40 border-b border-white/10 bg-[#090d12]/[.86] px-3 py-3 backdrop-blur-xl sm:px-5">
+            <div className="mx-auto flex max-w-7xl items-center justify-between gap-3">
+            <button onClick={() => setSidebarOpen(true)} className="rounded-lg border border-white/10 p-2 md:hidden">
                 <Menu />
             </button>
-             <div className="flex-1 flex justify-center items-center gap-4">
-                <button onClick={() => onNavChange('main')} className="flex items-center gap-2">
-                     <WingIcon className="w-8 h-8" />
-                     <h1 className="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-green-500 to-blue-600">Project Overload</h1>
+             <div className="flex min-w-0 flex-1 items-center gap-3">
+                <button onClick={() => onNavChange('main')} className="flex min-w-0 items-center gap-3 text-left">
+                     <span className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/10 bg-white/5">
+                        <img src="/brand/eagle-eye-mark.png" alt="" className="h-8 w-8 object-contain" />
+                     </span>
+                     <span className="min-w-0">
+                        <span className="block text-xs font-bold uppercase text-[#f3b548]">Eagle Eye Training</span>
+                        <span className="block truncate text-sm text-[#9ca89d]">{programName}</span>
+                     </span>
                 </button>
-                {!isOnline && (
-                    <div className="flex items-center gap-2 text-yellow-500 bg-yellow-100 dark:bg-yellow-900/50 px-3 py-1 rounded-lg text-sm font-semibold">
-                        <AlertTriangle size={16} />
-                        <span>Offline</span>
+            </div>
+            <div className="flex items-center gap-2">
+                <div className="hidden items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-xs font-semibold text-[#9ca89d] sm:flex">
+                    <Radar size={14} className="text-[#4dd6c6]" />
+                    Live command deck
+                </div>
+                {isOnline ? (
+                    <div className="flex items-center gap-2 rounded-full border border-emerald-400/20 bg-emerald-400/10 px-3 py-1.5 text-xs font-semibold text-emerald-300">
+                        <Wifi size={14} />
+                        Synced
+                    </div>
+                ) : (
+                    <div className="flex items-center gap-2 rounded-full border border-yellow-400/20 bg-yellow-400/10 px-3 py-1.5 text-xs font-semibold text-yellow-300">
+                        <AlertTriangle size={14} />
+                        Offline
                     </div>
                 )}
             </div>
-            <div className="w-8 md:invisible"></div>
+            </div>
         </header>
     );
 };

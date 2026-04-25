@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useMemo, useContext } from 'react';
-import { ChevronDown, ChevronUp, CheckCircle, Lightbulb, PlusCircle, History } from 'lucide-react';
+import { ChevronDown, ChevronUp, CheckCircle, Lightbulb, PlusCircle, History, Target } from 'lucide-react';
 import { AppStateContext } from '../../contexts/AppStateContext';
 import { getExerciseDetails, isSetLogComplete } from '../../utils/helpers';
 import { findLastPerformanceLogs, getProgressionSuggestion } from '../../utils/progression';
 import { ExerciseHistoryModal } from './ExerciseHistoryModal';
 import { SetRow } from './SetRow';
 import { IntensityTechnique } from './IntensityTechnique';
+import { getExerciseCompletion } from '../../utils/trainingMetrics';
 
 export const ExerciseCard = ({ exerciseName, week, dayKey, allLogs, onLogChange, masterExerciseList, weightUnit, workoutDetails, programData }) => {
     const { openModal } = useContext(AppStateContext);
@@ -33,29 +34,41 @@ export const ExerciseCard = ({ exerciseName, week, dayKey, allLogs, onLogChange,
     }, [allLogs, week, dayKey, exerciseName, sets]);
 
     const [isOpen, setIsOpen] = useState(!isCompleted);
+    const completion = useMemo(() => getExerciseCompletion(exerciseName, week, dayKey, allLogs, masterExerciseList), [exerciseName, week, dayKey, allLogs, masterExerciseList]);
     
     const showHistory = () => {
         openModal(<ExerciseHistoryModal exerciseName={exerciseName} allLogs={allLogs} programData={programData} />, 'lg');
     };
 
-    if (!exercise) return <div className="bg-red-100 dark:bg-red-900/50 p-4 rounded-lg text-red-700 dark:text-red-300">Exercise "{exerciseName}" not found in master list.</div>;
-
     const lastPerformanceData = useMemo(() => findLastPerformanceLogs(exerciseName, week, dayKey, allLogs, programData), [exerciseName, week, dayKey, allLogs, programData]);
     const suggestion = useMemo(() => getProgressionSuggestion(exerciseName, lastPerformanceData, masterExerciseList, programData), [exerciseName, lastPerformanceData, masterExerciseList, programData]);
+
+    if (!exercise) return <div className="rounded-xl border border-[#f36f52]/30 bg-[#f36f52]/10 p-4 text-[#ff9d88]">Exercise "{exerciseName}" not found in master list.</div>;
     
     return (
-        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md overflow-hidden">
-            <div onClick={() => setIsOpen(!isOpen)} role="button" tabIndex={0} onKeyDown={(e) => e.key === 'Enter' && setIsOpen(!isOpen)} className="w-full p-4 text-left flex justify-between items-center bg-gray-50 dark:bg-gray-700/50 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors cursor-pointer">
-                <div>
-                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{exerciseName}</h3>
-                    <p className="text-sm text-gray-500 dark:text-gray-400">{exercise.sets} sets &times; {exercise.reps}</p>
+        <div className="ee-panel overflow-hidden rounded-2xl">
+            <div onClick={() => setIsOpen(!isOpen)} role="button" tabIndex={0} onKeyDown={(e) => e.key === 'Enter' && setIsOpen(!isOpen)} className="w-full cursor-pointer border-b border-white/10 bg-white/[0.035] p-4 text-left transition hover:bg-white/[0.065]">
+                <div className="flex items-start justify-between gap-4">
+                <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                        <Target size={16} className="text-[#f3b548]" />
+                        <h3 className="truncate text-lg font-black text-[#efe7d5]">{exerciseName}</h3>
+                    </div>
+                    <p className="mt-1 text-sm text-[#9ca89d]">{exercise.sets} sets x {exercise.reps} reps</p>
                 </div>
                 <div className="flex items-center space-x-3">
-                    <button onClick={(e) => { e.stopPropagation(); showHistory(); }} className="p-1.5 rounded-md hover:bg-gray-200 dark:hover:bg-gray-600">
-                        <History size={18} className="text-teal-500 dark:text-teal-400" />
+                    <button onClick={(e) => { e.stopPropagation(); showHistory(); }} className="rounded-lg border border-white/10 bg-white/5 p-2 hover:bg-white/10" title="Exercise history">
+                        <History size={18} className="text-[#4dd6c6]" />
                     </button>
-                    {isCompleted && <CheckCircle className="text-green-500 animate-pop-in" />}
-                    {isOpen ? <ChevronUp className="text-gray-500 dark:text-gray-400" /> : <ChevronDown className="text-gray-500 dark:text-gray-400" />}
+                    {isCompleted && <CheckCircle className="text-[#4dd6c6] animate-pop-in" />}
+                    {isOpen ? <ChevronUp className="text-[#9ca89d]" /> : <ChevronDown className="text-[#9ca89d]" />}
+                </div>
+                </div>
+                <div className="mt-4 flex items-center gap-3">
+                    <div className="h-2 flex-1 overflow-hidden rounded-full bg-white/10">
+                        <div className="h-full rounded-full bg-[#4dd6c6] transition-all duration-500" style={{ width: `${completion.percentage}%` }} />
+                    </div>
+                    <span className="text-xs font-bold text-[#9ca89d]">{completion.complete}/{completion.total}</span>
                 </div>
             </div>
             {isOpen && (
@@ -64,12 +77,12 @@ export const ExerciseCard = ({ exerciseName, week, dayKey, allLogs, onLogChange,
                         if (isCompleted) setIsOpen(false);
                     }
                 }}>
-                    <div className="mb-3 p-3 flex items-start gap-3 bg-blue-50 dark:bg-blue-900/50 rounded-lg">
-                        <Lightbulb className="text-blue-500 dark:text-blue-400 flex-shrink-0 mt-1" size={20}/>
-                        <p className="text-sm text-blue-800 dark:text-blue-200"><span className="font-bold">Suggestion:</span> {suggestion}</p>
+                    <div className="mb-3 flex items-start gap-3 rounded-xl border border-[#4dd6c6]/20 bg-[#4dd6c6]/10 p-3">
+                        <Lightbulb className="text-[#4dd6c6] flex-shrink-0 mt-1" size={20}/>
+                        <p className="text-sm text-[#d8fffa]"><span className="font-bold">Eagle Eye cue:</span> {suggestion}</p>
                     </div>
                     <div className="overflow-x-auto">
-                        <div className="hidden sm:grid grid-cols-7 gap-2 mb-2 px-3 text-xs font-medium text-gray-500 dark:text-gray-400 min-w-[540px]">
+                        <div className="hidden sm:grid grid-cols-7 gap-2 mb-2 px-3 text-xs font-bold uppercase text-[#9ca89d] min-w-[540px]">
                             <span></span>
                             <span className="text-center">Target Reps</span>
                             <span className="text-center">Target Effort</span>
@@ -117,7 +130,7 @@ export const ExerciseCard = ({ exerciseName, week, dayKey, allLogs, onLogChange,
                     {exercise.lastSetTechnique && !exercise.lastSetTechnique.toLowerCase().includes('drop') && <IntensityTechnique technique={exercise.lastSetTechnique} />}
                     {isCompleted && exercise.lastSetTechnique?.toLowerCase().includes('drop') && (
                         <div className="p-4 pt-0">
-                            <button onClick={handleAddDropSet} className="w-full flex items-center justify-center gap-2 p-2 rounded-lg bg-red-100 dark:bg-red-900/50 text-red-700 dark:text-red-300 hover:bg-red-200 dark:hover:bg-red-800/50 font-semibold">
+                            <button onClick={handleAddDropSet} className="w-full flex items-center justify-center gap-2 p-2 rounded-lg bg-[#f36f52]/15 text-[#ff9d88] hover:bg-[#f36f52]/25 font-semibold">
                                 <PlusCircle size={16}/> Add Drop Set
                             </button>
                         </div>

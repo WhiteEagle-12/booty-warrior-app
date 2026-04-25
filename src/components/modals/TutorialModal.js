@@ -49,7 +49,7 @@ export const TutorialModal = ({ onProgramSelect, onClose, onBodyWeightSet, onSet
     return (
         <div>
             <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
-                <Lightbulb size={24} className="text-blue-500" /> {isReview ? 'App Refresher' : 'Welcome to Project Overload!'}
+                <Lightbulb size={24} className="text-[#f3b548]" /> {isReview ? 'App Refresher' : 'Welcome to Eagle Eye Training!'}
             </h2>
             
             <div className="space-y-4 min-h-[300px] text-gray-600 dark:text-gray-300">

@@ -3,8 +3,8 @@ import { AppStateContext } from '../../contexts/AppStateContext';
 
 const Toast = ({ message, level }) => {
     const levelStyles = {
-        success: 'bg-green-500 text-white',
-        error: 'bg-red-500 text-white',
+        success: 'bg-[#4dd6c6] text-[#071012]',
+        error: 'bg-[#f36f52] text-white',
         bronze: 'bg-amber-600 text-white',
         silver: 'bg-slate-500 text-white',
         gold: 'bg-yellow-500 text-black',
@@ -15,7 +15,7 @@ const Toast = ({ message, level }) => {
     };
     const style = levelStyles[level] || levelStyles.success;
     return (
-        <div className={`px-4 py-2 rounded-lg shadow-lg animate-fade-in-up ${style}`}>
+        <div className={`px-4 py-2 rounded-xl shadow-lg animate-fade-in-up font-semibold ${style}`}>
             {message}
         </div>
     );

@@ -1,164 +1,209 @@
 import React, { useMemo } from 'react';
-import { LayoutDashboard, BrainCircuit } from 'lucide-react';
-import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { getWorkoutForWeek, getWorkoutNameForDay } from '../utils/workout';
-import { getExerciseDetails, getSetVolume, isSetLogComplete } from '../utils/helpers';
-import { calculateStreak } from '../utils/formatters';
-import { ProgressBar } from '../components/common/ProgressBar';
-import { StreakCounter } from '../components/common/StreakCounter';
-import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
+import { Activity, BarChart2, BrainCircuit, Crosshair, Dumbbell, Flame, Gauge, Medal, Target, Trophy } from 'lucide-react';
+import { Area, AreaChart, CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
+import { getSetVolume } from '../utils/helpers';
+import { formatWeight } from '../utils/formatters';
+import { getProgramMetrics } from '../utils/trainingMetrics';
+
+const StatCard = ({ icon: Icon, label, value, detail, accent = '#f3b548' }) => (
+    <div className="ee-panel-soft rounded-xl p-4">
+        <div className="flex items-center justify-between gap-3">
+            <div>
+                <p className="text-xs font-bold uppercase text-[#9ca89d]">{label}</p>
+                <p className="mt-2 text-2xl font-black text-[#efe7d5]">{value}</p>
+            </div>
+            <div className="flex h-11 w-11 items-center justify-center rounded-xl" style={{ backgroundColor: `${accent}1f`, color: accent }}>
+                <Icon size={22} />
+            </div>
+        </div>
+        {detail && <p className="mt-3 text-sm text-[#9ca89d]">{detail}</p>}
+    </div>
+);
+
+const ReadinessDial = ({ score }) => {
+    const circumference = 2 * Math.PI * 44;
+    const offset = circumference - (score / 100) * circumference;
+
+    return (
+        <div className="relative mx-auto flex h-36 w-36 items-center justify-center">
+            <svg viewBox="0 0 110 110" className="absolute inset-0 h-full w-full -rotate-90">
+                <circle cx="55" cy="55" r="44" stroke="rgba(239,231,213,0.1)" strokeWidth="10" fill="none" />
+                <circle cx="55" cy="55" r="44" stroke="#4dd6c6" strokeWidth="10" fill="none" strokeLinecap="round" strokeDasharray={circumference} strokeDashoffset={offset} />
+            </svg>
+            <div className="text-center">
+                <p className="text-4xl font-black text-[#efe7d5]">{score}</p>
+                <p className="text-xs font-bold uppercase text-[#4dd6c6]">Readiness</p>
+            </div>
+        </div>
+    );
+};
 
 export const DashboardView = ({ allLogs, programData, bodyWeightHistory }) => {
-    const { masterExerciseList, weeklySchedule, info, settings, workoutOrder } = programData;
-
-    const { totalSets, completedSets, streak, firstIncompleteWeek } = useMemo(() => {
-        let totalSetsCount = 0;
-        let completedSetsCount = 0;
-
-        for (let w = 1; w <= info.weeks; w++) {
-            const weekSched = programData.weeklyScheduleOverrides?.[w] || weeklySchedule;
-            weekSched.forEach(day => {
-                const workoutName = getWorkoutNameForDay(programData, w, day.day);
-                if (workoutName && !programData.programStructure[workoutName]?.isRest) {
-                    const workout = getWorkoutForWeek(programData, w, workoutName);
-                    if (workout && workout.exercises) {
-                        workout.exercises.forEach(ex => {
-                            const details = getExerciseDetails(ex.name, masterExerciseList);
-                            if (details) {
-                                const setTotal = Number(details.sets) || 0;
-                                totalSetsCount += setTotal;
-
-                                // Count completed sets for this exercise in this week/day
-                                for (let s = 1; s <= setTotal; s++) {
-                                    const logId = `${w}-${day.day}-${ex.name}-${s}`;
-                                    if (isSetLogComplete(allLogs[logId])) {
-                                        completedSetsCount++;
-                                    }
-                                }
-                            }
-                        });
-                    }
-                }
-            });
-        }
-
-        const currentStreak = calculateStreak(allLogs, programData);
-        
-        let incompleteWeek = 1;
-        for (let w = 1; w <= info.weeks; w++) {
-             const weekSched = programData.weeklyScheduleOverrides?.[w] || weeklySchedule;
-             const isWeekComplete = weekSched.every(day => {
-                const workoutName = getWorkoutNameForDay(programData, w, day.day);
-                if(programData.programStructure[workoutName]?.isRest) return true;
-                const workout = getWorkoutForWeek(programData, w, workoutName);
-                if(!workout) return true;
-                return workout.exercises.every(ex => {
-                    const details = getExerciseDetails(ex.name, masterExerciseList);
-                    if(!details) return false;
-                    return Array.from({length: Number(details.sets)}, (_, i) => i + 1).every(setNum => isSetLogComplete(allLogs[`${w}-${day.day}-${ex.name}-${setNum}`]));
-                });
-            });
-            if (!isWeekComplete) {
-                incompleteWeek = w;
-                break;
-            }
-        }
-
-        return { totalSets: totalSetsCount, completedSets: completedSetsCount, streak: currentStreak, firstIncompleteWeek: incompleteWeek };
-    }, [allLogs, programData, weeklySchedule, info.weeks, masterExerciseList]);
+    const metrics = useMemo(() => getProgramMetrics(allLogs, programData, bodyWeightHistory), [allLogs, programData, bodyWeightHistory]);
 
     const weeklyVolumeData = useMemo(() => {
-        const volumesByDay = {};
-        weeklySchedule.forEach(d => {
-            const workoutName = getWorkoutNameForDay(programData, firstIncompleteWeek, d.day);
-            if (workoutName && !programData.programStructure[workoutName]?.isRest) volumesByDay[d.day] = 0;
-        });
-
+        const weeks = {};
         Object.values(allLogs).forEach(log => {
-            if (log.week === firstIncompleteWeek && volumesByDay[log.dayKey] !== undefined) {
-                volumesByDay[log.dayKey] += getSetVolume(log, masterExerciseList);
-            }
+            if (!log.week) return;
+            weeks[log.week] = (weeks[log.week] || 0) + getSetVolume(log, programData.masterExerciseList);
         });
-        
-        return weeklySchedule
-            .filter(d => {
-                const workoutName = getWorkoutNameForDay(programData, firstIncompleteWeek, d.day);
-                return workoutName && !programData.programStructure[workoutName]?.isRest;
-            })
-            .map((d, index) => ({
-                day: settings.useWeeklySchedule ? d.day : `Day ${index + 1}`,
-                volume: Math.round(volumesByDay[d.day] || 0)
-            }));
-    }, [allLogs, masterExerciseList, firstIncompleteWeek, settings.useWeeklySchedule, weeklySchedule, programData]);
-    
-    const formattedBodyWeightHistory = useMemo(() => {
-        return bodyWeightHistory
-            .filter(entry => entry && entry.weight && parseFloat(entry.weight) > 0)
-            .map(entry => ({...entry, date: new Date(entry.date) }))
-            .sort((a,b) => a.date - b.date)
+        return Object.entries(weeks)
+            .map(([week, volume]) => ({ week: `W${week}`, volume: Math.round(volume) }))
+            .sort((a, b) => parseInt(a.week.slice(1), 10) - parseInt(b.week.slice(1), 10));
+    }, [allLogs, programData.masterExerciseList]);
+
+    const bodyWeightData = useMemo(() => {
+        return (bodyWeightHistory || [])
+            .filter(entry => parseFloat(entry?.weight) > 0)
+            .map(entry => ({ ...entry, dateObj: new Date(entry.date) }))
+            .sort((a, b) => a.dateObj - b.dateObj)
+            .slice(-12)
             .map(entry => ({
-                date: entry.date.toLocaleDateString(),
-                weight: entry.weight
+                date: entry.dateObj.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }),
+                weight: Math.round(entry.weight * 10) / 10,
             }));
     }, [bodyWeightHistory]);
 
+    const nextWorkout = metrics.nextWorkout;
+    const nextExercises = nextWorkout?.workout?.exercises?.slice(0, 4) || [];
+    const xp = metrics.completedSets * 25 + metrics.completedWorkouts * 150 + metrics.streak * 80;
+    const level = Math.max(1, Math.floor(xp / 1200) + 1);
+    const levelProgress = Math.round(((xp % 1200) / 1200) * 100);
+
     return (
-       <div className="p-4 md:p-6">
-            <div className="flex flex-col items-center text-center mb-6">
-                <div className="flex justify-center items-center">
-                    <LayoutDashboard className="text-blue-500 dark:text-blue-400 mr-2" size={32} />
-                    <h1 className="text-3xl font-bold dark:text-white">Dashboard</h1>
+       <div className="py-5 md:py-8">
+            <section className="ee-panel relative overflow-hidden rounded-2xl p-5 md:p-7">
+                <div className="absolute right-0 top-0 h-full w-1/2 opacity-10" style={{ backgroundImage: 'url(/brand/eagle-eye-concept.png)', backgroundSize: 'cover', backgroundPosition: 'center' }} />
+                <div className="relative grid gap-6 lg:grid-cols-[1.15fr_0.85fr]">
+                    <div>
+                        <div className="ee-chip"><Crosshair size={14} /> Command center</div>
+                        <h1 className="mt-4 max-w-3xl text-4xl font-black tracking-normal text-[#efe7d5] md:text-5xl">Eagle Eye Training</h1>
+                        <p className="mt-3 max-w-2xl text-base text-[#9ca89d] md:text-lg">
+                            Your mesocycle, recovery signals, PRs, and next-set priorities in one focused training deck.
+                        </p>
+                        <div className="mt-6 grid grid-cols-2 gap-3 md:grid-cols-4">
+                            <StatCard icon={Target} label="Meso lock" value={`${metrics.progressPercentage}%`} detail={`${metrics.completedSets}/${metrics.totalSets} sets`} />
+                            <StatCard icon={Flame} label="Streak" value={metrics.streak} detail="Scheduled sessions" accent="#f36f52" />
+                            <StatCard icon={Activity} label="7-day sets" value={metrics.recentSets} detail="Recent load" accent="#4dd6c6" />
+                            <StatCard icon={Medal} label="Level" value={level} detail={`${levelProgress}% to next`} accent="#5b83c4" />
+                        </div>
+                    </div>
+                    <div className="ee-panel-soft rounded-2xl p-5">
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <p className="text-xs font-bold uppercase text-[#9ca89d]">Mission readiness</p>
+                                <h2 className="mt-1 text-xl font-black text-[#efe7d5]">Recovery radar</h2>
+                            </div>
+                            <Gauge className="text-[#4dd6c6]" />
+                        </div>
+                        <ReadinessDial score={metrics.readinessScore} />
+                        <div className="mt-3 grid grid-cols-3 gap-2 text-center text-xs">
+                            <div className="rounded-lg bg-white/5 p-2"><span className="block font-black text-[#efe7d5]">{metrics.avgRir.toFixed(1)}</span><span className="text-[#9ca89d]">Avg RIR</span></div>
+                            <div className="rounded-lg bg-white/5 p-2"><span className="block font-black text-[#efe7d5]">{formatWeight(metrics.totalVolume, 'lbs', false)}</span><span className="text-[#9ca89d]">Volume</span></div>
+                            <div className="rounded-lg bg-white/5 p-2"><span className="block font-black text-[#efe7d5]">{metrics.completedWorkouts}</span><span className="text-[#9ca89d]">Wins</span></div>
+                        </div>
+                    </div>
                 </div>
-                <p className="text-lg text-gray-600 dark:text-gray-400">Your Program At a Glance</p>
+            </section>
+
+            <div className="mt-6 grid gap-6 lg:grid-cols-[1fr_380px]">
+                <section className="ee-panel rounded-2xl p-5">
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                        <div>
+                            <p className="text-xs font-bold uppercase text-[#f3b548]">Next target</p>
+                            <h2 className="text-2xl font-black text-[#efe7d5]">
+                                {nextWorkout ? `Week ${nextWorkout.week}: ${nextWorkout.workout?.label || nextWorkout.workoutName}` : 'Program complete'}
+                            </h2>
+                            <p className="text-sm text-[#9ca89d]">{nextWorkout ? `${nextWorkout.dayKey} training session` : 'Start a new block from Program Hub.'}</p>
+                        </div>
+                        <div className="ee-chip"><Dumbbell size={14} /> Next Set</div>
+                    </div>
+                    <div className="mt-5 grid gap-3 sm:grid-cols-2">
+                        {nextExercises.length > 0 ? nextExercises.map(ex => (
+                            <div key={ex.id || ex.name} className="rounded-xl border border-white/10 bg-black/20 p-4">
+                                <p className="font-bold text-[#efe7d5]">{ex.name}</p>
+                                <p className="mt-1 text-sm text-[#9ca89d]">Load, reps, and RIR targets are prepped in the logger.</p>
+                            </div>
+                        )) : (
+                            <div className="rounded-xl border border-white/10 bg-black/20 p-4 text-[#9ca89d]">No upcoming exercises found.</div>
+                        )}
+                    </div>
+                </section>
+
+                <section className="ee-panel rounded-2xl p-5">
+                    <div className="flex items-center justify-between">
+                        <div>
+                            <p className="text-xs font-bold uppercase text-[#f3b548]">PR scope</p>
+                            <h2 className="text-xl font-black text-[#efe7d5]">Top sights</h2>
+                        </div>
+                        <Trophy className="text-[#f3b548]" />
+                    </div>
+                    <div className="mt-4 space-y-3">
+                        {metrics.topPrs.length > 0 ? metrics.topPrs.map(record => (
+                            <div key={record.exercise} className="flex items-center justify-between gap-3 rounded-xl bg-white/5 p-3">
+                                <div>
+                                    <p className="font-bold text-[#efe7d5]">{record.exercise}</p>
+                                    <p className="text-xs text-[#9ca89d]">Week {record.log.week}, {record.log.dayKey}</p>
+                                </div>
+                                <div className="text-right">
+                                    <p className="text-xl font-black text-[#4dd6c6]">{record.e1rm}</p>
+                                    <p className="text-xs text-[#9ca89d]">e1RM</p>
+                                </div>
+                            </div>
+                        )) : (
+                            <p className="rounded-xl bg-white/5 p-4 text-sm text-[#9ca89d]">Log a few sets to establish your first PR sights.</p>
+                        )}
+                    </div>
+                </section>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-                <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-6">
-                    <ProgressBar completed={completedSets} total={totalSets} label="Meso Progress" />
-                </div>
-                 <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-6 flex justify-center items-center">
-                    <StreakCounter streak={streak} />
-                </div>
-            </div>
-            
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-                <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-6">
-                    <h3 className="font-semibold text-lg text-gray-900 dark:text-white mb-4">This Week's Volume (Week {firstIncompleteWeek})</h3>
+            <div className="mt-6 grid gap-6 lg:grid-cols-2">
+                <section className="ee-panel rounded-2xl p-5">
+                    <div className="mb-4 flex items-center gap-2">
+                        <BarChart2 className="text-[#4dd6c6]" />
+                        <h2 className="text-xl font-black text-[#efe7d5]">Weekly volume trajectory</h2>
+                    </div>
                     {weeklyVolumeData.length > 0 ? (
-                        <ResponsiveContainer width="100%" height={250}>
-                             <BarChart data={weeklyVolumeData}>
-                                <CartesianGrid strokeDasharray="3 3" className="stroke-gray-200 dark:stroke-gray-700" />
-                                <XAxis dataKey="day" tick={{ fill: '#9ca3af' }} />
-                                <YAxis domain={[0, 'auto']} tick={{ fill: '#9ca3af' }} />
-                                <Tooltip contentStyle={{ backgroundColor: 'var(--tooltip-bg)', border: '1px solid var(--tooltip-border)' }} formatter={(value) => [`${value.toLocaleString()} lbs`, 'Total Volume']} />
-                                <Bar dataKey="volume" fill="#8884d8" />
-                            </BarChart>
+                        <ResponsiveContainer width="100%" height={280}>
+                            <AreaChart data={weeklyVolumeData}>
+                                <defs>
+                                    <linearGradient id="volumeGradient" x1="0" y1="0" x2="0" y2="1">
+                                        <stop offset="5%" stopColor="#4dd6c6" stopOpacity={0.45}/>
+                                        <stop offset="95%" stopColor="#4dd6c6" stopOpacity={0}/>
+                                    </linearGradient>
+                                </defs>
+                                <CartesianGrid strokeDasharray="3 3" stroke="rgba(239,231,213,0.1)" />
+                                <XAxis dataKey="week" tick={{ fill: '#9ca89d' }} />
+                                <YAxis tick={{ fill: '#9ca89d' }} />
+                                <Tooltip contentStyle={{ backgroundColor: 'var(--tooltip-bg)', border: '1px solid var(--tooltip-border)', color: '#efe7d5' }} />
+                                <Area type="monotone" dataKey="volume" stroke="#4dd6c6" fill="url(#volumeGradient)" strokeWidth={3} />
+                            </AreaChart>
                         </ResponsiveContainer>
-                    ) : <p className="text-gray-600 dark:text-gray-400">Log some workouts this week to see your volume data.</p>}
-                </div>
-                 <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-6">
-                    <h3 className="font-semibold text-lg text-gray-900 dark:text-white mb-4">Bodyweight Trend</h3>
-                      {formattedBodyWeightHistory.length > 1 ? (
-                        <ResponsiveContainer width="100%" height={250}>
-                            <LineChart data={formattedBodyWeightHistory}>
-                                <CartesianGrid strokeDasharray="3 3" className="stroke-gray-200 dark:stroke-gray-700" />
-                                <XAxis dataKey="date" tick={{ fill: '#9ca3af' }} />
-                                <YAxis domain={['auto', 'auto']} tick={{ fill: '#9ca3af' }} />
-                                <Tooltip contentStyle={{ backgroundColor: 'var(--tooltip-bg)', border: '1px solid var(--tooltip-border)' }} />
-                                <Line type="monotone" dataKey="weight" stroke="#82ca9d" strokeWidth={2} dot={false} />
+                    ) : <p className="py-16 text-center text-[#9ca89d]">Volume chart activates after your first logged set.</p>}
+                </section>
+
+                <section className="ee-panel rounded-2xl p-5">
+                    <div className="mb-4 flex items-center gap-2">
+                        <BrainCircuit className="text-[#f3b548]" />
+                        <h2 className="text-xl font-black text-[#efe7d5]">Bodyweight signal</h2>
+                    </div>
+                    {bodyWeightData.length > 1 ? (
+                        <ResponsiveContainer width="100%" height={280}>
+                            <LineChart data={bodyWeightData}>
+                                <CartesianGrid strokeDasharray="3 3" stroke="rgba(239,231,213,0.1)" />
+                                <XAxis dataKey="date" tick={{ fill: '#9ca89d' }} />
+                                <YAxis domain={['auto', 'auto']} tick={{ fill: '#9ca89d' }} />
+                                <Tooltip contentStyle={{ backgroundColor: 'var(--tooltip-bg)', border: '1px solid var(--tooltip-border)', color: '#efe7d5' }} />
+                                <Line type="monotone" dataKey="weight" stroke="#f3b548" strokeWidth={3} dot={{ r: 4, fill: '#f3b548' }} />
                             </LineChart>
                         </ResponsiveContainer>
-                    ) : <p className="text-gray-600 dark:text-gray-400">Log your bodyweight multiple times in Settings to see a trend.</p>}
-                </div>
+                    ) : (
+                        <div className="py-16 text-center">
+                            <p className="text-[#9ca89d]">Log bodyweight twice in Settings to unlock trend tracking.</p>
+                        </div>
+                    )}
+                </section>
             </div>
-
-            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-6">
-                <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">AI Weekly Summary</h3>
-                <p className="text-gray-600 dark:text-gray-400 mb-4">Get a personalized summary of your last completed week, including highlights, areas for improvement, and tips for next week.</p>
-                <button className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg shadow-md hover:bg-blue-700 transition-colors">
-                    <BrainCircuit size={16} /> Generate AI Summary
-                </button>
-            </div>
-        </div>
+       </div>
     );
 };

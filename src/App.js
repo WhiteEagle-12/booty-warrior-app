@@ -43,10 +43,13 @@ const AppCore = () => {
 
     if (isLoading || isDataLoading) {
         return (
-            <div className="bg-gray-100 dark:bg-gray-900 min-h-screen flex justify-center items-center">
+            <div className="min-h-screen flex justify-center items-center bg-[#090d12] text-[#efe7d5]">
                 <div className="flex flex-col items-center">
-                    <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
-                    <p className="text-gray-600 dark:text-gray-300 mt-4">Loading Your Program...</p>
+                    <img src="/brand/eagle-eye-mark.png" alt="" className="w-16 h-16 object-contain animate-pulse" />
+                    <div className="w-44 h-1 mt-6 rounded-full bg-white/10 overflow-hidden">
+                        <div className="w-1/2 h-full bg-[#f3b548] animate-pulse"></div>
+                    </div>
+                    <p className="text-[#9ca89d] mt-4">Calibrating Eagle Eye Training...</p>
                 </div>
             </div>
         );
@@ -72,11 +75,11 @@ const AppCore = () => {
     };
 
     return (
-        <div className="bg-gray-100 dark:bg-gray-900 min-h-screen font-sans text-gray-900 dark:text-gray-100">
-            <div className="md:pl-64">
+        <div className="min-h-screen font-sans text-[#efe7d5]">
+            <div className="md:pl-72">
                 <AppHeader programName={programData.info.name} onNavChange={navigate} />
                  <main className="flex-grow">
-                    <div className="container mx-auto max-w-4xl">{renderContent()}</div>
+                    <div className="mx-auto max-w-7xl px-3 sm:px-5 lg:px-8">{renderContent()}</div>
                 </main>
             </div>
             <Sidebar onNavChange={navigate} currentPage={pageState.view} />

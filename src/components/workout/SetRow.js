@@ -30,37 +30,37 @@ export const SetRow = ({ setNumber, logData, onLogChange, lastSetData, exerciseD
     const isSkipped = logData.skipped;
 
     return (
-        <div className={`grid grid-cols-4 sm:grid-cols-7 gap-2 items-center py-2 px-3 rounded-md transition-all ${isSkipped ? 'bg-gray-200 dark:bg-gray-800 opacity-60' : (isDropSet ? 'bg-red-100 dark:bg-red-900/30' : 'bg-gray-50 dark:bg-gray-700/50')}`}>
-            <div className="text-sm font-bold text-gray-800 dark:text-gray-200 col-span-4 sm:col-span-1">{displaySetNumber || `Set ${setNumber}`}</div>
-            <div className="hidden sm:block text-sm text-center text-gray-600 dark:text-gray-400">{isDropSet ? 'AMRAP' : exerciseDetails.reps}</div>
-            <div className="hidden sm:block text-sm text-center font-medium text-blue-600 dark:text-blue-400">{targetEffort}</div>
-            <div className="sm:hidden col-span-4 text-xs text-center text-gray-500 dark:text-gray-400 -mt-1 mb-1">
-                Target: <span className="font-medium text-gray-700 dark:text-gray-300">{isDropSet ? 'As many reps as possible' : `${exerciseDetails.reps} reps, ${targetEffort}`}</span>
+        <div className={`grid grid-cols-4 sm:grid-cols-7 gap-2 items-center rounded-xl border py-2 px-3 transition-all ${isSkipped ? 'border-white/5 bg-white/[0.025] opacity-60' : (isDropSet ? 'border-[#f36f52]/30 bg-[#f36f52]/10' : 'border-white/10 bg-white/[0.045]')}`}>
+            <div className="text-sm font-black text-[#efe7d5] col-span-4 sm:col-span-1">{displaySetNumber || `Set ${setNumber}`}</div>
+            <div className="hidden sm:block text-sm text-center text-[#9ca89d]">{isDropSet ? 'AMRAP' : exerciseDetails.reps}</div>
+            <div className="hidden sm:block text-sm text-center font-bold text-[#4dd6c6]">{targetEffort}</div>
+            <div className="sm:hidden col-span-4 text-xs text-center text-[#9ca89d] -mt-1 mb-1">
+                Target: <span className="font-medium text-[#efe7d5]">{isDropSet ? 'As many reps as possible' : `${exerciseDetails.reps} reps, ${targetEffort}`}</span>
             </div>
             <div>
-                <label className="sm:hidden text-xs text-gray-500">Load</label>
-                <input id={`input-${exerciseName}-${logId}-load`} name="load" type="number" placeholder={placeholderWeight} value={logData.displayLoad || ''} onChange={(e) => onLogChange(logId, 'load', e.target.value)} onKeyDown={handleKeyDown} disabled={isSkipped} className="w-full p-1.5 text-sm bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 placeholder:text-gray-400 dark:placeholder:text-gray-500 disabled:opacity-70"/>
+                <label className="sm:hidden text-xs text-[#9ca89d]">Load</label>
+                <input id={`input-${exerciseName}-${logId}-load`} name="load" type="number" placeholder={placeholderWeight} value={logData.displayLoad || ''} onChange={(e) => onLogChange(logId, 'load', e.target.value)} onKeyDown={handleKeyDown} disabled={isSkipped} className="ee-input p-1.5 disabled:opacity-70"/>
             </div>
             <div>
-                <label className="sm:hidden text-xs text-gray-500">Reps</label>
-                <input id={`input-${exerciseName}-${logId}-reps`} name="reps" type="number" placeholder={lastSetData?.reps || "Reps"} value={logData.reps || ''} onChange={(e) => onLogChange(logId, 'reps', e.target.value)} onKeyDown={handleKeyDown} disabled={isSkipped} className="w-full p-1.5 text-sm bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 placeholder:text-gray-400 dark:placeholder:text-gray-500 disabled:opacity-70"/>
+                <label className="sm:hidden text-xs text-[#9ca89d]">Reps</label>
+                <input id={`input-${exerciseName}-${logId}-reps`} name="reps" type="number" placeholder={lastSetData?.reps || "Reps"} value={logData.reps || ''} onChange={(e) => onLogChange(logId, 'reps', e.target.value)} onKeyDown={handleKeyDown} disabled={isSkipped} className="ee-input p-1.5 disabled:opacity-70"/>
             </div>
             <div>
-                <label className="sm:hidden text-xs text-gray-500">RIR</label>
+                <label className="sm:hidden text-xs text-[#9ca89d]">RIR</label>
                 <input id={`input-${exerciseName}-${logId}-rir`} name="rir" type="number" placeholder={isDropSet ? "0" : (lastSetData?.rir ?? "RIR")} value={logData.rir || ''}
                     onChange={(e) => onLogChange(logId, 'rir', e.target.value)}
                     onKeyDown={handleKeyDown}
                     disabled={isSkipped}
-                    className="w-full p-1.5 text-sm bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 placeholder:text-gray-400 dark:placeholder:text-gray-500 disabled:opacity-70"
+                    className="ee-input p-1.5 disabled:opacity-70"
                 />
             </div>
             <div className="sm:pl-2">
                 {isSkipped ? (
-                    <button onClick={() => onLogChange(logId, 'unskip', false)} className="text-xs p-1.5 w-full bg-yellow-500 text-white rounded-md transition-colors flex items-center justify-center gap-1">
+                    <button onClick={() => onLogChange(logId, 'unskip', false)} className="text-xs p-1.5 w-full bg-[#f3b548] text-[#15100a] rounded-md transition-colors flex items-center justify-center gap-1 font-bold">
                         <XCircle size={14}/> Skipped
                     </button>
                 ) : (
-                    <button onClick={() => onLogChange(logId, 'skip', true)} className="text-xs p-1.5 w-full bg-gray-200 dark:bg-gray-600 hover:bg-gray-300 dark:hover:bg-gray-500 rounded-md transition-colors">Skip</button>
+                    <button onClick={() => onLogChange(logId, 'skip', true)} className="text-xs p-1.5 w-full bg-white/10 hover:bg-white/15 rounded-md transition-colors text-[#9ca89d]">Skip</button>
                 )}
             </div>
         </div>

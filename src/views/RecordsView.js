@@ -36,46 +36,49 @@ export const RecordsView = ({ allLogs, programData, onBack }) => {
     }, [personalRecords, searchTerm]);
 
     return (
-        <div className="p-4 md:p-6 pb-24">
-             <div className="flex flex-col items-center text-center mb-6">
-                <div className="flex justify-center items-center">
-                    <Trophy className="text-yellow-500 dark:text-yellow-400 mr-2" size={32} />
-                    <h1 className="text-3xl font-bold dark:text-white">Personal Records</h1>
+        <div className="py-5 md:py-8 pb-24">
+             <div className="ee-panel mb-6 rounded-2xl p-5 md:p-6">
+                <div className="flex items-center gap-3">
+                    <Trophy className="text-[#f3b548]" size={32} />
+                    <div>
+                        <p className="text-xs font-bold uppercase text-[#f3b548]">PR scope</p>
+                        <h1 className="text-3xl font-black text-[#efe7d5]">Personal Records</h1>
+                    </div>
                 </div>
-                <p className="text-lg text-gray-600 dark:text-gray-400">Your Best Lifts (e1RM)</p>
+                <p className="mt-3 text-[#9ca89d]">Your strongest estimated one-rep max sightings.</p>
             </div>
             <div className="mb-6">
                 <div className="relative">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-[#9ca89d]" size={20} />
                     <input 
                         type="text"
                         placeholder="Search for an exercise..."
                         value={searchTerm}
                         onChange={e => setSearchTerm(e.target.value)}
-                        className="w-full p-2 pl-10 bg-white dark:bg-gray-800 rounded-md border border-gray-300 dark:border-gray-600 shadow-sm"
+                        className="ee-input pl-10"
                     />
                 </div>
             </div>
             <div className="space-y-3">
                 {filteredRecords.length > 0 ? filteredRecords.map(({ exercise, e1rm, log }) => (
-                    <div key={exercise} className="bg-white dark:bg-gray-800 rounded-lg p-4 flex justify-between items-center shadow-md">
+                    <div key={exercise} className="ee-panel-soft rounded-xl p-4 flex justify-between items-center">
                         <div>
-                            <h3 className="font-bold text-lg text-gray-900 dark:text-white">{exercise}</h3>
-                            <p className="text-sm text-gray-500 dark:text-gray-400">
+                            <h3 className="font-black text-lg text-[#efe7d5]">{exercise}</h3>
+                            <p className="text-sm text-[#9ca89d]">
                                 {log.load} lbs x {log.reps} reps @ {log.rir || 0} RIR
                             </p>
-                            <p className="text-xs text-gray-400 dark:text-gray-500">
+                            <p className="text-xs text-[#9ca89d]">
                                 Set on: Week {log.week}, {log.dayKey}
                             </p>
                         </div>
                         <div className="text-right">
-                            <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">{e1rm}</p>
-                            <p className="text-sm font-medium text-gray-500 dark:text-gray-400">e1RM</p>
+                            <p className="text-2xl font-black text-[#4dd6c6]">{e1rm}</p>
+                            <p className="text-sm font-medium text-[#9ca89d]">e1RM</p>
                         </div>
                     </div>
                 )) : (
                     <div className="text-center py-10">
-                        <p className="text-gray-500 dark:text-gray-400">No records found for "{searchTerm}".</p>
+                        <p className="text-[#9ca89d]">No records found for "{searchTerm}".</p>
                     </div>
                 )}
             </div>

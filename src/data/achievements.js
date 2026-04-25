@@ -1,4 +1,4 @@
-import { Trophy, Award, CalendarDays, Flame, Zap, Star, TrendingUp, Shield, Pencil } from 'lucide-react';
+import { Trophy, Award, CalendarDays, Flame, Zap, Star, TrendingUp, Shield, Pencil, Eye, Crosshair, Gauge, Crown } from 'lucide-react';
 import { calculateE1RM, getExerciseDetails, isSetLogComplete, getSetVolume } from '../utils/helpers';
 import { getWorkoutForWeek, getWorkoutNameForDay } from '../utils/workout';
 import { formatWeight, calculateStreak, getMaxE1RMFor, getBodyweightRatioFor } from '../utils/formatters';
@@ -291,6 +291,74 @@ export const achievementsList = {
 
             return count >= totalWorkouts && totalWorkouts > 0 ? 1 : 0;
         }
+    },
+    eagle_eye_precision: {
+        name: "Eagle Eye Precision",
+        description: "Log load, reps, and RIR with disciplined consistency.",
+        icon: Eye,
+        type: 'tiered',
+        unit: 'sets',
+        tiers: [
+            { name: "Scout", value: 25, description: () => "Logged 25 fully complete sets." },
+            { name: "Marksman", value: 100, description: () => "Logged 100 complete sets with clean tracking." },
+            { name: "Overwatch", value: 250, description: () => "Logged 250 complete sets. Your data is dialed in." },
+        ],
+        getValue: (logs) => Object.values(logs).filter(l => isSetLogComplete(l) && !l.skipped).length
+    },
+    target_acquired: {
+        name: "Target Acquired",
+        description: "Hit repeated PRs across your exercise roster.",
+        icon: Crosshair,
+        type: 'tiered',
+        unit: 'sessions',
+        tiers: [
+            { name: "3 PRs", value: 3, description: () => "Established PRs on 3 different exercises." },
+            { name: "8 PRs", value: 8, description: () => "Established PRs on 8 different exercises." },
+            { name: "15 PRs", value: 15, description: () => "Established PRs on 15 different exercises." },
+        ],
+        getValue: (logs) => {
+            const exercisesWithPrs = new Set();
+            Object.values(logs).forEach(log => {
+                if (isSetLogComplete(log) && !log.skipped && log.exercise && (log.load || log.load === 0) && log.reps) {
+                    exercisesWithPrs.add(log.exercise);
+                }
+            });
+            return exercisesWithPrs.size;
+        }
+    },
+    glute_airspace: {
+        name: "Glute Airspace",
+        description: "Build lower-body tonnage across glute, hip thrust, squat, and lunge work.",
+        icon: Gauge,
+        type: 'tiered',
+        unit: 'weight',
+        tiers: [
+            { name: "Patrol", value: 25000, description: (v, u) => `Logged ${formatWeight(v, u)} of lower-body volume.` },
+            { name: "Air Control", value: 125000, description: (v, u) => `Logged ${formatWeight(v, u)} of lower-body volume.` },
+            { name: "No-Fly Zone", value: 300000, description: (v, u) => `Logged ${formatWeight(v, u)} of lower-body volume.` },
+        ],
+        getValue: (logs, program) => {
+            const lowerKeywords = ['glute', 'hip thrust', 'squat', 'lunge', 'split squat', 'leg press', 'rdl', 'romanian', 'deadlift'];
+            return Object.values(logs).reduce((sum, log) => {
+                const name = (log.exercise || '').toLowerCase();
+                return lowerKeywords.some(keyword => name.includes(keyword))
+                    ? sum + getSetVolume(log, program.masterExerciseList)
+                    : sum;
+            }, 0);
+        }
+    },
+    command_elite: {
+        name: "Command Elite",
+        description: "Complete a deep campaign of focused training sessions.",
+        icon: Crown,
+        type: 'tiered',
+        unit: 'sessions',
+        tiers: [
+            { name: "Wing Lead", value: 25, description: () => "Completed 25 workouts." },
+            { name: "Squadron Lead", value: 75, description: () => "Completed 75 workouts." },
+            { name: "Command Elite", value: 150, description: () => "Completed 150 workouts." },
+        ],
+        getValue: (logs, program) => achievementsList.workouts_completed.getValue(logs, program)
     },
     the_architect: {
         name: "The Architect",

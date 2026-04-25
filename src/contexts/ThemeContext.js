@@ -12,8 +12,8 @@ export const ThemeProvider = ({ children }) => {
         const root = document.documentElement;
         root.classList.remove('light', 'dark');
         root.classList.add(theme);
-        root.style.setProperty('--tooltip-bg', theme === 'dark' ? '#374151' : '#ffffff');
-        root.style.setProperty('--tooltip-border', theme === 'dark' ? '#4b5563' : '#d1d5db');
+        root.style.setProperty('--tooltip-bg', theme === 'dark' ? '#101820' : '#ffffff');
+        root.style.setProperty('--tooltip-border', theme === 'dark' ? 'rgba(230, 221, 203, 0.18)' : '#d1d5db');
     }, [theme]);
 
     const toggleTheme = useCallback(() => {

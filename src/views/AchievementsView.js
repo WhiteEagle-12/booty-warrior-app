@@ -62,12 +62,21 @@ export const AchievementCard = ({ achievementId, achievement, unlockedStatus, cu
         '135': { bg: 'bg-gray-100 dark:bg-gray-800/50', text: 'text-gray-500', border: 'border-gray-500', progress: 'bg-gray-500'},
         '185': { bg: 'bg-red-100 dark:bg-red-800/50', text: 'text-red-500', border: 'border-red-500', progress: 'bg-red-500'},
         '225': { bg: 'bg-blue-100 dark:bg-blue-800/50', text: 'text-blue-500', border: 'border-blue-500', progress: 'bg-blue-500'},
-        'default': { bg: 'bg-gray-100 dark:bg-gray-800', text: 'text-gray-500', border: 'border-transparent', progress: 'bg-blue-500' }
-    }[colorKey] || { bg: 'bg-gray-100 dark:bg-gray-800', text: 'text-gray-500', border: 'border-transparent', progress: 'bg-blue-500' };
+        'scout': { bg: 'bg-amber-500/10', text: 'text-amber-300', border: 'border-amber-400/40', progress: 'bg-amber-400' },
+        'marksman': { bg: 'bg-teal-400/10', text: 'text-teal-300', border: 'border-teal-300/40', progress: 'bg-teal-300' },
+        'overwatch': { bg: 'bg-blue-400/10', text: 'text-blue-300', border: 'border-blue-300/40', progress: 'bg-blue-300' },
+        'patrol': { bg: 'bg-orange-400/10', text: 'text-orange-300', border: 'border-orange-300/40', progress: 'bg-orange-300' },
+        'air': { bg: 'bg-cyan-400/10', text: 'text-cyan-300', border: 'border-cyan-300/40', progress: 'bg-cyan-300' },
+        'no-fly': { bg: 'bg-rose-400/10', text: 'text-rose-300', border: 'border-rose-300/40', progress: 'bg-rose-300' },
+        'wing': { bg: 'bg-yellow-400/10', text: 'text-yellow-300', border: 'border-yellow-300/40', progress: 'bg-yellow-300' },
+        'squadron': { bg: 'bg-emerald-400/10', text: 'text-emerald-300', border: 'border-emerald-300/40', progress: 'bg-emerald-300' },
+        'command': { bg: 'bg-purple-400/10', text: 'text-purple-300', border: 'border-purple-300/40', progress: 'bg-purple-300' },
+        'default': { bg: 'bg-white/[0.055]', text: 'text-[#9ca89d]', border: 'border-white/10', progress: 'bg-[#f3b548]' }
+    }[colorKey] || { bg: 'bg-white/[0.055]', text: 'text-[#9ca89d]', border: 'border-white/10', progress: 'bg-[#f3b548]' };
 
-    const cardClasses = `p-4 rounded-xl flex flex-col items-center justify-center text-center aspect-square transition-all duration-300 ${isUnlocked ? `${colorScheme.bg} border-2 ${colorScheme.border} shadow-lg` : 'bg-gray-100 dark:bg-gray-800 filter grayscale opacity-60 hover:opacity-100'}`;
+    const cardClasses = `p-4 rounded-2xl flex flex-col items-center justify-center text-center aspect-square transition-all duration-300 border ${isUnlocked ? `${colorScheme.bg} ${colorScheme.border} shadow-lg` : 'bg-white/[0.035] border-white/10 grayscale opacity-60 hover:opacity-100'}`;
     const iconClasses = isUnlocked ? colorScheme.text : 'text-gray-500';
-    const textClasses = isUnlocked ? 'text-gray-800 dark:text-gray-200' : 'text-gray-600 dark:text-gray-400';
+    const textClasses = isUnlocked ? 'text-[#efe7d5]' : 'text-[#9ca89d]';
 
     return (
         <button onClick={(e) => onClick(e, achievementId)} className={cardClasses}>
@@ -77,10 +86,10 @@ export const AchievementCard = ({ achievementId, achievement, unlockedStatus, cu
             </div>
             {(nextTier) && (
                  <div className="w-full mt-2 self-end">
-                    <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-1.5">
+                    <div className="w-full bg-white/10 rounded-full h-1.5">
                         <div className={`${isUnlocked ? colorScheme.progress : 'bg-blue-500'} h-1.5 rounded-full`} style={{ width: `${progressPercentage}%` }}></div>
                     </div>
-                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                    <p className="text-xs text-[#9ca89d] mt-1">
                         {(() => {
                             const current = Math.floor(currentValue);
                             const target = nextTier.value;
@@ -182,15 +191,19 @@ export const AchievementsView = ({ unlockedAchievements, historicalLogs, program
     };
 
     return (
-        <div className="p-4 md:p-6 pb-24">
-            <div className="flex flex-col items-center text-center mb-6">
-                <div className="flex justify-center items-center">
-                    <Award className="text-yellow-500 dark:text-yellow-400 mr-2" size={32} />
-                    <h1 className="text-3xl font-bold dark:text-white">Achievements</h1>
+        <div className="py-5 md:py-8 pb-24">
+            <div className="ee-panel mb-6 rounded-2xl p-5 md:p-6">
+                <div className="flex items-center gap-3">
+                    <Award className="text-[#f3b548]" size={32} />
+                    <div>
+                        <p className="text-xs font-bold uppercase text-[#f3b548]">Reward grid</p>
+                        <h1 className="text-3xl font-black text-[#efe7d5]">Achievements</h1>
+                    </div>
                 </div>
+                <p className="mt-3 text-[#9ca89d]">New Eagle Eye badges reward precise logging, lower-body volume, PR coverage, and long-term consistency.</p>
             </div>
             {Object.keys(historicalLogs).length > 0 ? (
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                <div className="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-4">
                     {processedAchievements.map(({ id, achievement, currentValue, unlockedStatus }) => (
                         <AchievementCard 
                             key={id}
@@ -204,10 +217,10 @@ export const AchievementsView = ({ unlockedAchievements, historicalLogs, program
                     ))}
                 </div>
             ) : (
-                <div className="text-center py-16 bg-white dark:bg-gray-800 rounded-xl shadow-md">
-                    <Award size={48} className="mx-auto text-gray-400 dark:text-gray-500" />
-                    <h3 className="mt-4 text-xl font-semibold text-gray-900 dark:text-white">No Achievements Yet</h3>
-                    <p className="mt-2 text-gray-500 dark:text-gray-400">Start logging your workouts to unlock achievements and track your progress!</p>
+                <div className="ee-panel text-center py-16 rounded-2xl">
+                    <Award size={48} className="mx-auto text-[#9ca89d]" />
+                    <h3 className="mt-4 text-xl font-black text-[#efe7d5]">No Achievements Yet</h3>
+                    <p className="mt-2 text-[#9ca89d]">Start logging workouts to unlock Eagle Eye achievements.</p>
                 </div>
             )}
         </div>
