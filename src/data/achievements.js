@@ -360,6 +360,104 @@ export const achievementsList = {
         ],
         getValue: (logs, program) => achievementsList.workouts_completed.getValue(logs, program)
     },
+    posterior_chain_pilot: {
+        name: "Posterior Chain Pilot",
+        description: "Build volume across hamstrings, glutes, hip hinges, and back extensions.",
+        icon: Zap,
+        type: 'tiered',
+        unit: 'weight',
+        tiers: [
+            { name: "Takeoff", value: 20000, description: (v, u) => `Logged ${formatWeight(v, u)} of posterior-chain volume.` },
+            { name: "Cruise", value: 100000, description: (v, u) => `Logged ${formatWeight(v, u)} of posterior-chain volume.` },
+            { name: "Afterburner", value: 250000, description: (v, u) => `Logged ${formatWeight(v, u)} of posterior-chain volume.` },
+        ],
+        getValue: (logs, program) => {
+            const keywords = ['deadlift', 'rdl', 'romanian', 'hip thrust', 'glute', 'hamstring', 'leg curl', 'back extension', 'good morning', 'pull-through'];
+            return Object.values(logs).reduce((sum, log) => {
+                const name = (log.exercise || '').toLowerCase();
+                return keywords.some(keyword => name.includes(keyword)) ? sum + getSetVolume(log, program.masterExerciseList) : sum;
+            }, 0);
+        }
+    },
+    balanced_airframe: {
+        name: "Balanced Airframe",
+        description: "Log meaningful work for every major muscle group.",
+        icon: Shield,
+        type: 'tiered',
+        unit: 'sessions',
+        tiers: [
+            { name: "4 Groups", value: 4, description: () => "Logged complete sets for 4 different primary muscle groups." },
+            { name: "7 Groups", value: 7, description: () => "Logged complete sets for 7 different primary muscle groups." },
+            { name: "10 Groups", value: 10, description: () => "Logged complete sets for 10 different primary muscle groups." },
+        ],
+        getValue: (logs, program) => {
+            const groups = new Set();
+            Object.values(logs).forEach(log => {
+                if (!isSetLogComplete(log) || log.skipped) return;
+                const details = getExerciseDetails(log.exercise, program.masterExerciseList);
+                if (details?.muscles?.primary) groups.add(details.muscles.primary);
+            });
+            return groups.size;
+        }
+    },
+    black_box_data: {
+        name: "Black Box Data",
+        description: "Build a deep historical dataset of useful training logs.",
+        icon: Eye,
+        type: 'tiered',
+        unit: 'sets',
+        tiers: [
+            { name: "100 Logs", value: 100, description: () => "Captured 100 complete training logs." },
+            { name: "500 Logs", value: 500, description: () => "Captured 500 complete training logs." },
+            { name: "1000 Logs", value: 1000, description: () => "Captured 1000 complete training logs." },
+        ],
+        getValue: (logs) => Object.values(logs).filter(log => isSetLogComplete(log) && !log.skipped && log.date).length
+    },
+    volume_repeatability: {
+        name: "Volume Repeatability",
+        description: "Stack productive weeks with logged tonnage.",
+        icon: CalendarDays,
+        type: 'tiered',
+        unit: 'sessions',
+        tiers: [
+            { name: "3 Weeks", value: 3, description: () => "Logged volume in 3 different weeks." },
+            { name: "6 Weeks", value: 6, description: () => "Logged volume in 6 different weeks." },
+            { name: "12 Weeks", value: 12, description: () => "Logged volume in 12 different weeks." },
+        ],
+        getValue: (logs, program) => {
+            const weeks = new Set();
+            Object.values(logs).forEach(log => {
+                if (getSetVolume(log, program.masterExerciseList) > 0) weeks.add(log.week);
+            });
+            return weeks.size;
+        }
+    },
+    rir_specialist: {
+        name: "RIR Specialist",
+        description: "Keep effort tracking consistent instead of guessing.",
+        icon: Crosshair,
+        type: 'tiered',
+        unit: 'sets',
+        tiers: [
+            { name: "50 RIR Logs", value: 50, description: () => "Logged RIR for 50 completed sets." },
+            { name: "250 RIR Logs", value: 250, description: () => "Logged RIR for 250 completed sets." },
+            { name: "750 RIR Logs", value: 750, description: () => "Logged RIR for 750 completed sets." },
+        ],
+        getValue: (logs) => Object.values(logs).filter(log => isSetLogComplete(log) && !log.skipped && log.rir !== '').length
+    },
+    bodyweight_signal: {
+        name: "Bodyweight Signal",
+        description: "Maintain bodyweight context for strength ratios and trend analysis.",
+        icon: Gauge,
+        type: 'tiered',
+        unit: 'sessions',
+        tiers: [
+            { name: "3 Weigh-ins", value: 3, description: () => "Logged bodyweight 3 times." },
+            { name: "10 Weigh-ins", value: 10, description: () => "Logged bodyweight 10 times." },
+            { name: "25 Weigh-ins", value: 25, description: () => "Logged bodyweight 25 times." },
+        ],
+        getValue: (logs, program, bodyWeight, weightUnit, bodyWeightHistory) => (bodyWeightHistory || []).filter(entry => parseFloat(entry?.weight) > 0).length
+    },
     the_architect: {
         name: "The Architect",
         description: "Create a custom exercise in the program editor.",

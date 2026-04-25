@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useContext } from 'react';
-import { CheckCircle, Award } from 'lucide-react';
+import { CheckCircle, Award, Lock, Trophy } from 'lucide-react';
 import { AppStateContext } from '../contexts/AppStateContext';
 import { achievementsList } from '../data/achievements';
 import { formatWeight } from '../utils/formatters';
@@ -74,12 +74,17 @@ export const AchievementCard = ({ achievementId, achievement, unlockedStatus, cu
         'default': { bg: 'bg-white/[0.055]', text: 'text-[#9ca89d]', border: 'border-white/10', progress: 'bg-[#f3b548]' }
     }[colorKey] || { bg: 'bg-white/[0.055]', text: 'text-[#9ca89d]', border: 'border-white/10', progress: 'bg-[#f3b548]' };
 
-    const cardClasses = `p-4 rounded-2xl flex flex-col items-center justify-center text-center aspect-square transition-all duration-300 border ${isUnlocked ? `${colorScheme.bg} ${colorScheme.border} shadow-lg` : 'bg-white/[0.035] border-white/10 grayscale opacity-60 hover:opacity-100'}`;
+    const cardClasses = `relative p-4 rounded-2xl flex flex-col items-center justify-center text-center aspect-square transition-all duration-300 border ${isUnlocked ? `${colorScheme.bg} ${colorScheme.border} shadow-lg` : 'bg-white/[0.025] border-white/10 grayscale opacity-45 hover:opacity-80'}`;
     const iconClasses = isUnlocked ? colorScheme.text : 'text-gray-500';
     const textClasses = isUnlocked ? 'text-[#efe7d5]' : 'text-[#9ca89d]';
 
     return (
         <button onClick={(e) => onClick(e, achievementId)} className={cardClasses}>
+            {!isUnlocked && (
+                <span className="absolute right-3 top-3 rounded-full border border-white/10 bg-black/30 p-1 text-[#9ca89d]">
+                    <Lock size={14} />
+                </span>
+            )}
             <div className="flex flex-col items-center justify-center flex-grow">
                 <Icon size={36} className={iconClasses} />
                 <h3 className={`mt-2 font-bold text-sm ${textClasses}`}>{displayName}</h3>
@@ -164,26 +169,26 @@ export const AchievementsView = ({ unlockedAchievements, historicalLogs, program
         openModal(
             <div>
                 <div className="flex items-center gap-3 mb-4">
-                    <Icon size={32} className={'text-yellow-500'} />
-                    <h2 className="text-xl font-bold text-gray-900 dark:text-white">{achievement.name}</h2>
+                    <Icon size={32} className="text-[#f3b548]" />
+                    <h2 className="text-xl font-black text-[#efe7d5]">{achievement.name}</h2>
                 </div>
-                <p className="text-gray-600 dark:text-gray-400 mb-4">{achievement.description}</p>
+                <p className="text-[#9ca89d] mb-4">{achievement.description}</p>
                 {achievement.type === 'tiered' && (
                     <div className="space-y-2">
-                        <h3 className="font-semibold text-gray-900 dark:text-white">Tiers:</h3>
+                        <h3 className="font-semibold text-[#efe7d5]">Tiers:</h3>
                         {achievement.tiers.map((tier, index) => (
-                            <div key={tier.name} className={`flex items-center gap-3 p-2 rounded-md ${unlockedStatus >= index ? 'bg-green-100 dark:bg-green-900/50' : 'bg-gray-100 dark:bg-gray-700/50'}`}>
-                                <CheckCircle size={20} className={unlockedStatus >= index ? 'text-green-500' : 'text-gray-400'} />
+                            <div key={tier.name} className={`flex items-center gap-3 p-3 rounded-xl border ${unlockedStatus >= index ? 'border-[#4dd6c6]/35 bg-[#4dd6c6]/10' : 'border-white/10 bg-white/[0.035] opacity-70'}`}>
+                                <CheckCircle size={20} className={unlockedStatus >= index ? 'text-[#4dd6c6]' : 'text-[#6f786f]'} />
                                 <div>
-                                    <p className="font-bold text-gray-900 dark:text-white">{tier.name} ({formatTierValue(tier)})</p>
-                                    <p className="text-xs text-gray-500 dark:text-gray-400">{tier.description(tier.value, weightUnit)}</p>
+                                    <p className="font-bold text-[#efe7d5]">{tier.name} ({formatTierValue(tier)})</p>
+                                    <p className="text-xs text-[#9ca89d]">{tier.description(tier.value, weightUnit)}</p>
                                 </div>
                             </div>
                         ))}
                     </div>
                 )}
                 <div className="flex justify-end mt-6">
-                    <button onClick={closeModal} className="px-4 py-2 bg-blue-600 text-white rounded-lg">Close</button>
+                    <button onClick={closeModal} className="ee-primary">Close</button>
                 </div>
             </div>,
             'lg'
@@ -200,12 +205,22 @@ export const AchievementsView = ({ unlockedAchievements, historicalLogs, program
                         <h1 className="text-3xl font-black text-[#efe7d5]">Achievements</h1>
                     </div>
                 </div>
-                <p className="mt-3 text-[#9ca89d]">New Eagle Eye badges reward precise logging, lower-body volume, PR coverage, and long-term consistency.</p>
+                <p className="mt-3 text-[#9ca89d]">A trophy hall for every measurable win. Locked awards stay grayed out until the data earns them.</p>
             </div>
-            {Object.keys(historicalLogs).length > 0 ? (
-                <div className="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-4">
+            <div className="ee-panel rounded-2xl p-5">
+                <div className="mb-5 flex items-center justify-between gap-3">
+                    <div>
+                        <div className="ee-chip"><Trophy size={14} /> Trophy Hall</div>
+                        <h2 className="mt-3 text-2xl font-black text-[#efe7d5]">Unlock Gallery</h2>
+                    </div>
+                    <div className="text-right text-sm text-[#9ca89d]">
+                        <span className="block text-2xl font-black text-[#f3b548]">{processedAchievements.filter(a => a.unlockedStatus !== undefined && a.unlockedStatus > -1).length}</span>
+                        unlocked
+                    </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-5">
                     {processedAchievements.map(({ id, achievement, currentValue, unlockedStatus }) => (
-                        <AchievementCard 
+                        <AchievementCard
                             key={id}
                             achievementId={id}
                             achievement={achievement}
@@ -216,13 +231,7 @@ export const AchievementsView = ({ unlockedAchievements, historicalLogs, program
                         />
                     ))}
                 </div>
-            ) : (
-                <div className="ee-panel text-center py-16 rounded-2xl">
-                    <Award size={48} className="mx-auto text-[#9ca89d]" />
-                    <h3 className="mt-4 text-xl font-black text-[#efe7d5]">No Achievements Yet</h3>
-                    <p className="mt-2 text-[#9ca89d]">Start logging workouts to unlock Eagle Eye achievements.</p>
-                </div>
-            )}
+            </div>
         </div>
     );
 };

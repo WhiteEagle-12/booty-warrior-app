@@ -1,5 +1,5 @@
 import React, { useContext } from 'react';
-import { Menu, AlertTriangle, Radar, Wifi } from 'lucide-react';
+import { Menu, AlertTriangle, Wifi } from 'lucide-react';
 import { AppStateContext } from '../../contexts/AppStateContext';
 import { FirebaseContext } from '../../contexts/FirebaseContext';
 
@@ -25,10 +25,6 @@ export const AppHeader = ({ programName, onNavChange }) => {
                 </button>
             </div>
             <div className="flex items-center gap-2">
-                <div className="hidden items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-xs font-semibold text-[#9ca89d] sm:flex">
-                    <Radar size={14} className="text-[#4dd6c6]" />
-                    Live command deck
-                </div>
                 {isOnline ? (
                     <div className="flex items-center gap-2 rounded-full border border-emerald-400/20 bg-emerald-400/10 px-3 py-1.5 text-xs font-semibold text-emerald-300">
                         <Wifi size={14} />

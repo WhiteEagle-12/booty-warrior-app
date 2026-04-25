@@ -1,8 +1,7 @@
 import React, { useMemo } from 'react';
-import { Activity, BarChart2, BrainCircuit, CalendarDays, Crosshair, Dumbbell, Flame, Gauge, Medal, Target, Trophy } from 'lucide-react';
+import { Activity, BarChart2, BrainCircuit, Crosshair, Dumbbell, Flame, Medal, Target, Trophy } from 'lucide-react';
 import { Area, AreaChart, CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { getSetVolume } from '../utils/helpers';
-import { formatWeight } from '../utils/formatters';
 import { getProgramMetrics } from '../utils/trainingMetrics';
 
 const StatCard = ({ icon: Icon, label, value, detail, accent = '#f3b548' }) => (
@@ -49,24 +48,6 @@ const MissionBrief = ({ nextWorkout, nextExercises }) => (
     </div>
 );
 
-const ReadinessDial = ({ score }) => {
-    const circumference = 2 * Math.PI * 44;
-    const offset = circumference - (score / 100) * circumference;
-
-    return (
-        <div className="relative mx-auto flex h-36 w-36 items-center justify-center">
-            <svg viewBox="0 0 110 110" className="absolute inset-0 h-full w-full -rotate-90">
-                <circle cx="55" cy="55" r="44" stroke="rgba(239,231,213,0.1)" strokeWidth="10" fill="none" />
-                <circle cx="55" cy="55" r="44" stroke="#4dd6c6" strokeWidth="10" fill="none" strokeLinecap="round" strokeDasharray={circumference} strokeDashoffset={offset} />
-            </svg>
-            <div className="text-center">
-                <p className="text-4xl font-black text-[#efe7d5]">{score}</p>
-                <p className="text-xs font-bold uppercase text-[#4dd6c6]">Readiness</p>
-            </div>
-        </div>
-    );
-};
-
 export const DashboardView = ({ allLogs, programData, bodyWeightHistory }) => {
     const metrics = useMemo(() => getProgramMetrics(allLogs, programData, bodyWeightHistory), [allLogs, programData, bodyWeightHistory]);
 
@@ -102,12 +83,12 @@ export const DashboardView = ({ allLogs, programData, bodyWeightHistory }) => {
     return (
        <div className="py-5 md:py-8">
             <section className="ee-panel overflow-hidden rounded-2xl p-5 md:p-7">
-                <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_390px]">
+                <div>
                     <div>
-                        <div className="ee-chip"><Crosshair size={14} /> Command center</div>
-                        <h1 className="mt-4 max-w-3xl text-4xl font-black tracking-normal text-[#efe7d5] md:text-5xl">Training command deck</h1>
+                        <div className="ee-chip"><Crosshair size={14} /> Dashboard</div>
+                        <h1 className="mt-4 max-w-3xl text-4xl font-black tracking-normal text-[#efe7d5] md:text-5xl">Training Overview</h1>
                         <p className="mt-3 max-w-2xl text-base leading-7 text-[#9ca89d] md:text-lg">
-                            A cleaner mission view for today's work, current readiness, mesocycle progress, and the signals that matter before the next set.
+                            A cleaner mission view for today's work, mesocycle progress, recent training load, and the signals that matter before the next set.
                         </p>
                         <div className="mt-6 grid grid-cols-2 gap-3 md:grid-cols-4">
                             <StatCard icon={Target} label="Meso lock" value={`${metrics.progressPercentage}%`} detail={`${metrics.completedSets}/${metrics.totalSets} sets`} />
@@ -117,30 +98,6 @@ export const DashboardView = ({ allLogs, programData, bodyWeightHistory }) => {
                         </div>
                         <div className="mt-5">
                             <MissionBrief nextWorkout={nextWorkout} nextExercises={nextExercises} />
-                        </div>
-                    </div>
-                    <div className="rounded-2xl border border-white/10 bg-white/[0.045] p-5">
-                        <div className="flex items-center justify-between">
-                            <div>
-                                <p className="text-xs font-bold uppercase text-[#9ca89d]">Mission readiness</p>
-                                <h2 className="mt-1 text-xl font-black text-[#efe7d5]">Recovery radar</h2>
-                            </div>
-                            <Gauge className="text-[#4dd6c6]" />
-                        </div>
-                        <ReadinessDial score={metrics.readinessScore} />
-                        <div className="mt-3 grid grid-cols-3 gap-2 text-center text-xs">
-                            <div className="rounded-lg bg-white/5 p-2"><span className="block font-black text-[#efe7d5]">{metrics.avgRir.toFixed(1)}</span><span className="text-[#9ca89d]">Avg RIR</span></div>
-                            <div className="rounded-lg bg-white/5 p-2"><span className="block font-black text-[#efe7d5]">{formatWeight(metrics.totalVolume, 'lbs', false)}</span><span className="text-[#9ca89d]">Volume</span></div>
-                            <div className="rounded-lg bg-white/5 p-2"><span className="block font-black text-[#efe7d5]">{metrics.completedWorkouts}</span><span className="text-[#9ca89d]">Wins</span></div>
-                        </div>
-                        <div className="mt-4 rounded-xl border border-white/10 bg-black/20 p-3">
-                            <div className="flex items-center gap-2 text-xs font-bold uppercase text-[#f3b548]">
-                                <CalendarDays size={14} />
-                                Readiness note
-                            </div>
-                            <p className="mt-2 text-sm leading-6 text-[#9ca89d]">
-                                Score blends streak, recent sets, skipped work, RIR discipline, and bodyweight logging into a quick pre-session signal.
-                            </p>
                         </div>
                     </div>
                 </div>

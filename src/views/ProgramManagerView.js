@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useMemo, useContext, useRef } from 'react';
-import { BookOpen, PlusCircle, Download, Upload, Edit, X, Dumbbell, Search, Eye, Save, AlertTriangle, CheckCircle, CalendarDays, Zap, XCircle } from 'lucide-react';
+import React, { useState, useContext, useRef } from 'react';
+import { BookOpen, Download, Upload, Eye, CalendarDays, Zap, XCircle } from 'lucide-react';
 import { AppStateContext } from '../contexts/AppStateContext';
 import { generateUUID } from '../utils/helpers';
 import { migrateProgramData } from '../utils/migration';
@@ -9,8 +9,8 @@ import { getWorkoutNameForDay } from '../utils/workout';
 export const SharedProgramPreview = ({ program, onBack, onSelect, backButtonText = "Back", selectButtonText = "Select Program" }) => {
     return (
         <div>
-            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">{program.name}</h2>
-            <div className="flex gap-4 text-sm text-gray-600 dark:text-gray-400 mb-4">
+            <h2 className="text-2xl font-black text-[#efe7d5] mb-2">{program.name}</h2>
+            <div className="flex gap-4 text-sm text-[#9ca89d] mb-4">
                 <span><CalendarDays size={14} className="inline-block mr-1"/>{program.info.weeks} Weeks</span>
                 <span><Zap size={14} className="inline-block mr-1"/>{program.info.split}</span>
             </div>
@@ -19,13 +19,13 @@ export const SharedProgramPreview = ({ program, onBack, onSelect, backButtonText
                     const workoutDetails = program.programStructure[workoutName];
                     if (!workoutDetails) return null;
                     return (
-                        <div key={workoutName} className="bg-gray-50 dark:bg-gray-700/50 p-3 rounded-lg">
-                            <h3 className="font-bold text-lg text-gray-900 dark:text-white mb-2">{workoutName}</h3>
+                        <div key={workoutName} className="ee-panel-soft p-3 rounded-xl">
+                            <h3 className="font-bold text-lg text-[#efe7d5] mb-2">{workoutName}</h3>
                             <ul className="list-disc list-inside space-y-1 text-sm">
                                 {(workoutDetails.exercises || []).map((ex, idx) => {
                                     const exName = typeof ex === 'string' ? ex : ex.name;
                                     const k = typeof ex === 'string' ? idx : ex.id;
-                                    return <li key={k} className="text-gray-700 dark:text-gray-300">{exName}</li>;
+                                    return <li key={k} className="text-[#9ca89d]">{exName}</li>;
                                 })}
                             </ul>
                         </div>
@@ -33,8 +33,8 @@ export const SharedProgramPreview = ({ program, onBack, onSelect, backButtonText
                 })}
             </div>
             <div className="flex justify-between items-center mt-6">
-                <button onClick={onBack} className="px-4 py-2 bg-gray-200 dark:bg-gray-600 text-gray-800 dark:text-gray-200 rounded-lg">{backButtonText}</button>
-                <button onClick={onSelect} className="px-4 py-2 bg-blue-600 text-white rounded-lg flex items-center gap-2">
+                <button onClick={onBack} className="ee-secondary">{backButtonText}</button>
+                <button onClick={onSelect} className="ee-primary">
                     <Download size={16}/> {selectButtonText}
                 </button>
             </div>
@@ -148,20 +148,20 @@ export const RestoreProgramModal = ({ csvData, onRestore, onClose }) => {
 
     return (
         <div>
-            <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4">Restore Program</h2>
-            <p className="text-gray-600 dark:text-gray-400 mb-4">
+            <h2 className="text-xl font-black text-[#efe7d5] mb-4">Restore Program</h2>
+            <p className="text-[#9ca89d] mb-4">
                 You've uploaded a CSV file. Review the detected data and click "Restore" to import it as a new program.
             </p>
-            {error && <p className="text-red-500 bg-red-100 dark:bg-red-900/50 p-3 rounded-md">{error}</p>}
+            {error && <p className="text-[#f36f52] bg-[#f36f52]/10 border border-[#f36f52]/30 p-3 rounded-xl">{error}</p>}
             <div className="flex justify-end gap-2 mt-6">
-                <button onClick={onClose} className="px-4 py-2 bg-gray-200 dark:bg-gray-600 text-gray-800 dark:text-gray-200 rounded-lg">Cancel</button>
-                <button onClick={handleRestore} className="px-4 py-2 bg-blue-600 text-white rounded-lg">Restore</button>
+                <button onClick={onClose} className="ee-secondary">Cancel</button>
+                <button onClick={handleRestore} className="ee-primary">Restore</button>
             </div>
         </div>
     );
 };
 
-export const ProgramManagerView = ({ onProgramUpdate, activeProgram, programInstances, onInstanceSwitch, onBack, onDeleteProgram }) => {
+export const ProgramManagerView = ({ onProgramUpdate, activeProgram, programInstances, onInstanceSwitch, onDeleteProgram }) => {
     const { openModal, closeModal, addToast } = useContext(AppStateContext);
     const fileInputRef = useRef(null);
 
@@ -171,14 +171,14 @@ export const ProgramManagerView = ({ onProgramUpdate, activeProgram, programInst
 
         openModal(
             <div>
-                <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4">Confirm Deletion</h2>
-                <p className="text-gray-600 dark:text-gray-400">Are you sure you want to delete the program "{programToDelete.program.name}"? This action cannot be undone.</p>
+                <h2 className="text-xl font-black text-[#efe7d5] mb-4">Confirm Deletion</h2>
+                <p className="text-[#9ca89d]">Are you sure you want to delete the program "{programToDelete.program.name}"? This action cannot be undone.</p>
                 <div className="flex justify-end gap-2 mt-6">
-                    <button onClick={closeModal} className="px-4 py-2 bg-gray-200 dark:bg-gray-600 text-gray-800 dark:text-gray-200 rounded-lg">Cancel</button>
+                    <button onClick={closeModal} className="ee-secondary">Cancel</button>
                     <button onClick={() => {
                         onDeleteProgram(instanceId);
                         closeModal();
-                    }} className="px-4 py-2 bg-red-600 text-white rounded-lg">Delete</button>
+                    }} className="inline-flex items-center justify-center rounded-lg px-4 py-2 text-sm font-bold text-white bg-[#f36f52] hover:brightness-110">Delete</button>
                 </div>
             </div>
         );
@@ -281,46 +281,50 @@ export const ProgramManagerView = ({ onProgramUpdate, activeProgram, programInst
     };
 
     return (
-        <div className="p-4 md:p-6 pb-24">
-            <div className="flex justify-center items-center mb-6 text-center">
-                 <div className="flex flex-col items-center">
-                    <BookOpen className="text-blue-500 dark:text-blue-400 mb-2" size={32} />
-                    <h1 className="text-3xl font-bold dark:text-white">Program Hub</h1>
+        <div className="py-5 md:py-8 pb-24">
+            <div className="ee-panel mb-6 rounded-2xl p-5 md:p-6">
+                 <div className="flex items-center gap-3">
+                    <BookOpen className="text-[#f3b548]" size={32} />
+                    <div>
+                        <p className="text-xs font-bold uppercase text-[#f3b548]">Program library</p>
+                        <h1 className="text-3xl font-black text-[#efe7d5]">Program Hub</h1>
+                    </div>
                 </div>
+                <p className="mt-3 text-[#9ca89d]">Import, export, preview, and switch training blocks from one consistent Eagle Eye surface.</p>
             </div>
 
-            <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-md mb-6">
-                 <h3 className="text-xl font-bold text-gray-800 dark:text-gray-200 mb-4">Manage Your Program</h3>
+            <div className="ee-panel rounded-2xl p-5 mb-6">
+                 <h3 className="text-xl font-black text-[#efe7d5] mb-4">Manage Your Program</h3>
                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                     <button onClick={handleExportProgramToCSV} className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-teal-600 text-white rounded-lg shadow-md hover:bg-teal-700 transition-colors">
+                     <button onClick={handleExportProgramToCSV} className="ee-secondary w-full py-3">
                         <Download size={16}/> Export Program (CSV)
                     </button>
-                    <button onClick={handleImportClick} className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-green-600 text-white rounded-lg shadow-md hover:bg-green-700 transition-colors">
+                    <button onClick={handleImportClick} className="ee-primary w-full py-3">
                         <Upload size={16}/> Import from File
                     </button>
                     <input type="file" ref={fileInputRef} onChange={handleFileImport} accept=".json,.csv" style={{ display: 'none' }} />
                  </div>
-                <p className="text-xs text-gray-500 dark:text-gray-400 mt-2 text-center col-span-1 sm:col-span-2">
+                <p className="text-xs text-[#9ca89d] mt-3 text-center col-span-1 sm:col-span-2">
                     Export your current program to share or back it up. Import a JSON or CSV file to load a new program structure.
                 </p>
             </div>
 
             {/* Custom/Archived Programs */}
             {programInstances.length > 1 && (
-                 <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-md mb-6">
-                    <h3 className="text-xl font-bold text-gray-800 dark:text-gray-200 mb-4">Your Saved Programs</h3>
+                 <div className="ee-panel rounded-2xl p-5 mb-6">
+                    <h3 className="text-xl font-black text-[#efe7d5] mb-4">Your Saved Programs</h3>
                     <div className="space-y-3">
                         {programInstances.map((instance) => (
-                            <div key={instance.id} className="bg-gray-50 dark:bg-gray-700/50 p-3 rounded-lg flex justify-between items-center gap-3">
+                            <div key={instance.id} className="ee-panel-soft p-3 rounded-xl flex justify-between items-center gap-3">
                                 <div>
-                                    <h4 className="font-semibold text-lg">{instance.program.name}</h4>
-                                    <p className="text-sm text-gray-500 dark:text-gray-400">Last used: {new Date(instance.lastModified).toLocaleDateString()}</p>
+                                    <h4 className="font-bold text-lg text-[#efe7d5]">{instance.program.name}</h4>
+                                    <p className="text-sm text-[#9ca89d]">Last used: {new Date(instance.lastModified).toLocaleDateString()}</p>
                                 </div>
                                 <div className="flex items-center gap-2">
-                                    <button onClick={() => onInstanceSwitch(instance.id)} disabled={instance.id === activeProgram.id} className="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg shadow hover:bg-blue-700 disabled:bg-gray-400">
+                                    <button onClick={() => onInstanceSwitch(instance.id)} disabled={instance.id === activeProgram.id} className="ee-primary disabled:opacity-50">
                                         {instance.id === activeProgram.id ? 'Active' : 'Switch To'}
                                     </button>
-                                    <button onClick={() => handleDeleteProgram(instance.id)} disabled={instance.id === activeProgram.id} className="p-2 text-sm bg-red-600 text-white rounded-lg shadow hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed">
+                                    <button onClick={() => handleDeleteProgram(instance.id)} disabled={instance.id === activeProgram.id} className="rounded-lg bg-[#f36f52]/90 p-2 text-sm text-white shadow hover:brightness-110 disabled:opacity-50 disabled:cursor-not-allowed">
                                         <XCircle size={16} />
                                     </button>
                                 </div>
@@ -330,18 +334,18 @@ export const ProgramManagerView = ({ onProgramUpdate, activeProgram, programInst
                 </div>
             )}
 
-            <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-md">
-                <h3 className="text-xl font-bold text-gray-800 dark:text-gray-200 mb-4">Load a Preset Program</h3>
-                <div className="space-y-3">
+            <div className="ee-panel rounded-2xl p-5">
+                <h3 className="text-xl font-black text-[#efe7d5] mb-4">Load a Preset Program</h3>
+                <div className="grid gap-3 lg:grid-cols-2">
                     {Object.entries(presets).map(([key, preset]) => (
-                        <div key={key} className="bg-gray-50 dark:bg-gray-700/50 p-3 rounded-lg flex flex-col sm:flex-row justify-between items-center gap-3">
+                        <div key={key} className="ee-panel-soft p-4 rounded-xl flex flex-col sm:flex-row justify-between items-center gap-3">
                             <div>
-                                <h4 className="font-semibold text-lg">{preset.name}</h4>
-                                <p className="text-sm text-gray-500 dark:text-gray-400">{preset.info.weeks} Weeks | {preset.info.split}</p>
+                                <h4 className="font-bold text-lg text-[#efe7d5]">{preset.name}</h4>
+                                <p className="text-sm text-[#9ca89d]">{preset.info.weeks} Weeks | {preset.info.split}</p>
                             </div>
                              <div className="flex items-center gap-2 flex-shrink-0">
-                                <button onClick={() => handlePreview(preset)} className="flex items-center gap-1 p-2 rounded-md hover:bg-gray-200 dark:hover:bg-gray-600"><Eye size={20}/> Preview</button>
-                                <button onClick={() => onProgramUpdate(preset)} className="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg shadow hover:bg-blue-700">Load</button>
+                                <button onClick={() => handlePreview(preset)} className="ee-secondary px-3 py-2"><Eye size={20}/> Preview</button>
+                                <button onClick={() => onProgramUpdate(preset)} className="ee-primary">Load</button>
                             </div>
                         </div>
                     ))}

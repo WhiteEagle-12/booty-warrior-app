@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ChevronDown, ChevronUp, Edit, Dumbbell, Eye, PlusCircle, Pencil, Shield, XCircle, Calendar, Sparkles } from 'lucide-react';
+import { ChevronDown, ChevronUp, Dumbbell, PlusCircle, Pencil, Shield, XCircle, Sparkles } from 'lucide-react';
 import { Droppable, Draggable } from 'react-beautiful-dnd';
 import { getWorkoutForWeek, getWorkoutNameForDay } from '../../utils/workout';
 
@@ -15,8 +15,8 @@ export const EditWeekCard = ({ week, program, onEditDay, onToggleRest, onAddDayT
     return (
         <div className={`rounded-xl border transition-all duration-200 ${
             hasOverrides 
-                ? 'border-blue-300 dark:border-blue-600 bg-blue-50/50 dark:bg-blue-950/20' 
-                : 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800/50'
+                ? 'border-[#4dd6c6]/35 bg-[#4dd6c6]/10'
+                : 'border-white/10 bg-white/[0.045]'
         }`}>
             <button 
                 onClick={() => setIsOpen(!isOpen)} 
@@ -25,19 +25,19 @@ export const EditWeekCard = ({ week, program, onEditDay, onToggleRest, onAddDayT
                 <div className="flex items-center gap-3">
                     <div className={`w-10 h-10 rounded-lg flex items-center justify-center text-sm font-bold ${
                         hasOverrides 
-                            ? 'bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300' 
-                            : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300'
+                            ? 'bg-[#4dd6c6]/15 text-[#4dd6c6]'
+                            : 'bg-white/10 text-[#efe7d5]'
                     }`}>
                         W{week}
                     </div>
                     <div>
-                        <h4 className="font-bold text-base text-gray-900 dark:text-white">
+                        <h4 className="font-bold text-base text-[#efe7d5]">
                             Week {week}
                         </h4>
-                        <p className="text-xs text-gray-500 dark:text-gray-400">
+                        <p className="text-xs text-[#9ca89d]">
                             {weekSchedule.length} days
                             {hasOverrides && (
-                                <span className="ml-2 inline-flex items-center gap-1 text-blue-600 dark:text-blue-400">
+                                <span className="ml-2 inline-flex items-center gap-1 text-[#4dd6c6]">
                                     <Sparkles size={10} />
                                     {overrideCount} override{overrideCount !== 1 ? 's' : ''}
                                 </span>
@@ -46,11 +46,11 @@ export const EditWeekCard = ({ week, program, onEditDay, onToggleRest, onAddDayT
                     </div>
                 </div>
                 <div className={`p-1.5 rounded-full transition-colors ${
-                    isOpen ? 'bg-gray-200 dark:bg-gray-600' : 'bg-transparent'
+                    isOpen ? 'bg-white/10' : 'bg-transparent'
                 }`}>
                     {isOpen 
-                        ? <ChevronUp size={18} className="text-gray-600 dark:text-gray-300" /> 
-                        : <ChevronDown size={18} className="text-gray-600 dark:text-gray-300" />
+                        ? <ChevronUp size={18} className="text-[#9ca89d]" />
+                        : <ChevronDown size={18} className="text-[#9ca89d]" />
                     }
                 </div>
             </button>
@@ -82,25 +82,25 @@ export const EditWeekCard = ({ week, program, onEditDay, onToggleRest, onAddDayT
                                                     {...provided.dragHandleProps}
                                                     className={`relative rounded-xl p-3 text-center flex flex-col justify-between transition-all duration-200 border ${
                                                         isRest 
-                                                            ? 'bg-indigo-50 dark:bg-indigo-950/30 border-indigo-200 dark:border-indigo-800' 
+                                                            ? 'bg-[#5b83c4]/10 border-[#5b83c4]/35'
                                                             : hasOverrideForDay
-                                                                ? 'bg-blue-50 dark:bg-blue-950/30 border-blue-200 dark:border-blue-700'
-                                                                : 'bg-white dark:bg-gray-700/80 border-gray-200 dark:border-gray-600'
+                                                                ? 'bg-[#4dd6c6]/10 border-[#4dd6c6]/35'
+                                                                : 'bg-white/[0.045] border-white/10'
                                                     }`}
                                                 >
                                                     <button 
                                                         onClick={() => onRemoveSpecificDay(week, day)} 
-                                                        className="absolute -top-2 -right-2 bg-white dark:bg-gray-800 border border-red-200 dark:border-red-800 text-red-500 rounded-full p-0.5 hover:bg-red-50 dark:hover:bg-red-900 shadow-sm z-10"
+                                                        className="absolute -top-2 -right-2 bg-[#101820] border border-[#f36f52]/50 text-[#f36f52] rounded-full p-0.5 hover:bg-[#f36f52]/10 shadow-sm z-10"
                                                         title="Remove this day"
                                                     >
                                                         <XCircle size={16} />
                                                     </button>
                                                     <div>
-                                                        <div className="font-bold text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">{day}</div>
+                                                        <div className="font-bold text-xs text-[#9ca89d] uppercase tracking-wider mb-1">{day}</div>
                                                         <div className={`text-xs mb-2 truncate h-8 flex items-center justify-center font-medium ${
                                                             isRest 
-                                                                ? 'text-indigo-600 dark:text-indigo-300' 
-                                                                : 'text-gray-800 dark:text-gray-200'
+                                                                ? 'text-[#5b83c4]'
+                                                                : 'text-[#efe7d5]'
                                                         }`}>
                                                             {displayWorkoutName}
                                                         </div>
@@ -110,8 +110,8 @@ export const EditWeekCard = ({ week, program, onEditDay, onToggleRest, onAddDayT
                                                             onClick={(e) => { e.stopPropagation(); onEditDay(week, day); }}
                                                             className={`flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs font-medium transition-colors ${
                                                                 isRest 
-                                                                    ? 'text-gray-400 dark:text-gray-500 cursor-not-allowed' 
-                                                                    : 'text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/40'
+                                                                    ? 'text-[#6f786f] cursor-not-allowed'
+                                                                    : 'text-[#4dd6c6] hover:bg-[#4dd6c6]/10'
                                                             }`}
                                                             disabled={isRest}
                                                         >
@@ -120,17 +120,17 @@ export const EditWeekCard = ({ week, program, onEditDay, onToggleRest, onAddDayT
                                                         </button>
                                                         <button
                                                             onClick={(e) => { e.stopPropagation(); onToggleRest(week, day); }}
-                                                            className="flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs font-medium transition-colors hover:bg-gray-100 dark:hover:bg-gray-600/50"
+                                                            className="flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs font-medium transition-colors hover:bg-white/10"
                                                         >
                                                             {isRest ? (
                                                                 <>
-                                                                    <Dumbbell size={12} className="text-green-600 dark:text-green-400" />
-                                                                    <span className="text-green-700 dark:text-green-300">Set</span>
+                                                                    <Dumbbell size={12} className="text-[#4dd6c6]" />
+                                                                    <span className="text-[#4dd6c6]">Set</span>
                                                                 </>
                                                             ) : (
                                                                 <>
-                                                                    <Shield size={12} className="text-indigo-600 dark:text-indigo-400" />
-                                                                    <span className="text-indigo-700 dark:text-indigo-300">Rest</span>
+                                                                    <Shield size={12} className="text-[#5b83c4]" />
+                                                                    <span className="text-[#5b83c4]">Rest</span>
                                                                 </>
                                                             )}
                                                         </button>
@@ -148,7 +148,7 @@ export const EditWeekCard = ({ week, program, onEditDay, onToggleRest, onAddDayT
                     <div className="flex gap-2 pt-1">
                         <button 
                             onClick={() => onAddDayToWeek(week)} 
-                            className="flex-1 flex items-center justify-center gap-2 p-2 rounded-lg text-xs font-semibold bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-300 border border-green-200 dark:border-green-800 hover:bg-green-100 dark:hover:bg-green-900/50 transition-colors"
+                            className="ee-secondary flex-1 p-2 text-xs"
                         >
                             <PlusCircle size={14}/> Add Day
                         </button>
@@ -177,16 +177,16 @@ export const MasterScheduleEditor = ({ program, onProgramDataChange }) => {
     const availableWorkouts = [...program.workoutOrder];
 
     return (
-        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-4 mb-6">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">Master Weekly Schedule</h3>
-            <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">Set the default workout for each day of the week.</p>
+        <div className="ee-panel rounded-xl p-4 mb-6">
+            <h3 className="text-lg font-black text-[#efe7d5] mb-3">Master Weekly Schedule</h3>
+            <p className="text-sm text-[#9ca89d] mb-4">Set the default workout for each day of the week.</p>
             <div className="space-y-2">
                 {program.weeklySchedule.map(({ day, workout }) => (
-                    <div key={day} className="bg-gray-50 dark:bg-gray-900/50 p-3 rounded-lg">
+                    <div key={day} className="ee-panel-soft p-3 rounded-lg">
                         <div className="flex justify-between items-center">
-                            <span className="font-bold text-gray-900 dark:text-white">{day}</span>
-                            <span className="truncate pr-2 text-gray-700 dark:text-gray-300">{program.programStructure[workout]?.label || workout}</span>
-                            <button onClick={() => setEditingDay(editingDay === day ? null : day)} className="text-sm text-blue-600 dark:text-blue-400 hover:underline flex-shrink-0">
+                            <span className="font-bold text-[#efe7d5]">{day}</span>
+                            <span className="truncate pr-2 text-[#9ca89d]">{program.programStructure[workout]?.label || workout}</span>
+                            <button onClick={() => setEditingDay(editingDay === day ? null : day)} className="text-sm text-[#4dd6c6] hover:underline flex-shrink-0">
                                 {editingDay === day ? 'Cancel' : 'Change'}
                             </button>
                         </div>
@@ -196,7 +196,7 @@ export const MasterScheduleEditor = ({ program, onProgramDataChange }) => {
                                     <button
                                         key={woName}
                                         onClick={() => handleScheduleChange(day, woName)}
-                                        className={`p-2 text-sm rounded-md ${woName === workout ? 'bg-blue-600 text-white' : 'bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600'}`}
+                                        className={`p-2 text-sm rounded-md ${woName === workout ? 'bg-[#f3b548] text-[#15100a] font-bold' : 'bg-white/5 text-[#efe7d5] hover:bg-white/10'}`}
                                     >
                                         {program.programStructure[woName]?.label || woName}
                                     </button>

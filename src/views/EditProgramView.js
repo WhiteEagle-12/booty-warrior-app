@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useContext, useCallback, useRef } from 'react';
-import { ChevronDown, ChevronUp, Dumbbell, ArrowLeft, PlusCircle, Edit, ArrowUp, ArrowDown, Save, X, Search, Eye, Pencil, Move, XCircle, Shield } from 'lucide-react';
+import { ChevronDown, ChevronUp, Dumbbell, PlusCircle, Edit, Pencil, Move, XCircle, Shield } from 'lucide-react';
 import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
 import { AppStateContext } from '../contexts/AppStateContext';
 import { FirebaseContext } from '../contexts/FirebaseContext';
@@ -18,7 +18,7 @@ import { RenameWorkoutModal } from '../components/modals/RenameWorkoutModal';
 import { EditWeekCard } from '../components/program/EditWeekCard';
 
 
-export const EditProgramView = ({ programData, onProgramDataChange, allLogs, setAllLogs, onBack, onNavigate }) => {
+export const EditProgramView = ({ programData, onProgramDataChange, allLogs, setAllLogs }) => {
     const { openModal, closeModal, addToast } = useContext(AppStateContext);
     const { db, customId } = useContext(FirebaseContext);
     const [isScheduleOpen, setScheduleOpen] = useState(false); // State for collapsible schedule
@@ -627,10 +627,10 @@ export const EditProgramView = ({ programData, onProgramDataChange, allLogs, set
     const handleRemoveSpecificDay = (week, dayKeyToRemove) => {
         openModal(
             <div>
-                <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4">Confirm Deletion</h2>
-                <p className="text-gray-600 dark:text-gray-400">Are you sure you want to remove {dayKeyToRemove} from Week {week}?</p>
+                <h2 className="text-xl font-black text-[#efe7d5] mb-4">Confirm Deletion</h2>
+                <p className="text-[#9ca89d]">Are you sure you want to remove {dayKeyToRemove} from Week {week}?</p>
                 <div className="flex justify-end gap-2 mt-6">
-                     <button onClick={closeModal} className="px-4 py-2 bg-gray-200 dark:bg-gray-600 text-gray-800 dark:text-gray-200 rounded-lg">Cancel</button>
+                     <button onClick={closeModal} className="ee-secondary">Cancel</button>
                      <button onClick={() => {
                         onProgramDataChange(p => {
                             const weekSchedule = p.weeklyScheduleOverrides?.[week] || [...p.weeklySchedule];
@@ -643,7 +643,7 @@ export const EditProgramView = ({ programData, onProgramDataChange, allLogs, set
                             return { ...p, weeklyScheduleOverrides: newOverrides };
                         });
                         closeModal();
-                     }} className="px-4 py-2 bg-red-600 text-white rounded-lg">Delete</button>
+                     }} className="inline-flex items-center justify-center rounded-lg px-4 py-2 text-sm font-bold text-white bg-[#f36f52] hover:brightness-110">Delete</button>
                 </div>
             </div>
         );
@@ -651,15 +651,17 @@ export const EditProgramView = ({ programData, onProgramDataChange, allLogs, set
 
     return (
         <DragDropContext onDragEnd={onDragEnd}>
-            <div className="p-4 md:p-6 pb-24">
-                 <div className="flex justify-between items-center text-center mb-6">
+            <div className="py-5 md:py-8 pb-24">
+                 <div className="ee-panel mb-6 rounded-2xl p-5 md:p-6 flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
                     <div className="flex items-center gap-3">
-                        <Edit className="text-blue-500 dark:text-blue-400" size={32} />
+                        <Edit className="text-[#f3b548]" size={32} />
                         <div>
-                            <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Edit Program</h1>
+                            <p className="text-xs font-bold uppercase text-[#f3b548]">Program workshop</p>
+                            <h1 className="text-3xl font-black text-[#efe7d5]">Edit Program</h1>
+                            <p className="mt-1 text-sm text-[#9ca89d]">Start with program info, refine weekly overrides only when needed, then tune workout templates and exercise volume fractions.</p>
                         </div>
                     </div>
-                    <button onClick={handleCreateNewExercise} className="flex-shrink-0 flex items-center gap-2 px-3 py-2 bg-blue-600 text-white text-sm rounded-lg shadow-md hover:bg-blue-700 transition-colors">
+                    <button onClick={handleCreateNewExercise} className="ee-primary flex-shrink-0">
                         <PlusCircle size={16} /> Add Exercise
                     </button>
                 </div>
@@ -667,16 +669,16 @@ export const EditProgramView = ({ programData, onProgramDataChange, allLogs, set
                 <div className="flex flex-col md:flex-row gap-4 mb-6 items-start">
                     <div className="flex-grow w-full space-y-4">
                         {/* Program Details Editor */}
-                        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-4">
-                            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">Program Info</h3>
+                        <div className="ee-panel rounded-2xl p-5">
+                            <h3 className="text-lg font-black text-[#efe7d5] mb-3">Program Info</h3>
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 <div>
-                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Program Name</label>
-                                    <input type="text" value={programData.info.name} onChange={(e) => handleInfoChange('name', e.target.value)} className="w-full p-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-md border-gray-300 dark:border-gray-600" />
+                                    <label className="block text-sm font-medium text-[#9ca89d] mb-1">Program Name</label>
+                                    <input type="text" value={programData.info.name} onChange={(e) => handleInfoChange('name', e.target.value)} className="ee-input" />
                                 </div>
                                 <div>
-                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Weeks</label>
-                                    <input type="number" value={programData.info.weeks} onChange={(e) => handleInfoChange('weeks', parseInt(e.target.value, 10) || 1)} className="w-full p-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-md border-gray-300 dark:border-gray-600" />
+                                    <label className="block text-sm font-medium text-[#9ca89d] mb-1">Weeks</label>
+                                    <input type="number" value={programData.info.weeks} onChange={(e) => handleInfoChange('weeks', parseInt(e.target.value, 10) || 1)} className="ee-input" />
                                 </div>
                             </div>
                         </div>
@@ -686,23 +688,26 @@ export const EditProgramView = ({ programData, onProgramDataChange, allLogs, set
 
                     {/* Quick Add Buttons Bar */}
                     <div className="w-full md:w-64 flex flex-col gap-3">
-                        <button onClick={handleAddWorkoutDay} className="w-full flex items-center justify-center gap-3 p-4 rounded-xl bg-green-600 text-white shadow-lg hover:bg-green-700 transition-all font-bold">
+                        <button onClick={handleAddWorkoutDay} className="ee-primary w-full p-4">
                             <PlusCircle size={20}/> Add Workout Day
                         </button>
-                        <button onClick={handleAddNewRestDay} className="w-full flex items-center justify-center gap-3 p-4 rounded-xl bg-indigo-600 text-white shadow-lg hover:bg-indigo-700 transition-all font-bold">
+                        <button onClick={handleAddNewRestDay} className="ee-secondary w-full p-4">
                             <Shield size={20}/> Add Rest Day
                         </button>
-                        <p className="text-xs text-gray-500 dark:text-gray-400 text-center px-2">
+                        <p className="text-xs text-[#9ca89d] text-center px-2">
                             Quickly add new workout templates or rest days to your library.
                         </p>
                     </div>
                 </div>
 
                 {/* Weekly Schedule Editor - Collapsible */}
-                <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md p-4 mb-6">
+                <div className="ee-panel rounded-2xl p-5 mb-6">
                     <button onClick={() => setScheduleOpen(!isScheduleOpen)} className="w-full flex justify-between items-center text-left">
-                        <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Weekly Schedule & Overrides</h3>
-                        {isScheduleOpen ? <ChevronUp className="text-gray-600 dark:text-gray-300" /> : <ChevronDown className="text-gray-600 dark:text-gray-300" />}
+                        <div>
+                            <h3 className="text-lg font-black text-[#efe7d5]">Weekly Schedule & Overrides</h3>
+                            <p className="text-sm text-[#9ca89d]">Use this for week-specific changes. Keep it closed for normal template editing.</p>
+                        </div>
+                        {isScheduleOpen ? <ChevronUp className="text-[#9ca89d]" /> : <ChevronDown className="text-[#9ca89d]" />}
                     </button>
                     {isScheduleOpen && (
                         <div className="mt-4 space-y-3">
@@ -722,8 +727,8 @@ export const EditProgramView = ({ programData, onProgramDataChange, allLogs, set
                 </div>
 
                 {/* Workout Day List */}
-                 <h3 className="text-lg font-semibold text-gray-900 dark:text-white my-3">Master Workout Templates</h3>
-                 <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">Drag to reorder templates. Exercises can be dragged within or between workouts.</p>
+                 <h3 className="text-lg font-black text-[#efe7d5] my-3">Master Workout Templates</h3>
+                 <p className="text-sm text-[#9ca89d] mb-4">Drag to reorder templates. Hover each exercise to edit volume fractions, muscles, RIR targets, or remove it.</p>
                 <Droppable droppableId="workout-templates" direction="vertical" type="workoutDay">
                     {(provided) => (
                         <div {...provided.droppableProps} ref={provided.innerRef} className="space-y-4">
@@ -736,19 +741,19 @@ export const EditProgramView = ({ programData, onProgramDataChange, allLogs, set
                                     <Draggable key={workoutName} draggableId={workoutName} index={index}>
                                         {(provided) => (
                                             <div ref={provided.innerRef} {...provided.draggableProps} id={`workout-day-editor-${workoutName}`}>
-                                                <div className={`rounded-xl shadow-md p-4 ${isRest ? 'bg-indigo-100 dark:bg-indigo-900/50' : 'bg-white dark:bg-gray-800'}`}>
-                                                    <div className="flex justify-between items-center mb-3 border-b border-gray-200 dark:border-gray-700 pb-3">
+                                                <div className={`rounded-2xl border p-4 ${isRest ? 'border-[#5b83c4]/40 bg-[#5b83c4]/10' : 'border-white/10 bg-white/[0.045]'}`}>
+                                                    <div className="flex justify-between items-center mb-3 border-b border-white/10 pb-3">
                                                         <div {...provided.dragHandleProps} className="flex items-center gap-2 cursor-grab flex-grow">
-                                                            <Move size={20} className="text-gray-400" />
-                                                            <button onClick={() => startEditingName(workoutName)} className="text-xl font-bold text-gray-800 dark:text-gray-200 text-left hover:text-blue-500 dark:hover:text-blue-400 transition-colors">
+                                                            <Move size={20} className="text-[#9ca89d]" />
+                                                            <button onClick={() => startEditingName(workoutName)} className="text-xl font-black text-[#efe7d5] text-left hover:text-[#f3b548] transition-colors">
                                                                 {workoutName}
                                                             </button>
                                                         </div>
                                                         <div className="flex items-center gap-2">
-                                                            <button onClick={() => handleToggleTemplateType(workoutName)} title={isRest ? "Change to Workout Day" : "Change to Rest Day"} className="p-1.5 rounded-md hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors">
-                                                                {isRest ? <Dumbbell size={18} className="text-green-600 dark:text-green-400" /> : <Shield size={18} className="text-indigo-600 dark:text-indigo-400" />}
+                                                            <button onClick={() => handleToggleTemplateType(workoutName)} title={isRest ? "Change to Workout Day" : "Change to Rest Day"} className="p-1.5 rounded-md hover:bg-white/10 transition-colors">
+                                                                {isRest ? <Dumbbell size={18} className="text-[#4dd6c6]" /> : <Shield size={18} className="text-[#5b83c4]" />}
                                                             </button>
-                                                            <button onClick={() => handleDeleteWorkoutDay(workoutName)} title="Delete Day Template" className="p-1.5 rounded-md hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"><XCircle size={18} className="text-red-500"/></button>
+                                                            <button onClick={() => handleDeleteWorkoutDay(workoutName)} title="Delete Day Template" className="p-1.5 rounded-md hover:bg-white/10 transition-colors"><XCircle size={18} className="text-[#f36f52]"/></button>
                                                         </div>
                                                     </div>
                                                     {!isRest && (
@@ -759,9 +764,9 @@ export const EditProgramView = ({ programData, onProgramDataChange, allLogs, set
                                                                         {workoutDetails.exercises.map((ex, index) => (
                                                                             <Draggable key={ex.id} draggableId={ex.id} index={index}>
                                                                                 {(provided) => (
-                                                                                    <li ref={provided.innerRef} {...provided.draggableProps} {...provided.dragHandleProps} className="flex justify-between items-center p-2 bg-gray-50 dark:bg-gray-700/50 rounded-md group">
-                                                                                        <span className="font-medium text-gray-900 dark:text-white">{ex.name || `Exercise name missing (id: ${ex.id})`}</span>
-                                                                                        <div className="flex items-center gap-1 text-gray-500">
+                                                                                    <li ref={provided.innerRef} {...provided.draggableProps} {...provided.dragHandleProps} className="flex justify-between items-center p-3 ee-panel-soft rounded-xl group">
+                                                                                        <span className="font-medium text-[#efe7d5]">{ex.name || `Exercise name missing (id: ${ex.id})`}</span>
+                                                                                        <div className="flex items-center gap-1 text-[#9ca89d]">
                                                                                             <button onClick={() => handleEditExerciseDetails(ex.name)} className="p-1 opacity-0 group-hover:opacity-100 transition-opacity"><Pencil size={16}/></button>
                                                                                             <button onClick={() => handleRemoveExerciseFromWorkout(workoutName, index)} className="p-1 opacity-0 group-hover:opacity-100 transition-opacity"><XCircle size={16}/></button>
                                                                                         </div>
@@ -773,7 +778,7 @@ export const EditProgramView = ({ programData, onProgramDataChange, allLogs, set
                                                                     </ul>
                                                                 )}
                                                             </Droppable>
-                                                            <button onClick={() => handleAddExerciseToWorkout(workoutName)} className="w-full flex items-center justify-center gap-2 p-2 rounded-lg bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300 hover:bg-blue-200 dark:hover:bg-blue-800/50">
+                                                            <button onClick={() => handleAddExerciseToWorkout(workoutName)} className="ee-secondary w-full p-2">
                                                                 <PlusCircle size={16}/> Add Exercise
                                                             </button>
                                                         </>

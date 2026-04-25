@@ -1,5 +1,5 @@
 import React, { useContext } from 'react';
-import { Dumbbell, BarChart2, Award, Trophy, BookOpen, Edit, Settings, LayoutDashboard, X, Crosshair } from 'lucide-react';
+import { Dumbbell, BarChart2, Award, Trophy, BookOpen, Edit, Settings, LayoutDashboard, X } from 'lucide-react';
 import { AppStateContext } from '../../contexts/AppStateContext';
 
 export const Sidebar = ({ onNavChange, currentPage }) => {
@@ -26,19 +26,12 @@ export const Sidebar = ({ onNavChange, currentPage }) => {
                         </span>
                         <span>
                             <span className="block text-sm font-black uppercase text-[#efe7d5]">Eagle Eye</span>
-                            <span className="block text-xs font-semibold text-[#f3b548]">Training Command</span>
+                            <span className="block text-xs font-semibold text-[#f3b548]">Performance OS</span>
                         </span>
                     </button>
                     <button onClick={() => setSidebarOpen(false)} className="p-2 md:hidden"><X /></button>
                 </div>
-                <div className="m-4 rounded-xl border border-[#f3b548]/20 bg-[#f3b548]/10 p-3">
-                    <div className="flex items-center gap-2 text-xs font-bold uppercase text-[#f3b548]">
-                        <Crosshair size={14} />
-                        Mission Focus
-                    </div>
-                    <p className="mt-1 text-sm text-[#efe7d5]">Log with precision. Progress with intent.</p>
-                </div>
-                <nav className="p-4 pt-0">
+                <nav className="p-4">
                     <ul className="space-y-2">
                         {navItems.map(item => (
                             <li key={item.view}>

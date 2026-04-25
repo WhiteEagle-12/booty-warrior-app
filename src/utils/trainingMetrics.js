@@ -61,17 +61,10 @@ export const getProgramMetrics = (allLogs = {}, programData, bodyWeightHistory =
     const avgRir = rirLogs.length
         ? rirLogs.reduce((sum, log) => sum + (parseFloat(log.rir) || 0), 0) / rirLogs.length
         : 2;
-    const skippedSets = completedLogs.filter(log => log.skipped).length;
     const lastSevenDays = new Date();
     lastSevenDays.setDate(lastSevenDays.getDate() - 7);
     const recentSets = completedLogs.filter(log => log.date && new Date(log.date) >= lastSevenDays).length;
     const streak = calculateStreak(allLogs, programData);
-    const bodyWeightEntries = (bodyWeightHistory || []).filter(entry => parseFloat(entry?.weight) > 0).length;
-
-    const readinessScore = Math.max(35, Math.min(98, Math.round(
-        74 + Math.min(streak, 10) * 1.6 - Math.max(0, 2 - avgRir) * 7 - skippedSets * 0.35 + Math.min(bodyWeightEntries, 8)
-    )));
-
     const prs = {};
     completedLogs.forEach(log => {
         if (!log.skipped && log.exercise && (log.load || log.load === 0) && log.reps) {
@@ -93,7 +86,6 @@ export const getProgramMetrics = (allLogs = {}, programData, bodyWeightHistory =
         totalVolume,
         recentSets,
         streak,
-        readinessScore,
         avgRir,
         topPrs,
         progressPercentage: totalSets > 0 ? Math.round((completedSets / totalSets) * 100) : 0,
