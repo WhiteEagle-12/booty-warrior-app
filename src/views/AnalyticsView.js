@@ -110,7 +110,7 @@ export const AnalyticsView = ({ allLogs, programData }) => {
             if (!details?.muscles) return;
             ['primary', 'secondary', 'tertiary'].forEach(role => {
                 const muscle = details.muscles[role];
-                const contribution = details.muscles[`${role}Contribution`] ?? (role === 'primary' ? 1 : role === 'secondary' ? 0.5 : 0.25);
+                const contribution = details.muscles[`${role}Contribution`] ?? (role === 'primary' ? 1 : 0.5);
                 if (!muscle || contribution <= 0) return;
                 ensureMuscle(muscle);
                 dataByMuscle[muscle].sets += contribution;
@@ -137,7 +137,7 @@ export const AnalyticsView = ({ allLogs, programData }) => {
                         <h1 className="text-3xl font-black text-[#efe7d5]">Analytics</h1>
                     </div>
                 </div>
-                <p className="mt-3 text-[#9ca89d]">Exercise progression, weekly volume, and estimated effective-set distribution. Fractional sets are planning heuristics, not exact physiology.</p>
+                <p className="mt-3 text-[#9ca89d]">Exercise progression, weekly volume, and estimated effective-set distribution. Direct muscles count as 1.0 set; indirect muscles count as 0.5 set.</p>
             </section>
 
             <div className="space-y-6">

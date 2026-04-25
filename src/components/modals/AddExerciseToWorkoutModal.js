@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { Search, PlusCircle, BookOpen, Dumbbell } from 'lucide-react';
 import { exerciseBank } from '../../data/exerciseBank';
+import { normalizeExerciseDetails } from '../../utils/helpers';
 
 export const AddExerciseToWorkoutModal = ({ masterExerciseList, onAdd, onClose }) => {
     const [searchTerm, setSearchTerm] = useState('');
@@ -12,14 +13,14 @@ export const AddExerciseToWorkoutModal = ({ masterExerciseList, onAdd, onClose }
     }, [searchTerm, listToDisplay]);
 
     const handleAdd = (exerciseName) => {
-        const details = listToDisplay[exerciseName];
+        const details = normalizeExerciseDetails(listToDisplay[exerciseName]);
         onAdd(exerciseName, details);
     };
 
     return (
         <div>
             <h2 className="text-xl font-black text-[#efe7d5] mb-1">Add Exercise</h2>
-            <p className="mb-4 text-sm text-[#9ca89d]">Choose from the exercise bank. Muscle fractions estimate effective-set credit for planning: 1.0 primary, lower values for meaningful secondary or tertiary work.</p>
+            <p className="mb-4 text-sm text-[#9ca89d]">Choose from the exercise bank. Direct muscles count as 1.0 set; indirect muscles count as 0.5 set.</p>
             <div className="flex border-b border-white/10 mb-4">
                 <button onClick={() => setActiveTab('bank')} className={`flex items-center gap-2 px-4 py-2 -mb-px border-b-2 text-sm font-semibold ${activeTab === 'bank' ? 'border-[#f3b548] text-[#f3b548]' : 'border-transparent text-[#9ca89d] hover:text-[#efe7d5]'}`}>
                     <BookOpen size={16} /> Exercise Bank
@@ -40,7 +41,7 @@ export const AddExerciseToWorkoutModal = ({ masterExerciseList, onAdd, onClose }
             </div>
             <div className="max-h-80 overflow-y-auto space-y-2 pr-2">
                 {filteredExercises.map(ex => {
-                    const details = listToDisplay[ex];
+                    const details = normalizeExerciseDetails(listToDisplay[ex]);
                     const muscles = details?.muscles;
                     return (
                     <button
@@ -55,7 +56,7 @@ export const AddExerciseToWorkoutModal = ({ masterExerciseList, onAdd, onClose }
                                 <span className="mt-1 block text-xs text-[#9ca89d]">
                                     {muscles.primary || 'Unassigned'} {muscles.primaryContribution ?? 1}x
                                     {muscles.secondary ? ` / ${muscles.secondary} ${muscles.secondaryContribution ?? 0.5}x` : ''}
-                                    {muscles.tertiary ? ` / ${muscles.tertiary} ${muscles.tertiaryContribution ?? 0.25}x` : ''}
+                                    {muscles.tertiary ? ` / ${muscles.tertiary} ${muscles.tertiaryContribution ?? 0.5}x` : ''}
                                 </span>
                             )}
                        </span>

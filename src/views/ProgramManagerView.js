@@ -1,7 +1,7 @@
 import React, { useState, useContext, useRef } from 'react';
 import { BookOpen, Download, Upload, Eye, CalendarDays, Zap, XCircle } from 'lucide-react';
 import { AppStateContext } from '../contexts/AppStateContext';
-import { generateUUID } from '../utils/helpers';
+import { generateUUID, getExerciseDetails } from '../utils/helpers';
 import { migrateProgramData } from '../utils/migration';
 import { presets } from '../data/presets';
 import { getWorkoutNameForDay } from '../utils/workout';
@@ -233,7 +233,7 @@ export const ProgramManagerView = ({ onProgramUpdate, activeProgram, programInst
                 const workoutDetails = programStructure[workoutName];
                 if (workoutDetails) {
                     workoutDetails.exercises.forEach(ex => {
-                        const exDetails = masterExerciseList[ex.name];
+                        const exDetails = getExerciseDetails(ex.name, masterExerciseList);
                         if (exDetails) {
                             rows.push([
                                 `"${workoutName}"`,
@@ -250,7 +250,7 @@ export const ProgramManagerView = ({ onProgramUpdate, activeProgram, programInst
                                 `"${exDetails.muscles?.tertiary || ''}"`,
                                 exDetails.muscles?.primaryContribution ?? 1,
                                 exDetails.muscles?.secondaryContribution ?? 0.5,
-                                exDetails.muscles?.tertiaryContribution ?? 0.25
+                                exDetails.muscles?.tertiaryContribution ?? 0.5
                             ].join(','));
                         }
                     });

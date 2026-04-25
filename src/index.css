@@ -14,6 +14,26 @@
   --ee-coral: #f36f52;
   --ee-teal: #4dd6c6;
   --ee-blue: #5b83c4;
+  --ee-grid: rgba(239, 231, 213, 0.035);
+  --ee-body-radial: rgba(77, 214, 198, 0.08);
+  --ee-body-wash: rgba(243, 181, 72, 0.05);
+}
+
+html.light {
+  color-scheme: light;
+  --ee-ink: #f7f4ec;
+  --ee-panel: #ffffff;
+  --ee-panel-soft: #f0ebe1;
+  --ee-border: rgba(28, 37, 36, 0.15);
+  --ee-bone: #172120;
+  --ee-muted: #66736b;
+  --ee-amber: #b97816;
+  --ee-coral: #c5533e;
+  --ee-teal: #167f76;
+  --ee-blue: #416da5;
+  --ee-grid: rgba(28, 37, 36, 0.045);
+  --ee-body-radial: rgba(22, 127, 118, 0.12);
+  --ee-body-wash: rgba(185, 120, 22, 0.08);
 }
 
 html {
@@ -23,8 +43,8 @@ html {
 body {
   margin: 0;
   background:
-    radial-gradient(circle at top left, rgba(77, 214, 198, 0.08), transparent 30rem),
-    linear-gradient(135deg, rgba(243, 181, 72, 0.05), transparent 24rem),
+    radial-gradient(circle at top left, var(--ee-body-radial), transparent 30rem),
+    linear-gradient(135deg, var(--ee-body-wash), transparent 24rem),
     var(--ee-ink);
   color: var(--ee-bone);
   font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
@@ -37,12 +57,41 @@ body::before {
   inset: 0;
   pointer-events: none;
   background-image:
-    linear-gradient(rgba(239, 231, 213, 0.035) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(239, 231, 213, 0.035) 1px, transparent 1px),
-    repeating-radial-gradient(circle at 12% 18%, rgba(243, 181, 72, 0.05) 0 1px, transparent 1px 18px);
+    linear-gradient(var(--ee-grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--ee-grid) 1px, transparent 1px),
+    repeating-radial-gradient(circle at 12% 18%, var(--ee-body-wash) 0 1px, transparent 1px 18px);
   background-size: 44px 44px, 44px 44px, 220px 220px;
   mask-image: linear-gradient(to bottom, black, transparent 88%);
   z-index: -1;
+}
+
+html.light [class*="text-[#efe7d5]"],
+html.light [class*="text-[#d8fffa]"] {
+  color: var(--ee-bone) !important;
+}
+
+html.light [class*="text-[#9ca89d]"],
+html.light [class*="text-gray-"] {
+  color: var(--ee-muted) !important;
+}
+
+html.light [class*="bg-[#090d12]"],
+html.light [class*="bg-[#101820]"] {
+  background-color: rgba(255, 255, 255, 0.92) !important;
+}
+
+html.light [class*="bg-white/"],
+html.light [class*="bg-white["],
+html.light [class*="bg-black/"] {
+  background-color: rgba(28, 37, 36, 0.055) !important;
+}
+
+html.light [class*="border-white/"] {
+  border-color: var(--ee-border) !important;
+}
+
+html.light [class*="hover:bg-white/"]:hover {
+  background-color: rgba(28, 37, 36, 0.09) !important;
 }
 
 button,
@@ -63,14 +112,14 @@ textarea:focus-visible {
 @layer components {
   .ee-panel {
     @apply border shadow-2xl;
-    background: linear-gradient(180deg, rgba(21, 33, 43, 0.96), rgba(12, 18, 25, 0.96));
+    background: linear-gradient(180deg, color-mix(in srgb, var(--ee-panel-soft) 86%, transparent), color-mix(in srgb, var(--ee-panel) 96%, transparent));
     border-color: var(--ee-border);
     box-shadow: 0 22px 60px rgba(0, 0, 0, 0.28);
   }
 
   .ee-panel-soft {
     @apply border;
-    background: rgba(239, 231, 213, 0.055);
+    background: color-mix(in srgb, var(--ee-panel-soft) 78%, transparent);
     border-color: var(--ee-border);
   }
 
@@ -78,7 +127,7 @@ textarea:focus-visible {
     @apply inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-normal;
     border-color: var(--ee-border);
     color: var(--ee-muted);
-    background: rgba(239, 231, 213, 0.055);
+    background: color-mix(in srgb, var(--ee-panel-soft) 72%, transparent);
   }
 
   .ee-primary {
@@ -96,17 +145,17 @@ textarea:focus-visible {
     @apply inline-flex items-center justify-center gap-2 rounded-lg border px-4 py-2 text-sm font-semibold transition;
     border-color: var(--ee-border);
     color: var(--ee-bone);
-    background: rgba(239, 231, 213, 0.06);
+    background: color-mix(in srgb, var(--ee-panel-soft) 74%, transparent);
   }
 
   .ee-secondary:hover {
-    background: rgba(239, 231, 213, 0.1);
+    background: color-mix(in srgb, var(--ee-panel-soft) 92%, transparent);
   }
 
   .ee-input {
     @apply w-full rounded-lg border px-3 py-2 text-sm;
     color: var(--ee-bone);
-    background: rgba(4, 8, 12, 0.58);
+    background: color-mix(in srgb, var(--ee-panel) 78%, transparent);
     border-color: var(--ee-border);
   }
 }

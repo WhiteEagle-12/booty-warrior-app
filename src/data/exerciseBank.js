@@ -1,4 +1,6 @@
 // --- EXERCISE BANK DATA ---
+import { normalizeExerciseDetails } from '../utils/helpers';
+
 const baseExerciseBank = {
     // Chest
     'Barbell Bench Press': { sets: 3, reps: '8-12', rir: ['2', '2', '2'], rest: '2-3 min', equipment: 'barbell', muscles: { primary: 'Chest', secondary: 'Triceps', tertiary: 'Shoulders', primaryContribution: 1, secondaryContribution: 0.5, tertiaryContribution: 0.3 } },
@@ -40,13 +42,13 @@ const baseExerciseBank = {
     'Dips': { sets: 3, reps: 'To Failure', rir: ['1', '1', '1'], rest: '2 min', equipment: 'bodyweight', muscles: { primary: 'Triceps', secondary: 'Chest', tertiary: 'Shoulders', primaryContribution: 1, secondaryContribution: 0.6, tertiaryContribution: 0.4 } },
 };
 
-const makeExercise = (sets, reps, rir, rest, equipment, primary, secondary = null, tertiary = null, primaryContribution = 1, secondaryContribution = 0.5, tertiaryContribution = 0.25) => ({
+const makeExercise = (sets, reps, rir, rest, equipment, primary, secondary = null, tertiary = null) => ({
     sets,
     reps,
     rir: Array.from({ length: sets }, () => `${rir}`),
     rest,
     equipment,
-    muscles: { primary, secondary, tertiary, primaryContribution, secondaryContribution, tertiaryContribution }
+    muscles: { primary, secondary, tertiary }
 });
 
 const expandedExerciseBank = {
@@ -125,6 +127,10 @@ const expandedExerciseBank = {
 };
 
 export const exerciseBank = {
-    ...baseExerciseBank,
-    ...expandedExerciseBank,
+    ...Object.fromEntries(
+        Object.entries({
+            ...baseExerciseBank,
+            ...expandedExerciseBank,
+        }).map(([name, details]) => [name, normalizeExerciseDetails(details)])
+    ),
 };

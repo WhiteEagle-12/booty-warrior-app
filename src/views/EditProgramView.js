@@ -658,7 +658,7 @@ export const EditProgramView = ({ programData, onProgramDataChange, allLogs, set
                         <div>
                             <p className="text-xs font-bold uppercase text-[#f3b548]">Program workshop</p>
                             <h1 className="text-3xl font-black text-[#efe7d5]">Edit Program</h1>
-                            <p className="mt-1 text-sm text-[#9ca89d]">Start with program info, refine weekly overrides only when needed, then tune workout templates and exercise volume fractions.</p>
+                            <p className="mt-1 text-sm text-[#9ca89d]">Start with program info, refine weekly overrides only when needed, then tune workout templates and direct or indirect muscle targets.</p>
                         </div>
                     </div>
                     <button onClick={handleCreateNewExercise} className="ee-primary flex-shrink-0">
@@ -728,7 +728,7 @@ export const EditProgramView = ({ programData, onProgramDataChange, allLogs, set
 
                 {/* Workout Day List */}
                  <h3 className="text-lg font-black text-[#efe7d5] my-3">Master Workout Templates</h3>
-                 <p className="text-sm text-[#9ca89d] mb-4">Drag to reorder templates. Hover each exercise to edit volume fractions, muscles, RIR targets, or remove it.</p>
+                 <p className="text-sm text-[#9ca89d] mb-4">Drag to reorder templates. Hover each exercise to edit muscles, RIR targets, or remove it.</p>
                 <Droppable droppableId="workout-templates" direction="vertical" type="workoutDay">
                     {(provided) => (
                         <div {...provided.droppableProps} ref={provided.innerRef} className="space-y-4">

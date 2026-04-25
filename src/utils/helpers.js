@@ -25,7 +25,25 @@ export const calculateE1RM = (weight, reps, rir) => {
 
 export const getExerciseDetails = (exerciseName, masterList) => {
     const list = masterList?.masterExerciseList || masterList;
-    return list?.[exerciseName] || null;
+    return normalizeExerciseDetails(list?.[exerciseName] || null);
+};
+
+export const normalizeMuscleContributions = (muscles = {}) => {
+    const normalized = {
+        ...muscles,
+        primaryContribution: muscles.primary ? 1 : 0,
+        secondaryContribution: muscles.secondary ? 0.5 : 0,
+        tertiaryContribution: muscles.tertiary ? 0.5 : 0,
+    };
+    return normalized;
+};
+
+export const normalizeExerciseDetails = (details) => {
+    if (!details) return null;
+    return {
+        ...details,
+        muscles: normalizeMuscleContributions(details.muscles || {}),
+    };
 };
 
 export const getSetVolume = (log, masterExerciseList) => {
