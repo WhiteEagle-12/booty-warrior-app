@@ -2,180 +2,279 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ---------------------------------------------------------------------------
+   EAGLE EYE TRAINING — "FLIGHT DECK" DESIGN SYSTEM
+   A precision instrument panel for strength training.
+   Semantic tokens drive every component; themes only swap the tokens.
+--------------------------------------------------------------------------- */
+
 :root {
   color-scheme: dark;
-  --ee-ink: #090d12;
-  --ee-panel: #101820;
-  --ee-panel-soft: #15212b;
-  --ee-border: rgba(230, 221, 203, 0.12);
-  --ee-bone: #efe7d5;
-  --ee-muted: #9ca89d;
-  --ee-amber: #f3b548;
-  --ee-coral: #f36f52;
-  --ee-teal: #4dd6c6;
-  --ee-blue: #5b83c4;
-  --ee-grid: rgba(239, 231, 213, 0.035);
-  --ee-body-radial: rgba(77, 214, 198, 0.08);
-  --ee-body-wash: rgba(243, 181, 72, 0.05);
+
+  /* surfaces */
+  --c-base: 7 9 12;          /* app canvas */
+  --c-panel: 13 18 24;       /* raised card */
+  --c-panel2: 19 26 34;      /* elevated inset */
+  --c-well: 5 7 10;          /* sunken well */
+  --c-line: 40 51 63;        /* hairline borders */
+
+  /* ink */
+  --c-bone: 236 232 220;     /* primary text */
+  --c-mute: 139 151 160;     /* secondary text */
+
+  /* signals */
+  --c-amber: 245 185 66;     /* primary action / optic reticle */
+  --c-teal: 69 214 194;      /* completion / data */
+  --c-coral: 244 104 79;     /* intensity / danger */
+  --c-sky: 111 150 216;      /* rest / recovery */
+
+  --glow-amber: rgba(245, 185, 66, 0.16);
+  --grid-line: rgba(236, 232, 220, 0.032);
+  --scanline: rgba(236, 232, 220, 0.05);
 }
 
 html.light {
   color-scheme: light;
-  --ee-ink: #f7f4ec;
-  --ee-panel: #ffffff;
-  --ee-panel-soft: #f0ebe1;
-  --ee-border: rgba(28, 37, 36, 0.15);
-  --ee-bone: #172120;
-  --ee-muted: #66736b;
-  --ee-amber: #b97816;
-  --ee-coral: #c5533e;
-  --ee-teal: #167f76;
-  --ee-blue: #416da5;
-  --ee-grid: rgba(28, 37, 36, 0.045);
-  --ee-body-radial: rgba(22, 127, 118, 0.12);
-  --ee-body-wash: rgba(185, 120, 22, 0.08);
+
+  --c-base: 238 236 229;
+  --c-panel: 255 255 255;
+  --c-panel2: 246 244 238;
+  --c-well: 232 229 220;
+  --c-line: 208 212 216;
+
+  --c-bone: 20 26 33;
+  --c-mute: 96 108 118;
+
+  --c-amber: 178 118 14;
+  --c-teal: 13 122 109;
+  --c-coral: 196 70 47;
+  --c-sky: 58 96 160;
+
+  --glow-amber: rgba(178, 118, 14, 0.12);
+  --grid-line: rgba(20, 26, 33, 0.045);
+  --scanline: rgba(20, 26, 33, 0.05);
 }
 
 html {
-  background: var(--ee-ink);
+  background: rgb(var(--c-base));
+  scroll-behavior: smooth;
 }
 
 body {
   margin: 0;
   background:
-    radial-gradient(circle at top left, var(--ee-body-radial), transparent 30rem),
-    linear-gradient(135deg, var(--ee-body-wash), transparent 24rem),
-    var(--ee-ink);
-  color: var(--ee-bone);
-  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  letter-spacing: 0;
+    radial-gradient(52rem 32rem at 85% -10%, var(--glow-amber), transparent 62%),
+    radial-gradient(40rem 30rem at -12% 22%, rgba(69, 214, 194, 0.05), transparent 60%),
+    rgb(var(--c-base));
+  color: rgb(var(--c-bone));
+  font-family: Manrope, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
 }
 
+/* Faint flight-deck reticle grid, masked toward the top of the viewport */
 body::before {
   content: "";
   position: fixed;
   inset: 0;
   pointer-events: none;
   background-image:
-    linear-gradient(var(--ee-grid) 1px, transparent 1px),
-    linear-gradient(90deg, var(--ee-grid) 1px, transparent 1px),
-    repeating-radial-gradient(circle at 12% 18%, var(--ee-body-wash) 0 1px, transparent 1px 18px);
-  background-size: 44px 44px, 44px 44px, 220px 220px;
-  mask-image: linear-gradient(to bottom, black, transparent 88%);
+    linear-gradient(var(--grid-line) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);
+  background-size: 52px 52px;
+  mask-image: linear-gradient(to bottom, black, transparent 62%);
   z-index: -1;
 }
 
-html.light [class*="text-[#efe7d5]"],
-html.light [class*="text-[#d8fffa]"] {
-  color: var(--ee-bone) !important;
+::selection {
+  background: rgba(245, 185, 66, 0.28);
 }
 
-html.light [class*="text-[#9ca89d]"],
-html.light [class*="text-gray-"] {
-  color: var(--ee-muted) !important;
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgb(var(--c-line)) transparent;
 }
+*::-webkit-scrollbar { width: 8px; height: 8px; }
+*::-webkit-scrollbar-thumb { background: rgb(var(--c-line)); border-radius: 8px; }
+*::-webkit-scrollbar-track { background: transparent; }
 
-html.light [class*="bg-[#090d12]"],
-html.light [class*="bg-[#101820]"] {
-  background-color: rgba(255, 255, 255, 0.92) !important;
-}
-
-html.light [class*="bg-white/"],
-html.light [class*="bg-white["],
-html.light [class*="bg-black/"] {
-  background-color: rgba(28, 37, 36, 0.055) !important;
-}
-
-html.light [class*="border-white/"] {
-  border-color: var(--ee-border) !important;
-}
-
-html.light [class*="hover:bg-white/"]:hover {
-  background-color: rgba(28, 37, 36, 0.09) !important;
-}
-
-button,
-input,
-select,
-textarea {
-  font: inherit;
-}
+button, input, select, textarea { font: inherit; }
+button { cursor: pointer; }
+button:disabled { cursor: not-allowed; }
 
 button:focus-visible,
+a:focus-visible,
 input:focus-visible,
 select:focus-visible,
-textarea:focus-visible {
-  outline: 2px solid var(--ee-teal);
+textarea:focus-visible,
+[role="button"]:focus-visible {
+  outline: 2px solid rgb(var(--c-amber));
   outline-offset: 2px;
 }
 
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
+
+select option {
+  background: rgb(var(--c-panel));
+  color: rgb(var(--c-bone));
+}
+
 @layer components {
+  /* ---- surfaces ---- */
   .ee-panel {
-    @apply border shadow-2xl;
-    background: linear-gradient(180deg, color-mix(in srgb, var(--ee-panel-soft) 86%, transparent), color-mix(in srgb, var(--ee-panel) 96%, transparent));
-    border-color: var(--ee-border);
-    box-shadow: 0 22px 60px rgba(0, 0, 0, 0.28);
+    @apply rounded-2xl border border-line bg-panel;
+    box-shadow: 0 1px 0 rgba(255, 255, 255, 0.03) inset, 0 18px 44px rgba(0, 0, 0, 0.26);
+  }
+  html.light .ee-panel {
+    box-shadow: 0 1px 2px rgba(20, 26, 33, 0.05), 0 12px 32px rgba(20, 26, 33, 0.07);
   }
 
   .ee-panel-soft {
-    @apply border;
-    background: color-mix(in srgb, var(--ee-panel-soft) 78%, transparent);
-    border-color: var(--ee-border);
+    @apply rounded-xl border border-line bg-panel2;
   }
 
+  .ee-well {
+    @apply rounded-xl border border-line bg-well;
+  }
+
+  /* ---- type helpers ---- */
+  .ee-eyebrow {
+    @apply inline-flex items-center gap-2 font-display text-[11px] font-semibold uppercase tracking-[0.18em] text-mute;
+  }
+
+  .ee-title {
+    @apply font-display font-bold text-bone;
+    letter-spacing: -0.01em;
+  }
+
+  /* ---- chips & badges ---- */
   .ee-chip {
-    @apply inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-normal;
-    border-color: var(--ee-border);
-    color: var(--ee-muted);
-    background: color-mix(in srgb, var(--ee-panel-soft) 72%, transparent);
+    @apply inline-flex items-center gap-1.5 rounded-full border border-line bg-panel2 px-2.5 py-1 text-[11px] font-bold uppercase tracking-[0.12em] text-mute;
+  }
+
+  /* ---- buttons ---- */
+  .ee-btn {
+    @apply inline-flex select-none items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-bold transition-all duration-150 ease-out-expo active:scale-[0.98] disabled:opacity-45 disabled:active:scale-100;
   }
 
   .ee-primary {
-    @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-bold transition;
-    background: linear-gradient(135deg, var(--ee-amber), #ffd978);
-    color: #15100a;
+    @apply ee-btn bg-amber text-base;
+    color: rgb(24 18 6);
+    box-shadow: 0 0 0 1px rgba(245, 185, 66, 0.25), 0 8px 24px rgba(245, 185, 66, 0.18);
   }
-
-  .ee-primary:hover {
-    filter: brightness(1.05);
+  html.light .ee-primary { color: rgb(255 255 255); }
+  .ee-primary:hover:not(:disabled) {
+    filter: brightness(1.07);
     transform: translateY(-1px);
   }
 
   .ee-secondary {
-    @apply inline-flex items-center justify-center gap-2 rounded-lg border px-4 py-2 text-sm font-semibold transition;
-    border-color: var(--ee-border);
-    color: var(--ee-bone);
-    background: color-mix(in srgb, var(--ee-panel-soft) 74%, transparent);
+    @apply ee-btn border border-line bg-panel2 text-bone hover:bg-line/40;
   }
 
-  .ee-secondary:hover {
-    background: color-mix(in srgb, var(--ee-panel-soft) 92%, transparent);
+  .ee-ghost {
+    @apply ee-btn text-mute hover:bg-line/30 hover:text-bone;
+  }
+
+  .ee-danger {
+    @apply ee-btn bg-coral text-white;
+    box-shadow: 0 8px 24px rgba(244, 104, 79, 0.22);
+  }
+  .ee-danger:hover:not(:disabled) { filter: brightness(1.08); }
+
+  .ee-icon-btn {
+    @apply inline-flex items-center justify-center rounded-lg border border-line bg-panel2 p-2 text-mute transition-colors hover:bg-line/40 hover:text-bone;
+  }
+
+  /* ---- forms ---- */
+  .ee-label {
+    @apply mb-1.5 block text-xs font-bold uppercase tracking-[0.1em] text-mute;
   }
 
   .ee-input {
-    @apply w-full rounded-lg border px-3 py-2 text-sm;
-    color: var(--ee-bone);
-    background: color-mix(in srgb, var(--ee-panel) 78%, transparent);
-    border-color: var(--ee-border);
+    @apply w-full rounded-xl border border-line bg-well px-3.5 py-2.5 text-sm text-bone placeholder-mute/60 transition-colors;
+  }
+  .ee-input:focus {
+    border-color: rgb(var(--c-amber) / 0.6);
+    outline: none;
+  }
+
+  /* ---- toggle switch ---- */
+  .ee-switch {
+    @apply relative inline-flex h-6 w-11 flex-shrink-0 items-center rounded-full border border-line bg-well transition-colors;
+  }
+  .ee-switch[data-on="true"] {
+    background: rgb(var(--c-teal) / 0.9);
+    border-color: transparent;
+  }
+  .ee-switch > span {
+    @apply inline-block h-4 w-4 transform rounded-full bg-mute transition-transform;
+    margin-left: 3px;
+  }
+  .ee-switch[data-on="true"] > span {
+    transform: translateX(20px);
+    background: rgb(var(--c-base));
+  }
+
+  /* ---- dividers ---- */
+  .ee-divider {
+    @apply border-t border-line/60;
   }
 }
 
+/* ---- motion ---- */
 @media (prefers-reduced-motion: no-preference) {
-  .animate-pop-in {
-    animation: pop-in 260ms ease-out;
-  }
-
-  .animate-fade-in-up {
-    animation: fade-in-up 220ms ease-out;
-  }
+  .animate-pop-in { animation: pop-in 260ms cubic-bezier(0.16, 1, 0.3, 1); }
+  .animate-fade-in-up { animation: fade-in-up 240ms cubic-bezier(0.16, 1, 0.3, 1) both; }
+  .animate-fade-in { animation: fade-in 200ms ease-out both; }
+  .animate-reticle { animation: reticle-pulse 2.4s ease-in-out infinite; }
+  .animate-modal-in { animation: modal-in 280ms cubic-bezier(0.16, 1, 0.3, 1) both; }
+  .animate-sheet-in { animation: sheet-in 320ms cubic-bezier(0.16, 1, 0.3, 1) both; }
+  .animate-stagger > * { animation: fade-in-up 320ms cubic-bezier(0.16, 1, 0.3, 1) both; }
+  .animate-stagger > *:nth-child(1) { animation-delay: 20ms; }
+  .animate-stagger > *:nth-child(2) { animation-delay: 60ms; }
+  .animate-stagger > *:nth-child(3) { animation-delay: 100ms; }
+  .animate-stagger > *:nth-child(4) { animation-delay: 140ms; }
+  .animate-stagger > *:nth-child(5) { animation-delay: 180ms; }
+  .animate-stagger > *:nth-child(6) { animation-delay: 220ms; }
+  .animate-stagger > *:nth-child(7) { animation-delay: 260ms; }
+  .animate-stagger > *:nth-child(8) { animation-delay: 300ms; }
 }
 
 @keyframes pop-in {
-  0% { transform: scale(0.8); opacity: 0; }
+  0% { transform: scale(0.75); opacity: 0; }
   100% { transform: scale(1); opacity: 1; }
 }
-
 @keyframes fade-in-up {
-  0% { transform: translateY(8px); opacity: 0; }
+  0% { transform: translateY(10px); opacity: 0; }
   100% { transform: translateY(0); opacity: 1; }
+}
+@keyframes fade-in {
+  0% { opacity: 0; }
+  100% { opacity: 1; }
+}
+@keyframes modal-in {
+  0% { transform: translateY(14px) scale(0.97); opacity: 0; }
+  100% { transform: translateY(0) scale(1); opacity: 1; }
+}
+@keyframes sheet-in {
+  0% { transform: translateY(48px); opacity: 0.6; }
+  100% { transform: translateY(0); opacity: 1; }
+}
+@keyframes reticle-pulse {
+  0%, 100% { transform: scale(1); opacity: 0.55; }
+  50% { transform: scale(1.35); opacity: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
 }
