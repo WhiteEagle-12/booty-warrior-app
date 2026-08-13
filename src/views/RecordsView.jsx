@@ -10,7 +10,7 @@ const RANK_STYLES = [
     'border-line bg-panel2/70',
 ];
 
-export const RecordsView = ({ allLogs, programData, onBack, weightUnit = 'lbs' }) => {
+export const RecordsView = ({ allLogs, programData, onBack, weightUnit = 'lbs', embedded = false }) => {
     const [searchTerm, setSearchTerm] = useState('');
 
     const personalRecords = useMemo(() => {
@@ -43,26 +43,33 @@ export const RecordsView = ({ allLogs, programData, onBack, weightUnit = 'lbs' }
         );
     }, [personalRecords, searchTerm]);
 
+    const searchField = (
+        <div className="relative w-full sm:w-64">
+            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-mute" size={16} />
+            <input
+                type="text"
+                placeholder="Search lifts..."
+                value={searchTerm}
+                onChange={e => setSearchTerm(e.target.value)}
+                className="ee-input pl-10"
+                aria-label="Search records"
+            />
+        </div>
+    );
+
     return (
-        <div className="py-5 md:py-7">
-            <ViewHeader
-                icon={Trophy}
-                eyebrow="Record book"
-                title="Personal records"
-                description="Your strongest estimated one-rep-max sighting for every lift in the program."
-            >
-                <div className="relative w-full sm:w-64">
-                    <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-mute" size={16} />
-                    <input
-                        type="text"
-                        placeholder="Search lifts..."
-                        value={searchTerm}
-                        onChange={e => setSearchTerm(e.target.value)}
-                        className="ee-input pl-10"
-                        aria-label="Search records"
-                    />
-                </div>
-            </ViewHeader>
+        <div className={embedded ? '' : 'py-6 md:py-9'}>
+            {!embedded && (
+                <ViewHeader
+                    icon={Trophy}
+                    eyebrow="Records"
+                    title="Personal records"
+                    description="Your strongest estimated one-rep max for every lift in the program."
+                >
+                    {searchField}
+                </ViewHeader>
+            )}
+            {embedded && <div className="mb-5">{searchField}</div>}
 
             <div className="space-y-2.5 animate-stagger">
                 {filteredRecords.length > 0 ? filteredRecords.map(({ exercise, e1rm, log }, index) => (

@@ -37,7 +37,7 @@ const EmptyChart = ({ message }) => (
     </div>
 );
 
-export const DashboardView = ({ allLogs, programData, bodyWeightHistory, onNavigate }) => {
+export const DashboardView = ({ allLogs, programData, bodyWeightHistory, onNavigate, embedded = false }) => {
     const metrics = useMemo(() => getProgramMetrics(allLogs, programData, bodyWeightHistory), [allLogs, programData, bodyWeightHistory]);
 
     const weeklyVolumeData = useMemo(() => {
@@ -70,13 +70,15 @@ export const DashboardView = ({ allLogs, programData, bodyWeightHistory, onNavig
     const levelProgress = Math.round(((xp % 1200) / 1200) * 100);
 
     return (
-        <div className="py-5 md:py-7">
-            <ViewHeader
-                icon={LayoutDashboard}
-                eyebrow="Command deck"
-                title="Training overview"
-                description="Today's target, block progress, recent load, and the trends that matter — at a glance."
-            />
+        <div className={embedded ? '' : 'py-6 md:py-9'}>
+            {!embedded && (
+                <ViewHeader
+                    icon={LayoutDashboard}
+                    eyebrow="Overview"
+                    title="Training at a glance"
+                    description="Block progress, recent load, and the trends that matter."
+                />
+            )}
 
             <div className="grid grid-cols-2 gap-3.5 animate-stagger lg:grid-cols-4">
                 <div className="ee-panel-soft flex items-center gap-3.5 p-4">
@@ -101,43 +103,41 @@ export const DashboardView = ({ allLogs, programData, bodyWeightHistory, onNavig
                 </div>
             </div>
 
-            <section className="ee-panel mt-5 p-5 sm:p-6">
-                <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
-                    <div className="min-w-0">
-                        <p className="ee-eyebrow text-amber"><Crosshair size={12} /> Next workout</p>
-                        <h2 className="mt-2 truncate font-display text-xl font-bold text-bone sm:text-2xl">
-                            {nextWorkout ? nextWorkout.workout?.label || nextWorkout.workoutName : 'Program complete'}
-                        </h2>
-                        <p className="mt-1 text-sm text-mute">
-                            {nextWorkout ? `Week ${nextWorkout.week} · ${nextWorkout.dayKey}` : 'Start a new block from the Program Hub.'}
-                        </p>
-                    </div>
-                    {nextWorkout && (
+            {!embedded && nextWorkout && (
+                <section className="ee-panel mt-5 p-5 sm:p-6">
+                    <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
+                        <div className="min-w-0">
+                            <p className="ee-eyebrow text-amber"><Crosshair size={12} /> Next workout</p>
+                            <h2 className="mt-2 truncate font-display text-xl font-medium text-bone sm:text-2xl">
+                                {nextWorkout.workout?.label || nextWorkout.workoutName}
+                            </h2>
+                            <p className="mt-1 text-sm text-mute">Week {nextWorkout.week} · {nextWorkout.dayKey}</p>
+                        </div>
                         <button
                             onClick={() => onNavigate && onNavigate('lifting', { week: nextWorkout.week, dayKey: nextWorkout.dayKey })}
                             className="ee-primary flex-shrink-0"
                         >
                             <Play size={15} /> Start
                         </button>
-                    )}
-                </div>
-                {nextExercises.length > 0 && (
-                    <div className="mt-5 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
-                        {nextExercises.map((ex, index) => (
-                            <div key={ex.id || ex.name} className="rounded-xl border border-line bg-well/50 p-3">
-                                <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.12em] text-mute/70">0{index + 1}</p>
-                                <p className="mt-1 truncate text-sm font-bold text-bone">{ex.name}</p>
-                            </div>
-                        ))}
                     </div>
-                )}
-            </section>
+                    {nextExercises.length > 0 && (
+                        <div className="mt-5 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+                            {nextExercises.map((ex, index) => (
+                                <div key={ex.id || ex.name} className="rounded-2xl border border-line bg-well/50 p-3">
+                                    <p className="font-mono text-[10px] font-medium uppercase tracking-[0.12em] text-mute/70">0{index + 1}</p>
+                                    <p className="mt-1 truncate text-sm font-semibold text-bone">{ex.name}</p>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </section>
+            )}
 
             <section className="ee-panel mt-5 p-5 sm:p-6">
                 <div className="flex items-center justify-between">
                     <div>
-                        <p className="ee-eyebrow text-amber"><Trophy size={12} /> Top estimated maxes</p>
-                        <h2 className="mt-2 font-display text-lg font-bold text-bone">Strongest sightings</h2>
+                        <p className="ee-eyebrow text-amber"><Trophy size={12} /> Estimated maxes</p>
+                        <h2 className="mt-2 font-display text-xl font-medium text-bone">Best lifts</h2>
                     </div>
                 </div>
                 <div className="mt-4 grid gap-2.5 md:grid-cols-3">
@@ -163,7 +163,7 @@ export const DashboardView = ({ allLogs, programData, bodyWeightHistory, onNavig
             <div className="mt-5 grid gap-5 lg:grid-cols-2">
                 <section className="ee-panel p-5 sm:p-6">
                     <p className="ee-eyebrow text-teal"><BarChart2 size={12} /> Weekly volume</p>
-                    <h2 className="mb-4 mt-2 font-display text-lg font-bold text-bone">Load trajectory</h2>
+                    <h2 className="mb-4 mt-2 font-display text-xl font-medium text-bone">Load over time</h2>
                     {weeklyVolumeData.length > 0 ? (
                         <ResponsiveContainer width="100%" height={260}>
                             <AreaChart data={weeklyVolumeData}>
@@ -185,7 +185,7 @@ export const DashboardView = ({ allLogs, programData, bodyWeightHistory, onNavig
 
                 <section className="ee-panel p-5 sm:p-6">
                     <p className="ee-eyebrow text-amber"><Scale size={12} /> Bodyweight</p>
-                    <h2 className="mb-4 mt-2 font-display text-lg font-bold text-bone">Trend line</h2>
+                    <h2 className="mb-4 mt-2 font-display text-xl font-medium text-bone">Trend</h2>
                     {bodyWeightData.length > 1 ? (
                         <ResponsiveContainer width="100%" height={260}>
                             <LineChart data={bodyWeightData}>

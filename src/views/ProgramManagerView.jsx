@@ -168,7 +168,7 @@ export const RestoreProgramModal = ({ csvData, onRestore, onClose }) => {
     );
 };
 
-export const ProgramManagerView = ({ onProgramUpdate, activeProgram, programInstances, onInstanceSwitch, onDeleteProgram }) => {
+export const ProgramManagerView = ({ onProgramUpdate, activeProgram, programInstances, onInstanceSwitch, onDeleteProgram, embedded = false }) => {
     const { openModal, closeModal, addToast } = useContext(AppStateContext);
     const fileInputRef = useRef(null);
 
@@ -288,22 +288,31 @@ export const ProgramManagerView = ({ onProgramUpdate, activeProgram, programInst
         );
     };
 
+    const libraryActions = (
+        <>
+            <button onClick={handleExportProgramToCSV} className="ee-secondary">
+                <Download size={15} /> Export CSV
+            </button>
+            <button onClick={handleImportClick} className="ee-primary">
+                <Upload size={15} /> Import file
+            </button>
+            <input type="file" ref={fileInputRef} onChange={handleFileImport} accept=".json,.csv" className="hidden" />
+        </>
+    );
+
     return (
-        <div className="py-5 md:py-7">
-            <ViewHeader
-                icon={BookOpen}
-                eyebrow="Program library"
-                title="Program Hub"
-                description="Import, export, preview, and switch training blocks from one place."
-            >
-                <button onClick={handleExportProgramToCSV} className="ee-secondary">
-                    <Download size={15} /> Export CSV
-                </button>
-                <button onClick={handleImportClick} className="ee-primary">
-                    <Upload size={15} /> Import file
-                </button>
-                <input type="file" ref={fileInputRef} onChange={handleFileImport} accept=".json,.csv" className="hidden" />
-            </ViewHeader>
+        <div className={embedded ? '' : 'py-6 md:py-9'}>
+            {!embedded && (
+                <ViewHeader
+                    icon={BookOpen}
+                    eyebrow="Library"
+                    title="Program Hub"
+                    description="Import, export, preview, and switch training blocks from one place."
+                >
+                    {libraryActions}
+                </ViewHeader>
+            )}
+            {embedded && <div className="mb-5 flex flex-wrap gap-2">{libraryActions}</div>}
 
             {programInstances.length > 0 && (
                 <section className="ee-panel mb-5 p-5 sm:p-6">

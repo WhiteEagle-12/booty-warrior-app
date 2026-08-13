@@ -1,13 +1,12 @@
-# Eagle Eye Training
+# Eagle Eye
 
-A precision instrument panel for strength training: mesocycle workout logging,
-RIR-aware progression suggestions, analytics, personal records, achievements,
-and cloud sync across devices.
+A calm training journal for strength work: today’s session, RIR-aware
+progression, analytics, records, achievements, and cloud sync.
 
 ## Stack
 
 - **React 18 + Vite** — fast dev server and optimized production builds
-- **Tailwind CSS** — token-driven "flight deck" design system (dark & light themes)
+- **Tailwind CSS** — token-driven Atelier design system (dark & light themes)
 - **Firebase** — anonymous auth + Firestore with a persistent multi-tab local cache
 - **Recharts** — analytics visualizations
 - **react-beautiful-dnd** — drag-and-drop program editing
