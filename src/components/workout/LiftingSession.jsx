@@ -73,13 +73,13 @@ export const LiftingSession = ({ week, dayKey, onBack, allLogs, setAllLogs, onSk
     }, [workout, allLogs, week, dayKey, masterExerciseList]);
 
     if (!workout) return (
-        <div className="flex flex-col items-center py-20 text-center">
+        <div className="flex min-h-[80vh] flex-col items-center justify-center py-20 text-center">
             <span className="flex h-16 w-16 items-center justify-center rounded-full border border-sky/30 bg-sky/10">
                 <Moon size={28} className="text-sky" />
             </span>
-            <h2 className="mt-5 font-display text-2xl font-bold text-bone">Rest day</h2>
-            <p className="mt-2 max-w-xs text-sm text-mute">Recovery is where the adaptation happens. Enjoy it.</p>
-            <button onClick={onBack} className="ee-secondary mt-6"><ArrowLeft size={15} /> Back to program</button>
+            <h2 className="ee-display mt-5 text-3xl">Rest day</h2>
+            <p className="ee-lede mt-2">Recovery is part of the work. Enjoy it.</p>
+            <button onClick={onBack} className="ee-secondary mt-6"><ArrowLeft size={15} /> Back to today</button>
         </div>
     );
 
@@ -88,16 +88,16 @@ export const LiftingSession = ({ week, dayKey, onBack, allLogs, setAllLogs, onSk
     const workoutDisplayName = workout.label || workoutName;
 
     return (
-        <div className="py-5 md:py-7">
-            <div className="ee-panel sticky top-[57px] z-30 mb-5 p-4 sm:p-5">
+        <div className="py-4 md:py-8">
+            <div className="sticky top-0 z-30 mb-5 border-b border-line/40 bg-base/80 py-3 backdrop-blur-2xl sm:py-4">
                 <div className="flex items-center justify-between gap-3">
                     <div className="flex min-w-0 items-center gap-3">
-                        <button onClick={onBack} className="ee-icon-btn flex-shrink-0" aria-label="Back to program">
+                        <button onClick={onBack} className="ee-icon-btn flex-shrink-0" aria-label="Back to today">
                             <ArrowLeft size={16} />
                         </button>
                         <div className="min-w-0">
-                            <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-mute">{pageTitle}</p>
-                            <h1 className="truncate font-display text-lg font-bold text-bone sm:text-xl">{workoutDisplayName}</h1>
+                            <p className="text-[11px] font-medium uppercase tracking-[0.16em] text-mute">{pageTitle}</p>
+                            <h1 className="truncate font-display text-xl font-medium text-bone sm:text-2xl">{workoutDisplayName}</h1>
                         </div>
                     </div>
                     <div className="flex flex-shrink-0 items-center gap-2">
@@ -116,8 +116,8 @@ export const LiftingSession = ({ week, dayKey, onBack, allLogs, setAllLogs, onSk
                             style={{ width: `${sessionProgress.percent}%` }}
                         />
                     </div>
-                    <span className="font-mono text-xs font-semibold tabular-nums text-mute">
-                        {sessionProgress.complete}/{sessionProgress.total} sets
+                    <span className="font-mono text-xs font-medium tabular-nums text-mute">
+                        {sessionProgress.complete}/{sessionProgress.total}
                     </span>
                 </div>
             </div>
@@ -139,9 +139,9 @@ export const LiftingSession = ({ week, dayKey, onBack, allLogs, setAllLogs, onSk
                 )}
             </div>
 
-            <div className="mt-8 flex justify-center">
+            <div className="mt-10 flex justify-center pb-8">
                 <button onClick={onBack} className="ee-secondary">
-                    <ArrowLeft size={15} /> Back to program timeline
+                    <ArrowLeft size={15} /> Done for now
                 </button>
             </div>
         </div>

@@ -45,7 +45,7 @@ export const MuscleGroupDetailModal = ({ muscleName, exerciseData, onClose }) =>
     );
 };
 
-export const AnalyticsView = ({ allLogs, programData }) => {
+export const AnalyticsView = ({ allLogs, programData, embedded = false }) => {
     const { masterExerciseList } = programData;
     const { openModal, closeModal } = useContext(AppStateContext);
     const [selectedExercise, setSelectedExercise] = useState('');
@@ -138,17 +138,19 @@ export const AnalyticsView = ({ allLogs, programData }) => {
     }, [allLogs, masterExerciseList]);
 
     return (
-        <div className="py-5 md:py-7">
-            <ViewHeader
-                icon={BarChart2}
-                eyebrow="Performance data"
-                title="Analytics"
-                description="Exercise progression, weekly volume, and estimated effective-set distribution. Direct muscles count as 1.0 set; indirect as 0.5."
-            />
+        <div className={embedded ? '' : 'py-6 md:py-9'}>
+            {!embedded && (
+                <ViewHeader
+                    icon={BarChart2}
+                    eyebrow="Trends"
+                    title="Analytics"
+                    description="Exercise progression, weekly volume, and how your sets land across muscle groups."
+                />
+            )}
 
             <section className="ee-panel p-5 sm:p-6">
                 <p className="ee-eyebrow text-teal"><TrendingUp size={12} /> Individual progression</p>
-                <h2 className="mb-5 mt-2 font-display text-lg font-bold text-bone">Lift-by-lift trajectory</h2>
+                <h2 className="mb-5 mt-2 font-display text-xl font-medium text-bone">Lift by lift</h2>
                 <div className="mb-6 grid gap-4 md:grid-cols-2">
                     <div>
                         <label htmlFor="exercise-search" className="ee-label">Search exercise</label>

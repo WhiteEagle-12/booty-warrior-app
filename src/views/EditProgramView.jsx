@@ -18,7 +18,7 @@ import { RenameWorkoutModal } from '../components/modals/RenameWorkoutModal';
 import { EditWeekCard } from '../components/program/EditWeekCard';
 import { ViewHeader } from '../components/common/ViewHeader';
 
-export const EditProgramView = ({ programData, onProgramDataChange, allLogs, setAllLogs }) => {
+export const EditProgramView = ({ programData, onProgramDataChange, allLogs, setAllLogs, embedded = false }) => {
     const { openModal, closeModal, addToast } = useContext(AppStateContext);
     const { db, customId } = useContext(FirebaseContext);
     const [isScheduleOpen, setScheduleOpen] = useState(false); // State for collapsible schedule
@@ -637,17 +637,26 @@ export const EditProgramView = ({ programData, onProgramDataChange, allLogs, set
 
     return (
         <DragDropContext onDragEnd={onDragEnd}>
-            <div className="py-5 md:py-7">
-                <ViewHeader
-                    icon={Edit}
-                    eyebrow="Program workshop"
-                    title="Edit program"
-                    description="Tune program info, adjust week-specific overrides, and shape the master workout templates."
-                >
-                    <button onClick={handleCreateNewExercise} className="ee-primary">
-                        <PlusCircle size={15} /> New exercise
-                    </button>
-                </ViewHeader>
+            <div className={embedded ? '' : 'py-6 md:py-9'}>
+                {!embedded && (
+                    <ViewHeader
+                        icon={Edit}
+                        eyebrow="Editor"
+                        title="Edit program"
+                        description="Tune program info, adjust week-specific overrides, and shape the master workout templates."
+                    >
+                        <button onClick={handleCreateNewExercise} className="ee-primary">
+                            <PlusCircle size={15} /> New exercise
+                        </button>
+                    </ViewHeader>
+                )}
+                {embedded && (
+                    <div className="mb-5 flex justify-end">
+                        <button onClick={handleCreateNewExercise} className="ee-primary">
+                            <PlusCircle size={15} /> New exercise
+                        </button>
+                    </div>
+                )}
 
                 <div className="mb-5 grid gap-5 lg:grid-cols-[1fr_260px]">
                     <div className="ee-panel p-5 sm:p-6">

@@ -60,18 +60,18 @@ export const TutorialModal = ({ onProgramSelect, onClose, onBodyWeightSet, onSet
                     <Lightbulb size={22} />
                 </span>
                 <div>
-                    <p className="ee-eyebrow text-amber">{isReview ? 'App refresher' : 'First flight'}</p>
-                    <h2 className="mt-1 font-display text-xl font-bold text-bone">
-                        {isReview ? 'How Eagle Eye works' : 'Welcome to Eagle Eye Training'}
+                    <p className="ee-eyebrow text-amber">{isReview ? 'A refresher' : 'Getting started'}</p>
+                    <h2 className="mt-1 font-display text-2xl font-medium text-bone">
+                        {isReview ? 'How Eagle Eye works' : 'Welcome to Eagle Eye'}
                     </h2>
                 </div>
             </div>
 
             <div className="mt-6 min-h-[260px]">
                 {step === 1 && (
-                    <StepCard stepLabel="Home base" title="Your program, week by week">
-                        The <span className="font-bold text-bone">Program</span> screen lays out your mesocycle.
-                        Tap any day to open the session and start logging — the next workout is always highlighted so you never have to think about what comes today.
+                    <StepCard stepLabel="Today" title="One session in front of you">
+                        <span className="font-semibold text-bone">Today</span> is home. Your next workout is already chosen.
+                        Tap Start, or use the week strip to open any other day.
                     </StepCard>
                 )}
                 {step === 2 && (
@@ -82,14 +82,14 @@ export const TutorialModal = ({ onProgramSelect, onClose, onBodyWeightSet, onSet
                     </StepCard>
                 )}
                 {step === 3 && (
-                    <StepCard stepLabel="Customization" title="Make the block yours">
-                        The <span className="font-bold text-bone">Program Hub</span> holds presets and imports. <span className="font-bold text-bone">Edit Program</span> gives full control:
-                        drag days to reorder, click a name to rename it, or use the <Shield size={13} className="inline-block text-sky" /> icon to flip a day between work and rest.
+                    <StepCard stepLabel="Program" title="Make the block yours">
+                        <span className="font-semibold text-bone">Program</span> holds your library and editor.
+                        Drag days to reorder, rename a session, or use the <Shield size={13} className="inline-block text-sky" /> icon to flip a day between work and rest.
                     </StepCard>
                 )}
                 {!isReview && step === 4 && (
-                    <StepCard stepLabel="Cloud sync" title="Create a sync ID">
-                        <p className="mb-4">A unique ID backs up every set and mirrors it across devices. Make it memorable.</p>
+                    <StepCard stepLabel="Cloud" title="Choose your athlete ID">
+                        <p className="mb-4">A private ID backs up every set and mirrors it across devices. Make it memorable.</p>
                         <input
                             type="text"
                             value={tempId}
@@ -123,7 +123,7 @@ export const TutorialModal = ({ onProgramSelect, onClose, onBodyWeightSet, onSet
                 )}
                 {!isReview && step === 6 && (
                     <StepCard stepLabel="Final step" title="Enter your bodyweight">
-                        <p className="mb-4">This powers bodyweight-ratio achievements and trend tracking. You can update it any time in Settings.</p>
+                        <p className="mb-4">This powers bodyweight-ratio badges and your trend line. You can update it any time in You.</p>
                         <input
                             type="number"
                             value={localBodyWeight}

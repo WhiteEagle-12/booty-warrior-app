@@ -12,7 +12,7 @@ const SyncStatus = () => {
 
     if (!isOnline) {
         return (
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-coral/30 bg-coral/10 px-2.5 py-1 text-[11px] font-bold text-coral">
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-coral/30 bg-coral/10 px-2.5 py-1 text-[11px] font-medium text-coral">
                 <WifiOff size={12} />
                 Offline
             </span>
@@ -20,16 +20,16 @@ const SyncStatus = () => {
     }
     if (pending > 0) {
         return (
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-amber/30 bg-amber/10 px-2.5 py-1 text-[11px] font-bold text-amber">
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-amber/30 bg-amber/10 px-2.5 py-1 text-[11px] font-medium text-amber">
                 <CloudUpload size={12} className="animate-pulse" />
-                Syncing
+                Saving
             </span>
         );
     }
     return (
-        <span className="inline-flex items-center gap-1.5 rounded-full border border-teal/25 bg-teal/10 px-2.5 py-1 text-[11px] font-bold text-teal">
+        <span className="inline-flex items-center gap-1.5 rounded-full border border-teal/25 bg-teal/10 px-2.5 py-1 text-[11px] font-medium text-teal">
             <Check size={12} />
-            Synced
+            Saved
         </span>
     );
 };
@@ -38,16 +38,16 @@ export const AppHeader = ({ programName, onNavChange }) => {
     const { theme, toggleTheme } = useContext(ThemeContext);
 
     return (
-        <header className="sticky top-0 z-40 border-b border-line/60 bg-base/85 backdrop-blur-xl">
-            <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-3 py-3 sm:px-5">
+        <header className="sticky top-0 z-40 border-b border-line/40 bg-base/70 backdrop-blur-2xl">
+            <div className="mx-auto flex max-w-5xl items-center justify-between gap-3 px-4 py-3 sm:px-6">
                 <button onClick={() => onNavChange('main')} className="flex min-w-0 items-center gap-3 text-left">
-                    <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl border border-line bg-well md:hidden">
+                    <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-line bg-well md:hidden">
                         <img src="/brand/eagle-eye-mark.png" alt="" className="h-7 w-7 object-contain" />
                     </span>
                     <span className="min-w-0">
-                        <span className="block font-display text-[10px] font-semibold uppercase tracking-[0.22em] text-amber md:hidden">Eagle Eye Training</span>
-                        <span className="hidden font-display text-[10px] font-semibold uppercase tracking-[0.22em] text-mute md:block">Active program</span>
-                        <span className="block truncate text-sm font-bold text-bone">{programName}</span>
+                        <span className="block font-display text-base font-medium leading-none text-bone md:hidden">Eagle Eye</span>
+                        <span className="hidden text-[11px] font-medium uppercase tracking-[0.18em] text-mute md:block">Now training</span>
+                        <span className="mt-0.5 block truncate text-sm text-mute md:mt-0 md:text-bone md:font-medium">{programName}</span>
                     </span>
                 </button>
                 <div className="flex items-center gap-2">

@@ -44,8 +44,8 @@ export const RestTimer = ({ initialTime, onClose, onTimerEnd }) => {
                     </span>
                 </ProgressRing>
                 <div className="min-w-0 flex-grow">
-                    <p className="font-display text-[11px] font-semibold uppercase tracking-[0.18em] text-amber">Resting</p>
-                    <p className="mt-0.5 truncate text-xs text-mute">Next set when the ring closes</p>
+                    <p className="text-[11px] font-medium uppercase tracking-[0.16em] text-amber">Rest</p>
+                    <p className="mt-0.5 truncate text-xs text-mute">Breathe. Next set when the ring closes.</p>
                     <div className="mt-2 flex items-center gap-1.5">
                         <button onClick={() => adjust(-15)} className="ee-icon-btn h-7 w-7 p-0" aria-label="Subtract 15 seconds">
                             <Minus size={13} />

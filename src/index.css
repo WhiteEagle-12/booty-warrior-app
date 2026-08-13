@@ -3,56 +3,52 @@
 @tailwind utilities;
 
 /* ---------------------------------------------------------------------------
-   EAGLE EYE TRAINING — "FLIGHT DECK" DESIGN SYSTEM
-   A precision instrument panel for strength training.
-   Semantic tokens drive every component; themes only swap the tokens.
+   EAGLE EYE — "ATELIER"
+   A warm performance journal. Quiet surfaces, one gold filament, room to breathe.
 --------------------------------------------------------------------------- */
 
 :root {
   color-scheme: dark;
 
-  /* surfaces */
-  --c-base: 7 9 12;          /* app canvas */
-  --c-panel: 13 18 24;       /* raised card */
-  --c-panel2: 19 26 34;      /* elevated inset */
-  --c-well: 5 7 10;          /* sunken well */
-  --c-line: 40 51 63;        /* hairline borders */
+  --c-base: 12 11 9;
+  --c-panel: 20 19 16;
+  --c-panel2: 28 26 22;
+  --c-well: 8 8 6;
+  --c-line: 52 48 38;
 
-  /* ink */
-  --c-bone: 236 232 220;     /* primary text */
-  --c-mute: 139 151 160;     /* secondary text */
+  --c-bone: 244 238 226;
+  --c-mute: 154 146 130;
 
-  /* signals */
-  --c-amber: 245 185 66;     /* primary action / optic reticle */
-  --c-teal: 69 214 194;      /* completion / data */
-  --c-coral: 244 104 79;     /* intensity / danger */
-  --c-sky: 111 150 216;      /* rest / recovery */
+  --c-amber: 214 168 72;
+  --c-teal: 126 176 148;
+  --c-coral: 208 104 78;
+  --c-sky: 124 148 176;
 
-  --glow-amber: rgba(245, 185, 66, 0.16);
-  --grid-line: rgba(236, 232, 220, 0.032);
-  --scanline: rgba(236, 232, 220, 0.05);
+  --glow-amber: rgba(214, 168, 72, 0.14);
+  --glow-sage: rgba(126, 176, 148, 0.08);
+  --shadow-panel: 0 1px 0 rgba(255, 248, 230, 0.04) inset, 0 24px 60px rgba(0, 0, 0, 0.38);
 }
 
 html.light {
   color-scheme: light;
 
-  --c-base: 238 236 229;
-  --c-panel: 255 255 255;
-  --c-panel2: 246 244 238;
-  --c-well: 232 229 220;
-  --c-line: 208 212 216;
+  --c-base: 244 239 228;
+  --c-panel: 255 252 246;
+  --c-panel2: 238 232 218;
+  --c-well: 232 226 212;
+  --c-line: 214 206 188;
 
-  --c-bone: 20 26 33;
-  --c-mute: 96 108 118;
+  --c-bone: 28 24 18;
+  --c-mute: 110 102 88;
 
-  --c-amber: 178 118 14;
-  --c-teal: 13 122 109;
-  --c-coral: 196 70 47;
-  --c-sky: 58 96 160;
+  --c-amber: 168 118 22;
+  --c-teal: 46 122 96;
+  --c-coral: 176 72 50;
+  --c-sky: 62 92 128;
 
-  --glow-amber: rgba(178, 118, 14, 0.12);
-  --grid-line: rgba(20, 26, 33, 0.045);
-  --scanline: rgba(20, 26, 33, 0.05);
+  --glow-amber: rgba(168, 118, 22, 0.10);
+  --glow-sage: rgba(46, 122, 96, 0.06);
+  --shadow-panel: 0 1px 2px rgba(28, 24, 18, 0.04), 0 18px 40px rgba(28, 24, 18, 0.06);
 }
 
 html {
@@ -62,32 +58,34 @@ html {
 
 body {
   margin: 0;
+  min-height: 100vh;
   background:
-    radial-gradient(52rem 32rem at 85% -10%, var(--glow-amber), transparent 62%),
-    radial-gradient(40rem 30rem at -12% 22%, rgba(69, 214, 194, 0.05), transparent 60%),
+    radial-gradient(42rem 28rem at 88% -8%, var(--glow-amber), transparent 64%),
+    radial-gradient(34rem 26rem at -10% 18%, var(--glow-sage), transparent 62%),
     rgb(var(--c-base));
   color: rgb(var(--c-bone));
-  font-family: Manrope, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-family: Outfit, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
 }
 
-/* Faint flight-deck reticle grid, masked toward the top of the viewport */
 body::before {
   content: "";
   position: fixed;
   inset: 0;
   pointer-events: none;
-  background-image:
-    linear-gradient(var(--grid-line) 1px, transparent 1px),
-    linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);
-  background-size: 52px 52px;
-  mask-image: linear-gradient(to bottom, black, transparent 62%);
+  background:
+    radial-gradient(80% 55% at 50% -10%, rgba(214, 168, 72, 0.05), transparent 58%);
   z-index: -1;
 }
 
+html.light body::before {
+  background:
+    radial-gradient(80% 55% at 50% -10%, rgba(168, 118, 22, 0.06), transparent 58%);
+}
+
 ::selection {
-  background: rgba(245, 185, 66, 0.28);
+  background: rgba(214, 168, 72, 0.28);
 }
 
 * {
@@ -95,7 +93,7 @@ body::before {
   scrollbar-color: rgb(var(--c-line)) transparent;
 }
 *::-webkit-scrollbar { width: 8px; height: 8px; }
-*::-webkit-scrollbar-thumb { background: rgb(var(--c-line)); border-radius: 8px; }
+*::-webkit-scrollbar-thumb { background: rgb(var(--c-line)); border-radius: 999px; }
 *::-webkit-scrollbar-track { background: transparent; }
 
 button, input, select, textarea { font: inherit; }
@@ -107,7 +105,8 @@ a:focus-visible,
 input:focus-visible,
 select:focus-visible,
 textarea:focus-visible,
-[role="button"]:focus-visible {
+[role="button"]:focus-visible,
+[role="tab"]:focus-visible {
   outline: 2px solid rgb(var(--c-amber));
   outline-offset: 2px;
 }
@@ -125,86 +124,91 @@ select option {
 }
 
 @layer components {
-  /* ---- surfaces ---- */
   .ee-panel {
-    @apply rounded-2xl border border-line bg-panel;
-    box-shadow: 0 1px 0 rgba(255, 255, 255, 0.03) inset, 0 18px 44px rgba(0, 0, 0, 0.26);
-  }
-  html.light .ee-panel {
-    box-shadow: 0 1px 2px rgba(20, 26, 33, 0.05), 0 12px 32px rgba(20, 26, 33, 0.07);
+    @apply rounded-[1.6rem] border border-line/80 bg-panel;
+    box-shadow: var(--shadow-panel);
   }
 
   .ee-panel-soft {
-    @apply rounded-xl border border-line bg-panel2;
+    @apply rounded-2xl border border-line/70 bg-panel2;
   }
 
   .ee-well {
-    @apply rounded-xl border border-line bg-well;
+    @apply rounded-2xl border border-line/70 bg-well;
   }
 
-  /* ---- type helpers ---- */
+  .ee-kicker {
+    @apply font-sans text-[11px] font-medium uppercase tracking-[0.22em] text-mute;
+  }
+
   .ee-eyebrow {
-    @apply inline-flex items-center gap-2 font-display text-[11px] font-semibold uppercase tracking-[0.18em] text-mute;
+    @apply inline-flex items-center gap-2 font-sans text-[11px] font-medium uppercase tracking-[0.18em] text-mute;
+  }
+
+  .ee-display {
+    @apply font-display font-medium text-bone;
+    letter-spacing: -0.03em;
+    line-height: 1.08;
   }
 
   .ee-title {
-    @apply font-display font-bold text-bone;
-    letter-spacing: -0.01em;
+    @apply font-display font-medium text-bone;
+    letter-spacing: -0.02em;
   }
 
-  /* ---- chips & badges ---- */
+  .ee-lede {
+    @apply max-w-xl text-[15px] leading-7 text-mute;
+  }
+
   .ee-chip {
-    @apply inline-flex items-center gap-1.5 rounded-full border border-line bg-panel2 px-2.5 py-1 text-[11px] font-bold uppercase tracking-[0.12em] text-mute;
+    @apply inline-flex items-center gap-1.5 rounded-full border border-line bg-panel2 px-2.5 py-1 text-[11px] font-medium text-mute;
   }
 
-  /* ---- buttons ---- */
   .ee-btn {
-    @apply inline-flex select-none items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-bold transition-all duration-150 ease-out-expo active:scale-[0.98] disabled:opacity-45 disabled:active:scale-100;
+    @apply inline-flex select-none items-center justify-center gap-2 rounded-full px-4 py-2.5 text-sm font-semibold transition-all duration-200 ease-out-expo active:scale-[0.98] disabled:opacity-45 disabled:active:scale-100;
   }
 
   .ee-primary {
-    @apply ee-btn bg-amber text-base;
+    @apply ee-btn bg-amber;
     color: rgb(24 18 6);
-    box-shadow: 0 0 0 1px rgba(245, 185, 66, 0.25), 0 8px 24px rgba(245, 185, 66, 0.18);
+    box-shadow: 0 0 0 1px rgba(214, 168, 72, 0.22), 0 10px 28px rgba(214, 168, 72, 0.18);
   }
-  html.light .ee-primary { color: rgb(255 255 255); }
+  html.light .ee-primary { color: rgb(255 252 246); }
   .ee-primary:hover:not(:disabled) {
-    filter: brightness(1.07);
+    filter: brightness(1.06);
     transform: translateY(-1px);
   }
 
   .ee-secondary {
-    @apply ee-btn border border-line bg-panel2 text-bone hover:bg-line/40;
+    @apply ee-btn border border-line bg-panel2 text-bone hover:bg-line/30;
   }
 
   .ee-ghost {
-    @apply ee-btn text-mute hover:bg-line/30 hover:text-bone;
+    @apply ee-btn text-mute hover:bg-line/25 hover:text-bone;
   }
 
   .ee-danger {
     @apply ee-btn bg-coral text-white;
-    box-shadow: 0 8px 24px rgba(244, 104, 79, 0.22);
+    box-shadow: 0 8px 24px rgba(208, 104, 78, 0.22);
   }
   .ee-danger:hover:not(:disabled) { filter: brightness(1.08); }
 
   .ee-icon-btn {
-    @apply inline-flex items-center justify-center rounded-lg border border-line bg-panel2 p-2 text-mute transition-colors hover:bg-line/40 hover:text-bone;
+    @apply inline-flex items-center justify-center rounded-full border border-line bg-panel2 p-2 text-mute transition-colors hover:bg-line/30 hover:text-bone;
   }
 
-  /* ---- forms ---- */
   .ee-label {
-    @apply mb-1.5 block text-xs font-bold uppercase tracking-[0.1em] text-mute;
+    @apply mb-1.5 block text-[11px] font-medium uppercase tracking-[0.14em] text-mute;
   }
 
   .ee-input {
-    @apply w-full rounded-xl border border-line bg-well px-3.5 py-2.5 text-sm text-bone placeholder-mute/60 transition-colors;
+    @apply w-full rounded-2xl border border-line bg-well px-3.5 py-2.5 text-sm text-bone placeholder-mute/60 transition-colors;
   }
   .ee-input:focus {
-    border-color: rgb(var(--c-amber) / 0.6);
+    border-color: rgb(var(--c-amber) / 0.55);
     outline: none;
   }
 
-  /* ---- toggle switch ---- */
   .ee-switch {
     @apply relative inline-flex h-6 w-11 flex-shrink-0 items-center rounded-full border border-line bg-well transition-colors;
   }
@@ -221,21 +225,36 @@ select option {
     background: rgb(var(--c-base));
   }
 
-  /* ---- dividers ---- */
   .ee-divider {
     @apply border-t border-line/60;
   }
+
+  .ee-tabs {
+    @apply flex gap-1 overflow-x-auto rounded-full border border-line bg-well/80 p-1;
+    scrollbar-width: none;
+  }
+  .ee-tabs::-webkit-scrollbar { display: none; }
+
+  .ee-tab {
+    @apply flex-1 whitespace-nowrap rounded-full px-3.5 py-2 text-sm font-medium text-mute transition-colors;
+  }
+  .ee-tab.is-active {
+    @apply bg-panel text-bone shadow-sm;
+    box-shadow: 0 1px 0 rgba(255, 248, 230, 0.04) inset, 0 6px 16px rgba(0, 0, 0, 0.18);
+  }
+  html.light .ee-tab.is-active {
+    box-shadow: 0 1px 2px rgba(28, 24, 18, 0.06);
+  }
 }
 
-/* ---- motion ---- */
 @media (prefers-reduced-motion: no-preference) {
-  .animate-pop-in { animation: pop-in 260ms cubic-bezier(0.16, 1, 0.3, 1); }
-  .animate-fade-in-up { animation: fade-in-up 240ms cubic-bezier(0.16, 1, 0.3, 1) both; }
-  .animate-fade-in { animation: fade-in 200ms ease-out both; }
-  .animate-reticle { animation: reticle-pulse 2.4s ease-in-out infinite; }
-  .animate-modal-in { animation: modal-in 280ms cubic-bezier(0.16, 1, 0.3, 1) both; }
-  .animate-sheet-in { animation: sheet-in 320ms cubic-bezier(0.16, 1, 0.3, 1) both; }
-  .animate-stagger > * { animation: fade-in-up 320ms cubic-bezier(0.16, 1, 0.3, 1) both; }
+  .animate-pop-in { animation: pop-in 280ms cubic-bezier(0.16, 1, 0.3, 1); }
+  .animate-fade-in-up { animation: fade-in-up 280ms cubic-bezier(0.16, 1, 0.3, 1) both; }
+  .animate-fade-in { animation: fade-in 220ms ease-out both; }
+  .animate-reticle { animation: reticle-pulse 2.8s ease-in-out infinite; }
+  .animate-modal-in { animation: modal-in 300ms cubic-bezier(0.16, 1, 0.3, 1) both; }
+  .animate-sheet-in { animation: sheet-in 340ms cubic-bezier(0.16, 1, 0.3, 1) both; }
+  .animate-stagger > * { animation: fade-in-up 340ms cubic-bezier(0.16, 1, 0.3, 1) both; }
   .animate-stagger > *:nth-child(1) { animation-delay: 20ms; }
   .animate-stagger > *:nth-child(2) { animation-delay: 60ms; }
   .animate-stagger > *:nth-child(3) { animation-delay: 100ms; }
@@ -251,7 +270,7 @@ select option {
   100% { transform: scale(1); opacity: 1; }
 }
 @keyframes fade-in-up {
-  0% { transform: translateY(10px); opacity: 0; }
+  0% { transform: translateY(12px); opacity: 0; }
   100% { transform: translateY(0); opacity: 1; }
 }
 @keyframes fade-in {
@@ -259,7 +278,7 @@ select option {
   100% { opacity: 1; }
 }
 @keyframes modal-in {
-  0% { transform: translateY(14px) scale(0.97); opacity: 0; }
+  0% { transform: translateY(16px) scale(0.98); opacity: 0; }
   100% { transform: translateY(0) scale(1); opacity: 1; }
 }
 @keyframes sheet-in {
@@ -267,8 +286,8 @@ select option {
   100% { transform: translateY(0); opacity: 1; }
 }
 @keyframes reticle-pulse {
-  0%, 100% { transform: scale(1); opacity: 0.55; }
-  50% { transform: scale(1.35); opacity: 0; }
+  0%, 100% { transform: scale(1); opacity: 0.5; }
+  50% { transform: scale(1.28); opacity: 0; }
 }
 
 @media (prefers-reduced-motion: reduce) {

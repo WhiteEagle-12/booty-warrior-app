@@ -202,23 +202,23 @@ export const SettingsView = ({ allLogs, historicalLogs, weightUnit, onWeightUnit
     const timerSeconds = programData.settings.restTimer.duration % 60;
 
     return (
-        <div className="py-5 md:py-7">
+        <div className="py-6 md:py-9">
             <ViewHeader
                 icon={Settings}
-                eyebrow="Control room"
-                title="Settings"
-                description="Sync, display, timer, and data management — so the workout screens can stay focused."
+                eyebrow="Your account"
+                title="You"
+                description="How the app feels, how it saves, and the data that belongs to you."
             />
 
             <div className="grid gap-5 lg:grid-cols-2">
                 <div className="space-y-5">
-                    <SettingsSection icon={CloudUpload} eyebrow="Cloud sync" title="Sync & identity">
-                        <label htmlFor="customIdInput" className="ee-label">Personal sync ID</label>
+                    <SettingsSection icon={CloudUpload} eyebrow="Cloud" title="Your athlete ID">
+                        <label htmlFor="customIdInput" className="ee-label">Athlete ID</label>
                         <div className="flex gap-2">
-                            <input id="customIdInput" type="text" value={tempId} onChange={e => setTempId(e.target.value)} placeholder="Enter a memorable ID" className="ee-input" />
-                            <button onClick={() => handleSetCustomId(tempId)} className="ee-primary flex-shrink-0">Set</button>
+                            <input id="customIdInput" type="text" value={tempId} onChange={e => setTempId(e.target.value)} placeholder="Something you'll remember" className="ee-input" />
+                            <button onClick={() => handleSetCustomId(tempId)} className="ee-primary flex-shrink-0">Save</button>
                         </div>
-                        <p className="mt-3 text-xs leading-5 text-mute">Your sync ID backs up every set to the cloud and mirrors it across devices. Same ID, same data.</p>
+                        <p className="mt-3 text-xs leading-5 text-mute">Same ID on another device, same journal. Keep it private — it is the key to your training history.</p>
                     </SettingsSection>
 
                     <SettingsSection icon={Sun} eyebrow="Display" title="Preferences">
@@ -335,10 +335,10 @@ export const SettingsView = ({ allLogs, historicalLogs, weightUnit, onWeightUnit
                         </div>
                     </SettingsSection>
 
-                    <SettingsSection icon={HelpCircle} eyebrow="Help" title="Learn the ropes">
-                        <p className="mb-3 text-xs leading-5 text-mute">Need a refresher on how Eagle Eye works?</p>
+                    <SettingsSection icon={HelpCircle} eyebrow="Help" title="A quick tour">
+                        <p className="mb-3 text-xs leading-5 text-mute">Need a refresher on Today, logging, and your program?</p>
                         <button onClick={onShowTutorial} className="ee-secondary w-full">
-                            <HelpCircle size={15} /> Show tutorial
+                            <HelpCircle size={15} /> Show the tour
                         </button>
                     </SettingsSection>
                 </div>

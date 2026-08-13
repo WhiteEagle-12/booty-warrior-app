@@ -127,7 +127,7 @@ export const AchievementCard = ({ achievementId, achievement, unlockedStatus, cu
     );
 };
 
-export const AchievementsView = ({ unlockedAchievements, historicalLogs, programData, bodyWeight, weightUnit, onBack, bodyWeightHistory }) => {
+export const AchievementsView = ({ unlockedAchievements, historicalLogs, programData, bodyWeight, weightUnit, onBack, bodyWeightHistory, embedded = false }) => {
     const { openModal, closeModal } = useContext(AppStateContext);
 
     const processedAchievements = useMemo(() => {
@@ -203,24 +203,31 @@ export const AchievementsView = ({ unlockedAchievements, historicalLogs, program
         );
     };
 
+    const unlockSummary = (
+        <div className="flex items-center gap-3 rounded-2xl border border-line bg-panel2/70 px-4 py-3">
+            <ProgressRing size={52} stroke={4.5} progress={unlockPercent} color="rgb(var(--c-amber))">
+                <Trophy size={17} className="text-amber" />
+            </ProgressRing>
+            <div>
+                <p className="font-display text-lg font-medium leading-none text-bone">{unlockedCount}<span className="text-mute">/{processedAchievements.length}</span></p>
+                <p className="mt-1 text-[11px] font-medium text-mute">Unlocked</p>
+            </div>
+        </div>
+    );
+
     return (
-        <div className="py-5 md:py-7">
-            <ViewHeader
-                icon={Award}
-                eyebrow="Trophy hall"
-                title="Achievements"
-                description="Every measurable win, ranked from first session to legendary status. Locked awards stay dark until the data earns them."
-            >
-                <div className="flex items-center gap-3 rounded-2xl border border-line bg-panel2/70 px-4 py-3">
-                    <ProgressRing size={52} stroke={4.5} progress={unlockPercent} color="rgb(var(--c-amber))">
-                        <Trophy size={17} className="text-amber" />
-                    </ProgressRing>
-                    <div>
-                        <p className="font-display text-lg font-bold leading-none text-bone">{unlockedCount}<span className="text-mute">/{processedAchievements.length}</span></p>
-                        <p className="mt-1 text-[10px] font-bold uppercase tracking-[0.12em] text-mute">Unlocked</p>
-                    </div>
-                </div>
-            </ViewHeader>
+        <div className={embedded ? '' : 'py-6 md:py-9'}>
+            {!embedded && (
+                <ViewHeader
+                    icon={Award}
+                    eyebrow="Badges"
+                    title="Achievements"
+                    description="Every measurable win. Locked awards stay quiet until the data earns them."
+                >
+                    {unlockSummary}
+                </ViewHeader>
+            )}
+            {embedded && <div className="mb-5">{unlockSummary}</div>}
 
             <div className="grid grid-cols-2 gap-3 animate-stagger sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
                 {processedAchievements.map(({ id, achievement, currentValue, unlockedStatus }) => (

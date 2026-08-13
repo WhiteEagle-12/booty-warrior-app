@@ -74,7 +74,7 @@ export const ExerciseCard = ({ exerciseName, week, dayKey, allLogs, onLogChange,
                             : <span className="font-mono text-[11px] font-semibold text-bone">{completion.complete}/{completion.total}</span>}
                     </ProgressRing>
                     <div className="min-w-0 flex-grow">
-                        <h3 className="truncate font-display text-base font-bold text-bone sm:text-lg">{exerciseName}</h3>
+                        <h3 className="truncate font-display text-lg font-medium text-bone sm:text-xl">{exerciseName}</h3>
                         <p className="mt-0.5 text-xs text-mute">
                             {exercise.sets} sets × {exercise.reps} reps
                             {primaryMuscle && <span className="text-mute/70"> · {primaryMuscle}</span>}
